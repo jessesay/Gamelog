@@ -46,7 +46,7 @@ import { demoProfile, loadDemoState, saveDemoState, starterGames } from "@/lib/d
 import { getEffectiveCoverUrl, getKnownCoverUrl, withKnownCover } from "@/lib/coverArt";
 import type { Follow, Game, GameList, GameLog, Profile, ReviewComment } from "@/lib/types";
 
-type View = "home" | "pulse" | "match" | "arena" | "prices" | "discover" | "library" | "coach" | "charts" | "share" | "beta" | "quests" | "wrapped" | "games" | "log" | "feed" | "lists" | "people" | "history" | "sources" | "profile";
+type View = "home" | "pulse" | "match" | "arena" | "prices" | "deals" | "discover" | "library" | "coach" | "charts" | "share" | "beta" | "quests" | "wrapped" | "games" | "log" | "feed" | "lists" | "people" | "history" | "sources" | "profile";
 type AuthMode = "signin" | "signup";
 type FeedFilter = "all" | "following" | "mine";
 type DiscoverMode = "forYou" | "fresh" | "all" | "backlog" | "passed";
@@ -545,7 +545,7 @@ export default function GameLogApp() {
   const [view, setView] = useState<View>("home");
   useEffect(() => {
     const requestedView = new URLSearchParams(window.location.search).get("view") as View | null;
-    const allowedViews: View[] = ["home", "pulse", "match", "arena", "prices", "discover", "library", "coach", "charts", "share", "beta", "quests", "wrapped", "games", "log", "feed", "lists", "people", "history", "sources", "profile"];
+    const allowedViews: View[] = ["home", "pulse", "match", "arena", "prices", "deals", "discover", "library", "coach", "charts", "share", "beta", "quests", "wrapped", "games", "log", "feed", "lists", "people", "history", "sources", "profile"];
     if (requestedView && allowedViews.includes(requestedView)) setView(requestedView);
   }, []);
   const [feedFilter, setFeedFilter] = useState<FeedFilter>("all");
@@ -794,6 +794,35 @@ export default function GameLogApp() {
       .sort((a, b) => Number(b.latest.discount_percent ?? 0) - Number(a.latest.discount_percent ?? 0) || Number(a.latest.current_price ?? 9999) - Number(b.latest.current_price ?? 9999))
       .slice(0, 12);
   }, [addOnsByGameId, priceSnapshots, primaryCatalogGames]);
+  const dealDigestRows = useMemo(() => {
+    const loggedByGameId = new Map(myLogs.map((log) => [log.game_id, log]));
+    return salePriceRows
+      .map((row) => {
+        const parentLog = loggedByGameId.get(row.game.id);
+        const watched = priceWatchIds.includes(row.game.id) || priceWatchIds.includes(row.saleProduct.id);
+        const current = Number(row.latest.current_price ?? 0);
+        const lowSeen = Number(row.low?.current_price ?? row.latest.current_price ?? 0);
+        const discount = Number(row.latest.discount_percent ?? 0);
+        const isLowestSeen = current > 0 && lowSeen > 0 && current <= lowSeen;
+        const backlogSignal = parentLog && ["Backlog", "Want to Play", "Currently Playing"].includes(parentLog.status);
+        const ownedSignal = parentLog && ["Completed", "100% Completed"].includes(parentLog.status);
+        const addOnSignal = row.saleProduct.id !== row.game.id;
+        const score = Math.min(99, Math.round(discount * 1.35 + (isLowestSeen ? 18 : 0) + (watched ? 12 : 0) + (backlogSignal ? 12 : 0) + (current > 0 && current <= 10 ? 8 : 0) + (addOnSignal ? 5 : 0)));
+        const verdict = discount >= 70 || (isLowestSeen && discount >= 50) ? "Buy zone" : discount >= 45 ? "Strong sale" : watched ? "Watch close" : "Deal radar";
+        const reason = [
+          addOnSignal ? `${addOnKind(row.saleProduct)} inside ${row.game.title}` : "Base game deal",
+          watched ? "on your watchlist" : null,
+          backlogSignal ? "already in your backlog" : null,
+          ownedSignal && addOnSignal ? "add-on for a game you logged" : null,
+          isLowestSeen ? "lowest seen" : null,
+          current > 0 && current <= 10 ? "under $10" : null
+        ].filter(Boolean).join(" · ");
+        return { ...row, score, verdict, reason };
+      })
+      .sort((a, b) => b.score - a.score || Number(b.latest.discount_percent ?? 0) - Number(a.latest.discount_percent ?? 0) || Number(a.latest.current_price ?? 9999) - Number(b.latest.current_price ?? 9999))
+      .slice(0, 10);
+  }, [myLogs, priceWatchIds, salePriceRows]);
+
   const priceSearchMatches = useMemo(() => {
     const needle = priceSearch.toLowerCase().trim();
     return primaryCatalogGames
@@ -2752,6 +2781,7 @@ ${item.body}`;
               ["match", "Match"],
               ["arena", "Arena"],
               ["prices", "Prices"],
+              ["deals", "Deals"],
               ["discover", "Discover"],
               ["games", "Games"],
               ["charts", "Charts"],
@@ -2789,9 +2819,9 @@ ${item.body}`;
           <Trophy size={18} />
           <span>Arena</span>
         </button>
-        <button className={`mobile-nav-item ${view === "prices" ? "active" : ""}`} onClick={() => setView("prices")} aria-label="Prices">
+        <button className={`mobile-nav-item ${view === "prices" || view === "deals" ? "active" : ""}`} onClick={() => setView("deals")} aria-label="Deals">
           <DollarSign size={18} />
-          <span>Prices</span>
+          <span>Deals</span>
         </button>
         <button className={`mobile-nav-item ${view === "games" || view === "charts" ? "active" : ""}`} onClick={() => setView("games")} aria-label="Games">
           <Search size={18} />
@@ -2825,6 +2855,7 @@ ${item.body}`;
                 <button className="secondary" onClick={() => setView("arena")}><Trophy size={18} /> Arena</button>
                 <button className="secondary" onClick={() => setView("charts")}><Trophy size={18} /> Charts</button>
                 <button className="secondary" onClick={() => setView("prices")}><DollarSign size={18} /> Price Watch</button>
+                <button className="secondary" onClick={() => setView("deals")}><DollarSign size={18} /> Deal Radar</button>
                 <button className="secondary" onClick={() => setView("log")}><Gamepad2 size={18} /> Log a game</button>
                 <button className="secondary" onClick={() => setView("library")}><Layers3 size={18} /> My library</button>
                 <button className="secondary" onClick={() => openAiCoach("next")}><Sparkles size={18} /> GameLog Coach</button>
@@ -2867,6 +2898,7 @@ ${item.body}`;
               <button className="primary" onClick={() => setView("pulse")}><Flame size={18} /> Open Pulse</button>
               <button className="secondary" onClick={() => setView("match")}><Target size={18} /> Matchmaker</button>
               <button className="secondary" onClick={() => setView("arena")}><Trophy size={18} /> Open Arena</button>
+              <button className="secondary" onClick={() => setView("deals")}><DollarSign size={18} /> Deal Radar</button>
               <button className="secondary" onClick={() => setView("charts")}><Trophy size={18} /> Open Charts</button>
               <button className="secondary" onClick={() => setView("share")}><Share2 size={18} /> Share Studio</button>
               <button className="secondary" onClick={copyBetaInvite}><Share2 size={18} /> Copy beta invite</button>
@@ -2893,6 +2925,11 @@ ${item.body}`;
               <span className="eyebrow">Arena</span>
               <strong>Choose between two games</strong>
               <p>Run quick head-to-head duels and turn indecision into a backlog pick.</p>
+            </button>
+            <button className="command-card card" onClick={() => setView("deals")}>
+              <span className="eyebrow">Deals</span>
+              <strong>Know when to buy</strong>
+              <p>Watch sale drops, lowest seen prices, DLC deals, and backlog-worthy discounts.</p>
             </button>
             <button className="command-card card" onClick={() => openAiCoach("next")}>
               <span className="eyebrow">Coach</span>
@@ -3966,6 +4003,116 @@ ${item.body}`;
             </div>
           </div>
         </section>
+      )}
+
+
+      {view === "deals" && (
+        <>
+          <section className="hero deals-hero-v25">
+            <div className="hero-card">
+              <p className="eyebrow">GameLog Deal Radar</p>
+              <h1>Know what is worth buying, not just what is on sale.</h1>
+              <p className="lede">Deal Radar combines your watchlist, backlog, DLC families, lowest-seen prices, and current discounts so sale browsing feels useful instead of noisy.</p>
+              <div className="actions">
+                <button className="primary" onClick={checkTrackedPrices} disabled={Boolean(priceCheckingId)}><DollarSign size={18} /> {priceCheckingId ? "Checking..." : "Refresh watchlist"}</button>
+                <button className="secondary" onClick={() => setView("prices")}><History size={18} /> Price Watch</button>
+                <button className="secondary" onClick={() => setView("games")}><Search size={18} /> Add games</button>
+              </div>
+            </div>
+            <div className="side-panel card">
+              <p className="eyebrow">Deal score</p>
+              <div className="stats compact-stats">
+                <div className="stat"><strong>{dealDigestRows.length}</strong><span>Ranked deals</span></div>
+                <div className="stat"><strong>{salePriceRows.length}</strong><span>Sales found</span></div>
+                <div className="stat"><strong>{priceWatchIds.length}</strong><span>Watched</span></div>
+                <div className="stat"><strong>{priceSnapshots.filter((item) => item.discount_percent >= 50).length}</strong><span>Deep cuts</span></div>
+              </div>
+              <p className="muted">Tip: Use Price Watch → Seed sample history while testing, then real Steam checks will build real history over time.</p>
+            </div>
+          </section>
+
+          <section className="grid">
+            <div className="col-8 card deal-digest-panel-v25">
+              <div className="review-top">
+                <div>
+                  <p className="eyebrow">Deal Digest</p>
+                  <h2>Best buys right now</h2>
+                </div>
+                <span className="tag">Ranked for your library</span>
+              </div>
+              {dealDigestRows.length ? (
+                <div className="deal-digest-list-v25">
+                  {dealDigestRows.map((row) => (
+                    <article className="deal-digest-row-v25" key={`${row.game.id}-${row.saleProduct.id}`}>
+                      <div className="deal-score-v25">
+                        <strong>{row.score}</strong>
+                        <span>score</span>
+                      </div>
+                      <div>
+                        <span className="price-deal-badge">{row.verdict}</span>
+                        <h3>{row.saleProduct.id === row.game.id ? row.game.title : row.saleProduct.title}</h3>
+                        {row.saleProduct.id !== row.game.id && <p className="muted">Inside {row.game.title}</p>}
+                        <p className="muted">{row.reason || "Good price signal"}</p>
+                        <div className="actions" style={{ marginTop: 10 }}>
+                          <button className="secondary" onClick={() => { setPriceSelectedGameId(row.game.id); setView("prices"); }}>History</button>
+                          <button className="secondary" onClick={() => watchPrice(row.game)}>Watch family</button>
+                          <button className="secondary" onClick={() => checkSteamPrice(row.saleProduct)} disabled={priceCheckingId === row.saleProduct.id}>{priceCheckingId === row.saleProduct.id ? "Checking..." : "Refresh"}</button>
+                          {row.latest.store_url && <a className="secondary inline-link" href={row.latest.store_url} target="_blank" rel="noreferrer"><ExternalLink size={14} /> Store</a>}
+                        </div>
+                      </div>
+                      <div className="deal-price-stack-v25">
+                        <strong>{formatGamePrice(row.latest.current_price, row.latest.currency)}</strong>
+                        <span>{row.latest.discount_percent}% off</span>
+                        <small>Low seen {formatGamePrice(row.low?.current_price, row.latest.currency)}</small>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState title="No deal data yet" body="Add games to Price Watch, check Steam prices, or seed sample history to unlock Deal Radar." />
+              )}
+            </div>
+
+            <aside className="col-4 card">
+              <p className="eyebrow">Buying rules</p>
+              <h2>How GameLog ranks deals</h2>
+              <div className="deal-rules-v25">
+                <div><strong>Discount depth</strong><span>Big sale drops score higher.</span></div>
+                <div><strong>Lowest seen</strong><span>Historical lows get boosted.</span></div>
+                <div><strong>Your backlog</strong><span>Games you already wanted matter more.</span></div>
+                <div><strong>DLC families</strong><span>Add-ons stay nested under the base game.</span></div>
+                <div><strong>Impulse control</strong><span>Deals under $10 get a small bump, but watchlist beats noise.</span></div>
+              </div>
+              <div className="actions" style={{ marginTop: 14 }}>
+                <button className="primary" onClick={() => setView("prices")}><DollarSign size={18} /> Manage watchlist</button>
+                <button className="secondary" onClick={() => setView("sources")}><DownloadCloud size={18} /> Import more games</button>
+              </div>
+            </aside>
+
+            <div className="col-12 card">
+              <div className="review-top">
+                <div>
+                  <p className="eyebrow">Watchlist gaps</p>
+                  <h2>Games worth tracking next</h2>
+                </div>
+                <span className="tag">Backlog + high-match picks</span>
+              </div>
+              <div className="price-watch-grid">
+                {[...matchmakerGames, ...recommendedGames].filter((game, index, arr) => arr.findIndex((item) => item.id === game.id) === index).filter((game) => !priceWatchIds.includes(game.id)).slice(0, 8).map((game) => (
+                  <article className="price-card-v23" key={game.id}>
+                    <strong>{game.title}</strong>
+                    <p className="muted">{game.genre ?? "Game"} · {matchPercent(game, myLogs, tasteGenres, tasteMoods)}% taste match</p>
+                    {!!(addOnsByGameId.get(game.id)?.length ?? 0) && <span className="tag nested-product-tag">{addOnsByGameId.get(game.id)?.length} add-ons inside</span>}
+                    <div className="actions" style={{ marginTop: 10 }}>
+                      <button className="secondary" onClick={() => watchPrice(game)}>Watch price</button>
+                      <button className="secondary" onClick={() => setSelectedGameId(game.id)}>Details</button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </div>
+          </section>
+        </>
       )}
 
 

@@ -30,6 +30,19 @@
       "url": "/?view=pulse"
     },
     {
+      "name": "Deal Radar",
+      "short_name": "Deals",
+      "description": "See ranked sales and price drops.",
+      "url": "/?view=deals",
+      "icons": [
+        {
+          "src": "/icon.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
+    },
+    {
       "name": "Matchmaker",
       "short_name": "Match",
       "description": "Find the right game for tonight",

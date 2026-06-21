@@ -1,34 +1,34 @@
-# GameLog v2.4 — Product Families / DLC Nesting
+# GameLog v2.5 — Deal Radar Layer
 
-This update keeps DLCs, passes, soundtracks, upgrades, and smaller products inside their base game instead of letting them fill the main catalog and price boards.
+GameLog is a videogame diary, discovery, backlog, price watch, and deal-decision app.
 
-## New
+## New in v2.5
 
-- Main Games catalog hides nested DLC/add-ons when a base game is detected.
-- Game cards show compact add-on counts.
-- Game details include a DLC & smaller products drawer.
-- Price Watch groups add-ons under the base game family.
-- Sales can surface either the base game or a nested DLC/pass.
-- Steam import has an optional **Include DLC / smaller products** toggle.
-- Optional Supabase SQL adds `product_type` and `parent_game_id` for cleaner future relationships.
+- Deal Radar view
+- Deal Digest ranking for sales
+- Buy zone / strong sale / watch close verdicts
+- Lowest-seen price boost
+- Backlog and watchlist boosted deals
+- DLC/add-on sale detection under base-game families
+- Watchlist gaps from Matchmaker and For You picks
+- PWA shortcut for Deal Radar
 
-## Install
+## Run
 
-Copy the patch into the repo root, replace files, commit:
+```bash
+pnpm install
+pnpm dev
+```
 
-`Build GameLog v2.4 product families`
+## Vercel
 
-Then run:
+Keep these environment variables in Vercel:
 
-`update-gamelog.bat`
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+- `IGDB_CLIENT_ID`
+- `IGDB_CLIENT_SECRET`
 
-## Test
+## Notes
 
-- Import Steam with **Include DLC / smaller products** checked.
-- Open Games and confirm add-ons are not taking over the grid.
-- Open a base game detail page and look for **DLC & smaller products**.
-- Open Prices and confirm add-ons live inside the game family.
-
-Optional Supabase SQL:
-
-`supabase/v2_4_product_families.sql`
+Deal Radar uses the same price snapshots from Price Watch. Use Steam checks for real data or Seed sample history while testing.
