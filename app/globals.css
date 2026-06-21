@@ -2070,3 +2070,157 @@ textarea:focus {
     border-radius: 14px;
   }
 }
+
+/* v1.5 Wrapped */
+.wrapped-view {
+  align-items: stretch;
+}
+
+.wrapped-hero {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 80% 10%, rgba(236, 72, 153, 0.22), transparent 32%),
+    radial-gradient(circle at 20% 80%, rgba(14, 165, 233, 0.18), transparent 34%),
+    linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(88, 28, 135, 0.58));
+}
+
+.wrapped-share-card {
+  width: min(100%, 360px);
+  padding: 24px;
+  border-radius: 30px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.06)),
+    radial-gradient(circle at 50% 0%, rgba(251, 191, 36, 0.22), transparent 38%);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.34);
+  backdrop-filter: blur(18px);
+}
+
+.wrapped-share-card h2 {
+  font-size: clamp(2rem, 6vw, 3.7rem);
+  line-height: 0.95;
+  margin: 6px 0 14px;
+}
+
+.wrapped-share-card p {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.wrapped-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.wrapped-mini-grid span,
+.wrapped-stat-card {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.wrapped-mini-grid span {
+  display: grid;
+  gap: 2px;
+  padding: 12px;
+  border-radius: 18px;
+}
+
+.wrapped-mini-grid strong,
+.wrapped-stat-card h2 {
+  color: white;
+}
+
+.wrapped-mini-grid em {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-style: normal;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.wrapped-stat-card h2 {
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  margin: 4px 0 8px;
+}
+
+.wrapped-bars {
+  display: grid;
+  gap: 12px;
+}
+
+.wrapped-bar-row {
+  display: grid;
+  gap: 8px;
+}
+
+.wrapped-bar-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 0.92rem;
+}
+
+.wrapped-bar-label strong {
+  color: white;
+}
+
+.wrapped-bar-track {
+  height: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.wrapped-bar-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #38bdf8, #a78bfa, #f472b6);
+}
+
+.wrapped-loved-card {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 16px;
+  width: 100%;
+  text-align: left;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.wrapped-loved-card .game-cover.hero {
+  min-height: 170px;
+}
+
+.wrapped-loved-card span {
+  display: grid;
+  align-content: center;
+  gap: 8px;
+}
+
+.wrapped-loved-card strong {
+  color: white;
+  font-size: 1.35rem;
+}
+
+.wrapped-loved-card em {
+  color: var(--muted);
+  font-style: normal;
+}
+
+@media (max-width: 760px) {
+  .wrapped-loved-card {
+    grid-template-columns: 92px minmax(0, 1fr);
+  }
+
+  .wrapped-loved-card .game-cover.hero {
+    min-height: 132px;
+  }
+}

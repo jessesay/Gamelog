@@ -45,7 +45,7 @@ import { demoProfile, loadDemoState, saveDemoState, starterGames } from "@/lib/d
 import { getEffectiveCoverUrl, getKnownCoverUrl, withKnownCover } from "@/lib/coverArt";
 import type { Follow, Game, GameList, GameLog, Profile, ReviewComment } from "@/lib/types";
 
-type View = "home" | "discover" | "library" | "quests" | "games" | "log" | "feed" | "lists" | "people" | "history" | "sources" | "profile";
+type View = "home" | "discover" | "library" | "quests" | "wrapped" | "games" | "log" | "feed" | "lists" | "people" | "history" | "sources" | "profile";
 type AuthMode = "signin" | "signup";
 type FeedFilter = "all" | "following" | "mine";
 type DiscoverMode = "forYou" | "fresh" | "all" | "backlog" | "passed";
@@ -229,6 +229,30 @@ function monthLabel(monthKey: string) {
 
 function sortByNewest(a: { created_at?: string }, b: { created_at?: string }) {
   return new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime();
+}
+
+function topCounts(values: string[], limit = 6) {
+  const counts = new Map<string, number>();
+  values.filter(Boolean).forEach((value) => counts.set(value, (counts.get(value) ?? 0) + 1));
+  return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, limit).map(([label, value]) => ({ label, value }));
+}
+
+function dayNumber(value: string) {
+  const date = new Date(`${value}T00:00:00`);
+  return Math.floor(date.getTime() / 86400000);
+}
+
+function longestLogStreak(logs: GameLog[]) {
+  const days = Array.from(new Set(logs.map((log) => dateKey(log.played_on ?? log.created_at)).filter(Boolean))).sort();
+  if (!days.length) return 0;
+  let best = 1;
+  let current = 1;
+  for (let i = 1; i < days.length; i += 1) {
+    if (dayNumber(days[i]) - dayNumber(days[i - 1]) === 1) current += 1;
+    else current = 1;
+    best = Math.max(best, current);
+  }
+  return best;
 }
 
 export default function GameLogApp() {
@@ -563,6 +587,41 @@ export default function GameLogApp() {
     { title: "Social player", body: "Follow 5 players.", progress: followingCount, target: 5 }
   ], [backlogCount, completedCount, discoveryActions.length, followingCount, myLogs.length, reviewedCount]);
   const unlockedAchievements = achievementBadges.filter((badge) => badge.progress >= badge.target).length;
+  const wrappedGenreBreakdown = useMemo(() => topCounts(myLogs.map((log) => log.games?.genre || "Game"), 6), [myLogs]);
+  const wrappedVibeBreakdown = useMemo(() => topCounts(myLogs.map((log) => log.vibe || "No vibe"), 6), [myLogs]);
+  const wrappedPlatformBreakdown = useMemo(() => topCounts(myLogs.flatMap((log) => log.games?.platforms ?? []), 6), [myLogs]);
+  const ratingBreakdown = useMemo(() => {
+    const values = [5, 4.5, 4, 3.5, 3, 2.5, 2, 1.5, 1, 0.5];
+    return values.map((value) => ({ label: `${value}★`, value: myLogs.filter((log) => Number(log.rating) === value).length })).filter((item) => item.value > 0);
+  }, [myLogs]);
+  const longestStreak = useMemo(() => longestLogStreak(myLogs), [myLogs]);
+  const mostLovedLog = useMemo(() => {
+    return [...myLogs]
+      .filter((log) => log.games && log.rating !== null && log.rating !== undefined)
+      .sort((a, b) => Number(b.rating ?? 0) - Number(a.rating ?? 0) || new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime())[0] ?? null;
+  }, [myLogs]);
+  const wrappedHeadline = mostLovedLog?.games?.title
+    ? `Your ${currentYear} taste leans ${topLibraryGenre}, with ${mostLovedLog.games.title} sitting at the top.`
+    : `Start logging games and GameLog will build your personal ${currentYear} Wrapped.`;
+  const wrappedShareText = [
+    `My GameLog ${currentYear} Wrapped`,
+    `${myLogs.length} logged games`,
+    `${completedCount} completed`,
+    `${reviewedCount} reviews`,
+    `${backlogCount} in backlog`,
+    `Top genre: ${topLibraryGenre}`,
+    `Top vibe: ${topLibraryVibe}`,
+    `Average rating: ${avgRating}`
+  ].join("\n");
+
+  async function copyWrapped() {
+    if (!navigator.clipboard) {
+      setMessage({ type: "info", text: "Clipboard is not available in this browser." });
+      return;
+    }
+    await navigator.clipboard.writeText(wrappedShareText);
+    setMessage({ type: "ok", text: "Wrapped summary copied." });
+  }
   const nextAchievement = achievementBadges.find((badge) => badge.progress < badge.target) ?? achievementBadges[achievementBadges.length - 1];
 
   useEffect(() => {
@@ -1646,6 +1705,7 @@ export default function GameLogApp() {
               ["discover", "Discover"],
               ["library", "Library"],
               ["quests", "Quests"],
+              ["wrapped", "Wrapped"],
               ["games", "Games"],
               ["log", "Log"],
               ["feed", "Feed"],
@@ -1771,7 +1831,7 @@ export default function GameLogApp() {
               <h2>Your profile</h2>
               <ProfileMini profile={profile} completedCount={completedCount} backlogCount={backlogCount} avgRating={avgRating} followerCount={followerCount} followingCount={followingCount} />
               <div className="divider" />
-              <p className="muted">v1.3 adds the real player library: shelves, monthly stats, backlog attack plan, and a quick path from saved games into actual reviews.</p>
+              <p className="muted">v1.5 adds a shareable Wrapped hub with your taste, streaks, ratings, genres, platforms, and backlog story.</p>
               <div className="divider" />
               <h3>Top rated here</h3>
               <MiniTopGames games={topGames} />
@@ -2177,6 +2237,113 @@ export default function GameLogApp() {
             ) : (
               <EmptyState title="No review debt" body="Complete more games or mark older logs as completed to generate prompts." />
             )}
+          </div>
+        </section>
+      )}
+
+      {view === "wrapped" && (
+        <section className="grid wrapped-view">
+          <div className="col-12 hero-card wrapped-hero">
+            <div>
+              <p className="eyebrow">GameLog v1.5</p>
+              <h1>Your gaming taste, turned into a share card.</h1>
+              <p className="lede">Wrapped turns your logs into a flexable snapshot: what you played, what you finished, what you loved, and what your backlog says about you.</p>
+              <div className="actions">
+                <button className="primary" onClick={copyWrapped}><Share2 size={18} /> Copy Wrapped</button>
+                <button className="secondary" onClick={() => setView("library")}><Layers3 size={18} /> Open library</button>
+                <button className="secondary" onClick={() => setView("log")}><Star size={18} /> Add a log</button>
+              </div>
+            </div>
+            <div className="wrapped-share-card">
+              <p className="eyebrow">{currentYear} Wrapped</p>
+              <h2>{profile.display_name || profile.username || "GameLog Player"}</h2>
+              <p>{wrappedHeadline}</p>
+              <div className="wrapped-mini-grid">
+                <span><strong>{myLogs.length}</strong><em>logs</em></span>
+                <span><strong>{completedCount}</strong><em>finished</em></span>
+                <span><strong>{avgRating}</strong><em>avg</em></span>
+                <span><strong>{longestStreak}</strong><em>day streak</em></span>
+              </div>
+            </div>
+          </div>
+
+          <div className="col-4 card wrapped-stat-card">
+            <p className="eyebrow">Identity</p>
+            <h2>{topLibraryGenre}</h2>
+            <p className="muted">Your top genre across logged games.</p>
+          </div>
+          <div className="col-4 card wrapped-stat-card">
+            <p className="eyebrow">Vibe</p>
+            <h2>{topLibraryVibe}</h2>
+            <p className="muted">The label you keep coming back to.</p>
+          </div>
+          <div className="col-4 card wrapped-stat-card">
+            <p className="eyebrow">Backlog pressure</p>
+            <h2>{backlogCount}</h2>
+            <p className="muted">Games waiting for the next session.</p>
+          </div>
+
+          <div className="col-7 card">
+            <div className="review-top">
+              <div>
+                <p className="eyebrow">Taste breakdown</p>
+                <h2>Genres you actually play</h2>
+              </div>
+              <span className="tag">{myLogs.length} logs</span>
+            </div>
+            <WrappedBars items={wrappedGenreBreakdown} empty="Log a few games and genres will appear here." />
+            <div className="divider" />
+            <h3>Rating curve</h3>
+            <WrappedBars items={ratingBreakdown} empty="Rate games to build your curve." />
+          </div>
+
+          <aside className="col-5 card">
+            <div className="review-top">
+              <div>
+                <p className="eyebrow">Most loved</p>
+                <h2>Top shelf pick</h2>
+              </div>
+              <button className="pill" onClick={() => setView("profile")}>Profile</button>
+            </div>
+            {mostLovedLog?.games ? (
+              <button className="wrapped-loved-card" onClick={() => setSelectedGameId(mostLovedLog.games!.id)}>
+                <GameCover game={mostLovedLog.games} variant="hero" />
+                <span>
+                  <strong>{mostLovedLog.games.title}</strong>
+                  <em>{stars(mostLovedLog.rating)} · {mostLovedLog.vibe || mostLovedLog.status}</em>
+                </span>
+              </button>
+            ) : (
+              <EmptyState title="No top pick yet" body="Rate at least one game and GameLog will crown your current favorite." />
+            )}
+            <div className="divider" />
+            <h3>Platform footprint</h3>
+            <WrappedBars items={wrappedPlatformBreakdown} empty="Log games with platforms to see where you play most." />
+          </aside>
+
+          <div className="col-6 card">
+            <div className="review-top">
+              <div>
+                <p className="eyebrow">Mood map</p>
+                <h2>Your review vibes</h2>
+              </div>
+            </div>
+            <WrappedBars items={wrappedVibeBreakdown} empty="Add vibes to logs to build your mood map." />
+          </div>
+
+          <div className="col-6 card">
+            <div className="review-top">
+              <div>
+                <p className="eyebrow">Next best moves</p>
+                <h2>Make next month better</h2>
+              </div>
+            </div>
+            <div className="mini-list">
+              <button className="mini-row button-row" onClick={() => setView("discover")}><span>Train recommendations</span><strong>{Math.max(0, 50 - discoveryActions.length)} swipes to badge</strong></button>
+              <button className="mini-row button-row" onClick={() => setView("library")}><span>Cut the backlog</span><strong>{backlogAttackPlan[0]?.games?.title ?? "Pick a game"}</strong></button>
+              <button className="mini-row button-row" onClick={() => setView("log")}><span>Write more takes</span><strong>{unreviewedCompletions.length} prompts</strong></button>
+              <button className="mini-row button-row" onClick={() => setView("quests")}><span>Daily loop</span><strong>{questCards.filter((quest) => quest.progress >= quest.target).length}/{questCards.length} quests</strong></button>
+            </div>
           </div>
         </section>
       )}
@@ -2718,6 +2885,22 @@ export default function GameLogApp() {
         </section>
       )}
     </main>
+  );
+}
+
+function WrappedBars({ items, empty }: { items: { label: string; value: number }[]; empty: string }) {
+  const max = Math.max(1, ...items.map((item) => item.value));
+  if (!items.length) return <p className="muted">{empty}</p>;
+
+  return (
+    <div className="wrapped-bars">
+      {items.map((item) => (
+        <div className="wrapped-bar-row" key={item.label}>
+          <div className="wrapped-bar-label"><span>{item.label}</span><strong>{item.value}</strong></div>
+          <div className="wrapped-bar-track"><span style={{ width: `${Math.max(8, (item.value / max) * 100)}%` }} /></div>
+        </div>
+      ))}
+    </div>
   );
 }
 
