@@ -458,6 +458,13 @@ export default function GameLogApp() {
   const [selectedListGame, setSelectedListGame] = useState("");
 
   const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+    const canRegister = window.location.protocol === "https:" || window.location.hostname === "localhost";
+    if (!canRegister) return;
+    navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+  }, []);
   const [editingLogId, setEditingLogId] = useState<string | null>(null);
 
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
@@ -2135,6 +2142,29 @@ export default function GameLogApp() {
         </div>
       </header>
 
+      <nav className="mobile-bottom-nav" aria-label="Mobile quick navigation">
+        <button className={`mobile-nav-item ${view === "home" ? "active" : ""}`} onClick={() => setView("home")} aria-label="Home">
+          <Gamepad2 size={18} />
+          <span>Home</span>
+        </button>
+        <button className={`mobile-nav-item ${view === "discover" ? "active" : ""}`} onClick={() => setView("discover")} aria-label="Discover">
+          <Sparkles size={18} />
+          <span>Swipe</span>
+        </button>
+        <button className={`mobile-nav-item ${view === "games" ? "active" : ""}`} onClick={() => setView("games")} aria-label="Games">
+          <Search size={18} />
+          <span>Games</span>
+        </button>
+        <button className={`mobile-nav-item ${view === "library" ? "active" : ""}`} onClick={() => setView("library")} aria-label="Library">
+          <Layers3 size={18} />
+          <span>Library</span>
+        </button>
+        <button className={`mobile-nav-item ${view === "coach" ? "active" : ""}`} onClick={() => openAiCoach("next")} aria-label="AI Coach">
+          <Zap size={18} />
+          <span>Coach</span>
+        </button>
+      </nav>
+
       {message && (
         <div className={`notice ${message.type}`} role="status" style={{ marginBottom: 18 }}>
           {message.text}
@@ -2179,6 +2209,18 @@ export default function GameLogApp() {
                 <div className="stat"><strong>{followingCount}</strong><span>Following</span></div>
               </div>
               <button className="secondary" onClick={backlogRoulette}>Backlog roulette</button>
+            </div>
+          </section>
+
+          <section className="launch-strip card">
+            <div>
+              <p className="eyebrow">v1.11 mobile launch polish</p>
+              <h2>GameLog is now easier to use like a real phone app.</h2>
+              <p className="muted">Bottom navigation keeps the core loop one thumb away: Swipe, Games, Library, and AI Coach. The app also ships with a web app manifest and offline shell support for Vercel.</p>
+            </div>
+            <div className="launch-actions">
+              <button className="primary" onClick={() => setView("discover")}><Sparkles size={18} /> Open swipe deck</button>
+              <button className="secondary" onClick={() => copyShareLink("/", "GameLog app")}><Share2 size={18} /> Copy app link</button>
             </div>
           </section>
 
@@ -2243,7 +2285,7 @@ export default function GameLogApp() {
               <h2>Your profile</h2>
               <ProfileMini profile={profile} completedCount={completedCount} backlogCount={backlogCount} avgRating={avgRating} followerCount={followerCount} followingCount={followingCount} />
               <div className="divider" />
-              <p className="muted">v1.8 adds the AI Backlog Coach while keeping the main navigation compact.</p>
+              <p className="muted">v1.11 adds mobile bottom navigation, PWA-ready metadata, and a cleaner launch shell while keeping AI Coach and IGDB imports intact.</p>
               <div className="divider" />
               <h3>Top rated here</h3>
               <MiniTopGames games={topGames} />
@@ -2833,7 +2875,7 @@ export default function GameLogApp() {
               </div>
             </div>
             <div className="catalog-engine-note">
-              <BadgeCheck size={16} /> v1.10 hides duplicate catalog cards, replaces starter copies with IGDB records, and keeps the Games page lighter with Show More.
+              <BadgeCheck size={16} /> v1.11 keeps the v1.10 duplicate cleanup and Show More flow, then adds mobile launch polish and PWA-ready app metadata.
             </div>
             <div className="catalog-toolbar">
               <span><strong>{filteredGames.length}</strong> matches</span>

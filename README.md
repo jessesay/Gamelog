@@ -1,3 +1,17 @@
+# GameLog v1.11 — Mobile Launch Polish
+
+## New in v1.11
+
+- Adds a fixed mobile bottom nav for the real core loop: Home, Swipe, Games, Library, Coach.
+- Adds PWA-ready metadata, `manifest.webmanifest`, app icon, and a lightweight service worker shell.
+- Adds a home launch strip that explains the phone-first flow and lets you copy the app link.
+- Keeps v1.10 duplicate cleanup, Show More, IGDB imports, and AI Coach intact.
+- Keeps `ai@6.0.208` pinned so Vercel lockfile builds stay stable.
+
+After pushing, redeploy on Vercel and open the site on your phone. Use the browser menu to add it to your home screen if available.
+
+---
+
 # GameLog v1.10 — IGDB-first Catalog Engine
 
 
