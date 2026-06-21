@@ -45,7 +45,7 @@ import { demoProfile, loadDemoState, saveDemoState, starterGames } from "@/lib/d
 import { getEffectiveCoverUrl, getKnownCoverUrl, withKnownCover } from "@/lib/coverArt";
 import type { Follow, Game, GameList, GameLog, Profile, ReviewComment } from "@/lib/types";
 
-type View = "home" | "pulse" | "discover" | "library" | "coach" | "charts" | "share" | "beta" | "quests" | "wrapped" | "games" | "log" | "feed" | "lists" | "people" | "history" | "sources" | "profile";
+type View = "home" | "pulse" | "match" | "discover" | "library" | "coach" | "charts" | "share" | "beta" | "quests" | "wrapped" | "games" | "log" | "feed" | "lists" | "people" | "history" | "sources" | "profile";
 type AuthMode = "signin" | "signup";
 type FeedFilter = "all" | "following" | "mine";
 type DiscoverMode = "forYou" | "fresh" | "all" | "backlog" | "passed";
@@ -54,6 +54,8 @@ type DiscoveryMood = "All" | "Cozy" | "Hardcore" | "Multiplayer" | "Story" | "Sh
 type SourceMode = "archive" | "igdb" | "steam" | "rawg" | "itch" | "bulk";
 type ArchiveMode = "guides" | "software" | "covers";
 type CoachMode = "next" | "weekend" | "review" | "taste";
+type MatchLength = "Quick" | "One night" | "Long haul";
+type MatchEnergy = "Any" | "Cozy" | "Challenge" | "Story" | "Social";
 type FeedbackKind = "Bug" | "Missing game" | "Duplicate game" | "Feature idea" | "UI polish" | "Other";
 type DiscoveryAction = { id: string; user_id: string; game_id: string; action: DiscoveryActionName; created_at: string; games?: Game | null };
 type UndoAction =
@@ -65,6 +67,8 @@ type Message = { type: "ok" | "error" | "info"; text: string } | null;
 const statuses = ["Want to Play", "Backlog", "Currently Playing", "Completed", "100% Completed", "Dropped", "Replaying"];
 const vibes = ["Masterpiece", "Hidden Gem", "Overrated", "Cozy", "Sweaty", "Chaos", "Not for Me", "Forever Game"];
 const discoveryMoods: DiscoveryMood[] = ["All", "Cozy", "Hardcore", "Multiplayer", "Story", "Short", "Open World", "Shooter", "Strategy", "Indie"];
+const matchLengths: MatchLength[] = ["Quick", "One night", "Long haul"];
+const matchEnergies: MatchEnergy[] = ["Any", "Cozy", "Challenge", "Story", "Social"];
 
 const demoFriends: Profile[] = [
   {
@@ -379,7 +383,7 @@ export default function GameLogApp() {
   const [view, setView] = useState<View>("home");
   useEffect(() => {
     const requestedView = new URLSearchParams(window.location.search).get("view") as View | null;
-    const allowedViews: View[] = ["home", "pulse", "discover", "library", "coach", "charts", "share", "beta", "quests", "wrapped", "games", "log", "feed", "lists", "people", "history", "sources", "profile"];
+    const allowedViews: View[] = ["home", "pulse", "match", "discover", "library", "coach", "charts", "share", "beta", "quests", "wrapped", "games", "log", "feed", "lists", "people", "history", "sources", "profile"];
     if (requestedView && allowedViews.includes(requestedView)) setView(requestedView);
   }, []);
   const [feedFilter, setFeedFilter] = useState<FeedFilter>("all");
@@ -470,6 +474,8 @@ export default function GameLogApp() {
   const [selectedListGame, setSelectedListGame] = useState("");
 
   const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
+  const [matchLength, setMatchLength] = useState<MatchLength>("One night");
+  const [matchEnergy, setMatchEnergy] = useState<MatchEnergy>("Any");
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
@@ -719,6 +725,53 @@ export default function GameLogApp() {
       .sort((a, b) => b.score - a.score || a.game.title.localeCompare(b.game.title))
       .slice(0, 12);
   }, [catalogGames, loggedGameIds, myLogs, passedGameIds, tasteGenres, tasteMoods, topLibraryGenre]);
+
+  const matchmakerPicks = useMemo(() => {
+    const ownedStatuses = new Map(myLogs.map((log) => [log.game_id, log.status]));
+
+    return catalogGames
+      .map((game) => {
+        const text = [game.title, game.genre, game.summary, game.developer, game.publisher, ...(game.platforms ?? [])].filter(Boolean).join(" ").toLowerCase();
+        const reasons: string[] = [];
+        const status = ownedStatuses.get(game.id);
+        let score = gameTasteScore(game, myLogs, tasteGenres, tasteMoods);
+
+        if (status === "Currently Playing") { score += 18; reasons.push("Already in progress"); }
+        if (status === "Backlog" || status === "Want to Play") { score += 14; reasons.push("Saved in your backlog"); }
+        if (status === "Completed" || status === "100% Completed") { score -= 18; reasons.push("Already finished"); }
+        if (passedGameIds.has(game.id)) score -= 22;
+
+        if (matchLength === "Quick") {
+          if (/short|run|arcade|rogue|hades|vampire|slay|session|arena|chapter/.test(text)) { score += 12; reasons.push("Quick-session energy"); }
+          if (/open world|massive|mmo|hundred|campaign|crpg|jrpg|simulator/.test(text)) score -= 5;
+        }
+        if (matchLength === "One night") {
+          if (/story|action|adventure|shooter|indie|horror|chapter|campaign/.test(text)) { score += 8; reasons.push("Good one-night plan"); }
+        }
+        if (matchLength === "Long haul") {
+          if (/rpg|open world|sandbox|strategy|sim|mmo|colony|survival|builder|management/.test(text)) { score += 12; reasons.push("Long-haul save"); }
+        }
+
+        if (matchEnergy === "Cozy" && /cozy|farm|life|animal|stardew|chill|island|fishing|craft/.test(text)) { score += 12; reasons.push("Cozy lane"); }
+        if (matchEnergy === "Challenge" && /souls|hard|tactical|survival|boss|precision|rogue|ranked|doom/.test(text)) { score += 12; reasons.push("Challenge pick"); }
+        if (matchEnergy === "Story" && /story|narrative|rpg|detective|cinematic|choice|dialogue|mystery/.test(text)) { score += 12; reasons.push("Story-first pick"); }
+        if (matchEnergy === "Social" && /co-op|coop|multiplayer|party|mmo|online|team|squad|sports|battle royale/.test(text)) { score += 12; reasons.push("Good with people"); }
+
+        if (gameSource(game) === "IGDB") score += 4;
+        if (getEffectiveCoverUrl(game)) score += 3;
+        if (game.summary) score += 2;
+
+        const discoveryReasons = getDiscoveryReasons(game, myLogs);
+        const uniqueReasons = Array.from(new Set([...reasons, ...discoveryReasons])).slice(0, 4);
+        const percent = Math.max(58, Math.min(99, 66 + score * 2));
+        const label = status === "Currently Playing" ? "Continue" : status === "Backlog" || status === "Want to Play" ? "Backlog" : "Fresh pick";
+
+        return { game, score, percent, label, reasons: uniqueReasons.length ? uniqueReasons : ["Fits your current settings"] };
+      })
+      .filter((item) => item.score > -6)
+      .sort((a, b) => b.score - a.score || Number(Boolean(getEffectiveCoverUrl(b.game))) - Number(Boolean(getEffectiveCoverUrl(a.game))) || a.game.title.localeCompare(b.game.title))
+      .slice(0, 12);
+  }, [catalogGames, matchEnergy, matchLength, myLogs, passedGameIds, tasteGenres, tasteMoods]);
 
   const mostLoggedChart = useMemo(() => {
     return catalogGames
@@ -995,7 +1048,7 @@ export default function GameLogApp() {
       const stored = window.localStorage.getItem("gamelog_beta_feedback_queue");
       if (stored) setFeedbackQueue(JSON.parse(stored));
       const requestedView = new URLSearchParams(window.location.search).get("view") as View | null;
-      if (requestedView && ["home", "pulse", "discover", "library", "coach", "charts", "share", "beta", "games", "log", "feed", "sources", "profile"].includes(requestedView)) {
+      if (requestedView && ["home", "pulse", "match", "discover", "library", "coach", "charts", "share", "beta", "games", "log", "feed", "sources", "profile"].includes(requestedView)) {
         setView(requestedView);
       }
     } catch {
@@ -2343,6 +2396,7 @@ ${item.body}`;
             {[
               ["home", "Home"],
               ["pulse", "Pulse"],
+              ["match", "Match"],
               ["discover", "Discover"],
               ["games", "Games"],
               ["charts", "Charts"],
@@ -2372,6 +2426,10 @@ ${item.body}`;
           <Flame size={18} />
           <span>Pulse</span>
         </button>
+        <button className={`mobile-nav-item ${view === "match" ? "active" : ""}`} onClick={() => setView("match")} aria-label="Match">
+          <Target size={18} />
+          <span>Match</span>
+        </button>
         <button className={`mobile-nav-item ${view === "games" || view === "charts" ? "active" : ""}`} onClick={() => setView("games")} aria-label="Games">
           <Search size={18} />
           <span>Games</span>
@@ -2400,6 +2458,7 @@ ${item.body}`;
               <div className="actions">
                 <button className="primary" onClick={() => setView("pulse")}><Flame size={18} /> Open Pulse</button>
                 <button className="secondary" onClick={() => setView("discover")}><Sparkles size={18} /> Start swiping</button>
+                <button className="secondary" onClick={() => setView("match")}><Target size={18} /> Matchmaker</button>
                 <button className="secondary" onClick={() => setView("charts")}><Trophy size={18} /> Charts</button>
                 <button className="secondary" onClick={() => setView("log")}><Gamepad2 size={18} /> Log a game</button>
                 <button className="secondary" onClick={() => setView("library")}><Layers3 size={18} /> My library</button>
@@ -2441,6 +2500,7 @@ ${item.body}`;
             </div>
             <div className="launch-actions">
               <button className="primary" onClick={() => setView("pulse")}><Flame size={18} /> Open Pulse</button>
+              <button className="secondary" onClick={() => setView("match")}><Target size={18} /> Matchmaker</button>
               <button className="secondary" onClick={() => setView("charts")}><Trophy size={18} /> Open Charts</button>
               <button className="secondary" onClick={() => setView("share")}><Share2 size={18} /> Share Studio</button>
               <button className="secondary" onClick={copyBetaInvite}><Share2 size={18} /> Copy beta invite</button>
@@ -2457,6 +2517,11 @@ ${item.body}`;
               <span className="eyebrow">Charts</span>
               <strong>See what matters</strong>
               <p>Top rated, most logged, hidden gems, For You, and backlog heat.</p>
+            </button>
+            <button className="command-card card" onClick={() => setView("match")}>
+              <span className="eyebrow">Matchmaker</span>
+              <strong>Pick the right game fast</strong>
+              <p>Choose the session length and vibe, then let GameLog rank what to play next.</p>
             </button>
             <button className="command-card card" onClick={() => openAiCoach("next")}>
               <span className="eyebrow">Coach</span>
@@ -2545,6 +2610,7 @@ ${item.body}`;
               <div className="actions">
                 <button className="primary" onClick={() => setView("discover")}><Sparkles size={18} /> Swipe more</button>
                 <button className="secondary" onClick={() => openAiCoach("next")}><Zap size={18} /> GameLog Coach</button>
+                <button className="secondary" onClick={() => setView("match")}><Target size={18} /> Matchmaker</button>
                 <button className="secondary" onClick={() => setView("charts")}><Trophy size={18} /> Open Charts</button>
               </div>
               <div className="pulse-score-grid">
@@ -2640,6 +2706,7 @@ ${item.body}`;
               <p className="lede">Charts turn GameLog from a tracker into a place to browse taste: top rated, most logged, hidden gems, backlog heat, and personal For You picks.</p>
               <div className="actions">
                 <button className="primary" onClick={() => setView("games")}><Search size={18} /> Search catalog</button>
+                <button className="secondary" onClick={() => setView("match")}><Target size={18} /> Matchmaker</button>
                 <button className="secondary" onClick={() => setView("pulse")}><Flame size={18} /> Open Pulse</button>
                 <button className="secondary" onClick={() => setView("lists")}><ListPlus size={18} /> Make a list</button>
               </div>
@@ -2651,6 +2718,74 @@ ${item.body}`;
             <ChartColumn title="Most logged" subtitle="What players have actually been touching." rows={mostLoggedChart} onPick={(game) => { setSelectedGameId(game.id); setView("games"); }} />
             <ChartColumn title="Hidden gems" subtitle="Small signal, high upside." rows={hiddenGemChartRows} onPick={(game) => { setSelectedGameId(game.id); setView("games"); }} />
             <ChartColumn title="Backlog heat" subtitle="Your best saved games to attack next." rows={backlogHeatRows} onPick={(game) => { setSelectedGameId(game.id); setView("games"); }} />
+          </section>
+        </>
+      )}
+
+
+      {view === "match" && (
+        <>
+          <section className="hero match-hero-v21">
+            <div className="hero-card">
+              <p className="eyebrow">GameLog Matchmaker</p>
+              <h1>Find the right game for tonight.</h1>
+              <p className="lede">Pick the session length and vibe. GameLog ranks your backlog, current games, and catalog picks without making you dig through hundreds of covers.</p>
+              <div className="match-control-grid-v21">
+                <div className="card match-control-card-v21">
+                  <p className="eyebrow">Session</p>
+                  <div className="segmented-v21">
+                    {matchLengths.map((option) => (
+                      <button key={option} className={`pill ${matchLength === option ? "active" : ""}`} onClick={() => setMatchLength(option)}>{option}</button>
+                    ))}
+                  </div>
+                </div>
+                <div className="card match-control-card-v21">
+                  <p className="eyebrow">Mood</p>
+                  <div className="segmented-v21">
+                    {matchEnergies.map((option) => (
+                      <button key={option} className={`pill ${matchEnergy === option ? "active" : ""}`} onClick={() => setMatchEnergy(option)}>{option}</button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="card match-side-v21">
+              <p className="eyebrow">Tonight mode</p>
+              <h2>{matchmakerPicks[0]?.game.title ?? "Build your taste"}</h2>
+              <p className="muted">{matchmakerPicks[0] ? `${matchmakerPicks[0].percent}% fit · ${matchmakerPicks[0].reasons[0]}` : "Log, swipe, or import a few games and GameLog will turn this into a sharper play call."}</p>
+              {matchmakerPicks[0] ? <GameCover game={matchmakerPicks[0].game} variant="hero" /> : <EmptyState title="No pick yet" body="Import games or save a few from Discover." />}
+              <div className="actions">
+                {matchmakerPicks[0] && <button className="primary" onClick={() => { setLogGameId(matchmakerPicks[0].game.id); setView("log"); }}><Star size={16} /> Log it</button>}
+                <button className="secondary" onClick={() => setView("discover")}><Sparkles size={16} /> Train taste</button>
+              </div>
+            </div>
+          </section>
+
+          <section className="match-grid-v21">
+            {matchmakerPicks.map((item, index) => (
+              <article className="card match-card-v21" key={item.game.id}>
+                <div className="match-rank-v21">#{index + 1}</div>
+                <GameCover game={item.game} />
+                <div className="match-body-v21">
+                  <div className="review-top">
+                    <div>
+                      <p className="eyebrow">{item.label}</p>
+                      <h2>{item.game.title}</h2>
+                    </div>
+                    <span className="match-score-badge-v21">{item.percent}%</span>
+                  </div>
+                  <p className="muted">{item.game.release_year ?? "TBA"} · {item.game.genre ?? "Game"} · {gameSource(item.game)}</p>
+                  <div className="tag-row">
+                    {item.reasons.map((reason) => <span className="tag" key={reason}>{reason}</span>)}
+                  </div>
+                  <div className="actions">
+                    <button className="primary" onClick={() => { setLogGameId(item.game.id); setView("log"); }}><Star size={16} /> Log</button>
+                    <button className="secondary" onClick={() => void quickLogGame(item.game, "Backlog")}><BookmarkPlus size={16} /> Save</button>
+                    <button className="secondary" onClick={() => { setSelectedGameId(item.game.id); setView("games"); }}><Search size={16} /> Details</button>
+                  </div>
+                </div>
+              </article>
+            ))}
           </section>
         </>
       )}

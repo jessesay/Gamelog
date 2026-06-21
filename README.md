@@ -1,3 +1,19 @@
+# GameLog v2.1 — Matchmaker Layer
+
+GameLog v2.1 adds **GameLog Matchmaker**, a new play-next picker that ranks games by session length, mood, backlog status, current library, covers, and taste signals. It is designed to make GameLog feel more useful than a passive tracker: open it, pick the vibe, and know what to play.
+
+## v2.1 highlights
+
+- New **Match** tab in desktop navigation.
+- New **Match** shortcut in the mobile bottom bar.
+- Session filters: **Quick**, **One night**, **Long haul**.
+- Mood filters: **Any**, **Cozy**, **Challenge**, **Story**, **Social**.
+- Ranked match cards with fit percent, reasons, Log, Save, and Details actions.
+- PWA shortcut for Matchmaker.
+- Vercel hotfix preserved: root `GameLogApp.tsx` safely re-exports the real component.
+
+---
+
 # GameLog v2.0 — Pulse + Charts Launch Layer
 
 GameLog is a mobile-first social game diary: swipe discovery, IGDB-powered catalog imports, library tracking, reviews, public profiles, shareable lists, beta feedback, and GameLog Coach powered behind the scenes by Vercel AI Gateway.

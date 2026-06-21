@@ -988,7 +988,7 @@ textarea:focus {
 
 @media (min-width: 901px) {
   .discover-controls {
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(6, 1fr);
   }
 }
 
@@ -2492,7 +2492,7 @@ textarea:focus {
     bottom: calc(10px + env(safe-area-inset-bottom));
     z-index: 40;
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(6, 1fr);
     gap: 4px;
     padding: 8px;
     border: 1px solid rgba(255, 255, 255, 0.14);
@@ -3025,5 +3025,122 @@ textarea:focus {
   .chart-row-v20 em {
     grid-column: 2 / -1;
     justify-self: start;
+  }
+}
+
+
+/* v2.1 GameLog Matchmaker */
+.match-hero-v21 {
+  grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
+}
+
+.match-control-grid-v21 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.match-control-card-v21 {
+  padding: 16px;
+  box-shadow: none;
+}
+
+.segmented-v21 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.match-side-v21 {
+  padding: 20px;
+  display: grid;
+  gap: 14px;
+  align-content: start;
+  background: radial-gradient(circle at top left, rgba(34, 211, 238, 0.16), transparent 38%), rgba(255,255,255,0.06);
+}
+
+.match-side-v21 .poster-hero {
+  min-height: 300px;
+}
+
+.match-grid-v21 {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.match-card-v21 {
+  position: relative;
+  padding: 14px;
+  display: grid;
+  grid-template-columns: 116px minmax(0, 1fr);
+  gap: 14px;
+  overflow: hidden;
+}
+
+.match-card-v21::after {
+  content: "";
+  position: absolute;
+  inset: auto -30% -45% 28%;
+  height: 120px;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.2), transparent 66%);
+  pointer-events: none;
+}
+
+.match-rank-v21 {
+  position: absolute;
+  z-index: 2;
+  top: 10px;
+  left: 10px;
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: rgba(0,0,0,0.72);
+  border: 1px solid rgba(255,255,255,0.18);
+  font-size: 0.75rem;
+  font-weight: 950;
+}
+
+.match-body-v21 {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+.match-body-v21 h2 {
+  margin-bottom: 0;
+  font-size: 1.35rem;
+}
+
+.match-score-badge-v21 {
+  display: inline-grid;
+  place-items: center;
+  min-width: 56px;
+  min-height: 38px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(34, 211, 238, 0.26), rgba(139, 92, 246, 0.28));
+  border: 1px solid rgba(255,255,255,0.16);
+  font-weight: 950;
+}
+
+@media (max-width: 900px) {
+  .match-hero-v21,
+  .match-control-grid-v21,
+  .match-card-v21 {
+    grid-template-columns: 1fr;
+  }
+
+  .match-card-v21 > .cover {
+    min-height: 240px;
+  }
+}
+
+@media (max-width: 760px) {
+  .mobile-nav-item {
+    font-size: 0.66rem;
+    padding-inline: 2px;
   }
 }
