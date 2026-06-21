@@ -1,14 +1,23 @@
-# GameLog v1.11 — Mobile Launch Polish
+# GameLog v1.12 — Public Beta Kit
 
-## New in v1.11
+## New in v1.12
 
-- Adds a fixed mobile bottom nav for the real core loop: Home, Swipe, Games, Library, Coach.
-- Adds PWA-ready metadata, `manifest.webmanifest`, app icon, and a lightweight service worker shell.
-- Adds a home launch strip that explains the phone-first flow and lets you copy the app link.
-- Keeps v1.10 duplicate cleanup, Show More, IGDB imports, and AI Coach intact.
-- Keeps `ai@6.0.208` pinned so Vercel lockfile builds stay stable.
+- Adds a **Beta** command center for tester feedback, missing games, duplicate reports, bugs, and UI polish notes.
+- Adds a beta invite copy button so you can share the app with one gamer friend fast.
+- Adds local feedback fallback when Supabase feedback SQL has not been installed yet.
+- Adds optional `supabase/v1_12_beta_feedback.sql` for a real feedback board.
+- Adds a Beta shortcut to the PWA manifest.
+- Keeps v1.11 mobile nav, v1.10 duplicate cleanup, v1.9 IGDB-first imports, and v1.8 AI Coach intact.
 
-After pushing, redeploy on Vercel and open the site on your phone. Use the browser menu to add it to your home screen if available.
+## Optional Supabase step
+
+Run this in Supabase SQL Editor when ready:
+
+```sql
+supabase/v1_12_beta_feedback.sql
+```
+
+Then signed-in testers can submit feedback directly from the Beta page.
 
 ---
 

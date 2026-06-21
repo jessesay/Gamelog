@@ -1,7 +1,7 @@
 {
   "name": "GameLog",
   "short_name": "GameLog",
-  "description": "Track, rate, review, discover, and attack your game backlog.",
+  "description": "Track, rate, review, discover, attack your backlog, and help shape the GameLog beta.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -34,6 +34,12 @@
       "short_name": "Library",
       "description": "Open your GameLog library",
       "url": "/?view=library"
+    },
+    {
+      "name": "Beta Feedback",
+      "short_name": "Feedback",
+      "description": "Send GameLog beta feedback",
+      "url": "/?view=beta"
     }
   ]
 }

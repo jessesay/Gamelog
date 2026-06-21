@@ -45,7 +45,7 @@ import { demoProfile, loadDemoState, saveDemoState, starterGames } from "@/lib/d
 import { getEffectiveCoverUrl, getKnownCoverUrl, withKnownCover } from "@/lib/coverArt";
 import type { Follow, Game, GameList, GameLog, Profile, ReviewComment } from "@/lib/types";
 
-type View = "home" | "discover" | "library" | "coach" | "quests" | "wrapped" | "games" | "log" | "feed" | "lists" | "people" | "history" | "sources" | "profile";
+type View = "home" | "discover" | "library" | "coach" | "beta" | "quests" | "wrapped" | "games" | "log" | "feed" | "lists" | "people" | "history" | "sources" | "profile";
 type AuthMode = "signin" | "signup";
 type FeedFilter = "all" | "following" | "mine";
 type DiscoverMode = "forYou" | "fresh" | "all" | "backlog" | "passed";
@@ -54,6 +54,7 @@ type DiscoveryMood = "All" | "Cozy" | "Hardcore" | "Multiplayer" | "Story" | "Sh
 type SourceMode = "archive" | "igdb" | "steam" | "rawg" | "itch" | "bulk";
 type ArchiveMode = "guides" | "software" | "covers";
 type CoachMode = "next" | "weekend" | "review" | "taste";
+type FeedbackKind = "Bug" | "Missing game" | "Duplicate game" | "Feature idea" | "UI polish" | "Other";
 type DiscoveryAction = { id: string; user_id: string; game_id: string; action: DiscoveryActionName; created_at: string; games?: Game | null };
 type UndoAction =
   | { kind: "pass"; action: DiscoveryAction }
@@ -419,6 +420,12 @@ export default function GameLogApp() {
   const [aiCoachMode, setAiCoachMode] = useState<CoachMode>("next");
   const [aiCoachText, setAiCoachText] = useState("");
   const [aiCoachLoading, setAiCoachLoading] = useState(false);
+  const [feedbackKind, setFeedbackKind] = useState<FeedbackKind>("Feature idea");
+  const [feedbackBody, setFeedbackBody] = useState("");
+  const [feedbackTarget, setFeedbackTarget] = useState("");
+  const [feedbackContact, setFeedbackContact] = useState("");
+  const [feedbackSending, setFeedbackSending] = useState(false);
+  const [feedbackQueue, setFeedbackQueue] = useState<Array<{ kind: FeedbackKind; body: string; target?: string; contact?: string; created_at: string }>>([]);
 
   const [userId, setUserId] = useState<string | null>(null);
   const [profile, setProfile] = useState<Profile>(demoProfile);
@@ -875,6 +882,19 @@ export default function GameLogApp() {
       // Ignore local storage failures; discovery still works for this session.
     }
   }, [currentUserId, discoveryActions, loading]);
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem("gamelog_beta_feedback_queue");
+      if (stored) setFeedbackQueue(JSON.parse(stored));
+      const requestedView = new URLSearchParams(window.location.search).get("view") as View | null;
+      if (requestedView && ["home", "discover", "library", "coach", "beta", "games", "log", "feed", "sources", "profile"].includes(requestedView)) {
+        setView(requestedView);
+      }
+    } catch {
+      // Feedback queue and query routing are optional.
+    }
+  }, []);
 
 
   useEffect(() => {
@@ -1969,6 +1989,85 @@ export default function GameLogApp() {
     }
   }
 
+  async function copyBetaInvite() {
+    const url = window.location.origin;
+    const text = `I am testing GameLog — a mobile-first game diary with swipe discovery, IGDB imports, and an AI backlog coach. Try it here: ${url}`;
+    try {
+      await navigator.clipboard.writeText(text);
+      setMessage({ type: "ok", text: "Beta invite copied. Send it to one gamer friend." });
+    } catch {
+      setMessage({ type: "info", text });
+    }
+  }
+
+  function storeFeedbackLocally(item: { kind: FeedbackKind; body: string; target?: string; contact?: string; created_at: string }) {
+    const nextQueue = [item, ...feedbackQueue].slice(0, 25);
+    setFeedbackQueue(nextQueue);
+    try {
+      window.localStorage.setItem("gamelog_beta_feedback_queue", JSON.stringify(nextQueue));
+    } catch {
+      // Local feedback queue is optional.
+    }
+  }
+
+  async function submitBetaFeedback() {
+    const body = feedbackBody.trim();
+    if (!body) {
+      setMessage({ type: "error", text: "Write a quick note first so the feedback is useful." });
+      return;
+    }
+
+    const item = {
+      kind: feedbackKind,
+      body,
+      target: feedbackTarget.trim() || selectedGame?.title || view,
+      contact: feedbackContact.trim() || profile.username || "",
+      created_at: new Date().toISOString()
+    };
+
+    setFeedbackSending(true);
+    try {
+      if (connected && supabase && userId) {
+        const { error } = await supabase.from("beta_feedback").insert({
+          user_id: userId,
+          kind: item.kind,
+          body: item.body,
+          target: item.target,
+          contact: item.contact,
+          page: window.location.href,
+          app_version: "1.12.0"
+        });
+        if (error) throw error;
+        setMessage({ type: "ok", text: "Feedback sent to the beta board." });
+      } else {
+        storeFeedbackLocally(item);
+        const summary = `[GameLog beta feedback]
+Type: ${item.kind}
+Target: ${item.target}
+Contact: ${item.contact}
+
+${item.body}`;
+        try { await navigator.clipboard.writeText(summary); } catch { /* ignore */ }
+        setMessage({ type: "ok", text: "Feedback saved locally and copied. Paste it into a message or GitHub issue." });
+      }
+      setFeedbackBody("");
+      setFeedbackTarget("");
+    } catch (error) {
+      storeFeedbackLocally(item);
+      const text = error instanceof Error ? error.message : "Feedback table is not ready yet.";
+      setMessage({ type: "info", text: `${text} Saved locally instead.` });
+    } finally {
+      setFeedbackSending(false);
+    }
+  }
+
+  function openMissingGameReport(title = query || igdbQuery || "") {
+    setFeedbackKind("Missing game");
+    setFeedbackTarget(title);
+    setFeedbackBody(title ? `Missing or incorrect catalog entry for: ${title}` : "Missing game: ");
+    setView("beta");
+  }
+
   function buildAiCoachPayload(mode: CoachMode) {
     const backlog = myLogs
       .filter((log) => ["Backlog", "Want to Play", "Currently Playing"].includes(log.status) && log.games)
@@ -2132,7 +2231,8 @@ export default function GameLogApp() {
               ["games", "Games"],
               ["feed", "Social"],
               ["sources", "Import"],
-              ["profile", "Profile"]
+              ["profile", "Profile"],
+              ["beta", "Beta"]
             ].map(([key, label]) => (
               <button key={key} className={`pill ${view === key ? "active" : ""}`} onClick={() => setView(key as View)}>
                 {label}
@@ -2187,6 +2287,7 @@ export default function GameLogApp() {
                 <button className="secondary" onClick={() => openAiCoach("next")}><Sparkles size={18} /> AI Coach</button>
                 <button className="secondary" onClick={() => setView("feed")}><Sparkles size={18} /> Social feed</button>
                 <button className="secondary" onClick={() => setView("sources")}><DownloadCloud size={18} /> Import games</button>
+                <button className="secondary" onClick={() => setView("beta")}><Rocket size={18} /> Beta board</button>
               </div>
             </div>
             <div className="side-panel card">
@@ -2214,13 +2315,14 @@ export default function GameLogApp() {
 
           <section className="launch-strip card">
             <div>
-              <p className="eyebrow">v1.11 mobile launch polish</p>
-              <h2>GameLog is now easier to use like a real phone app.</h2>
-              <p className="muted">Bottom navigation keeps the core loop one thumb away: Swipe, Games, Library, and AI Coach. The app also ships with a web app manifest and offline shell support for Vercel.</p>
+              <p className="eyebrow">v1.12 public beta kit</p>
+              <h2>GameLog is ready for a small group of testers.</h2>
+              <p className="muted">The core loop is playable: swipe, import from IGDB, track your library, and ask AI Coach what to play next. Now the app has a beta feedback board so testers can report missing games, duplicates, bugs, and UI polish ideas.</p>
             </div>
             <div className="launch-actions">
               <button className="primary" onClick={() => setView("discover")}><Sparkles size={18} /> Open swipe deck</button>
-              <button className="secondary" onClick={() => copyShareLink("/", "GameLog app")}><Share2 size={18} /> Copy app link</button>
+              <button className="secondary" onClick={copyBetaInvite}><Share2 size={18} /> Copy beta invite</button>
+              <button className="secondary" onClick={() => setView("beta")}><MessageCircle size={18} /> Give feedback</button>
             </div>
           </section>
 
@@ -2285,7 +2387,7 @@ export default function GameLogApp() {
               <h2>Your profile</h2>
               <ProfileMini profile={profile} completedCount={completedCount} backlogCount={backlogCount} avgRating={avgRating} followerCount={followerCount} followingCount={followingCount} />
               <div className="divider" />
-              <p className="muted">v1.11 adds mobile bottom navigation, PWA-ready metadata, and a cleaner launch shell while keeping AI Coach and IGDB imports intact.</p>
+              <p className="muted">v1.12 adds the public beta command center, quick feedback capture, missing-game reports, and a launch checklist while keeping AI Coach, IGDB imports, and mobile nav intact.</p>
               <div className="divider" />
               <h3>Top rated here</h3>
               <MiniTopGames games={topGames} />
@@ -2638,6 +2740,77 @@ export default function GameLogApp() {
         </section>
       )}
 
+      {view === "beta" && (
+        <section className="stack">
+          <div className="hero-card beta-hero">
+            <p className="eyebrow">Public beta command center</p>
+            <h1>Ship it to a few testers, then fix what they actually hit.</h1>
+            <p className="lede">Use this page for quick feedback, missing games, duplicate reports, and the launch checklist. This keeps GameLog moving without adding more clutter to the main app loop.</p>
+            <div className="actions">
+              <button className="primary" onClick={copyBetaInvite}><Share2 size={18} /> Copy beta invite</button>
+              <button className="secondary" onClick={() => setView("games")}><Search size={18} /> Check catalog</button>
+              <button className="secondary" onClick={() => openAiCoach("next")}><Zap size={18} /> Test AI Coach</button>
+            </div>
+          </div>
+
+          <div className="beta-grid">
+            <div className="card">
+              <p className="eyebrow">Feedback</p>
+              <h2>Report what needs fixing</h2>
+              <div className="form-grid compact-form">
+                <label>Type
+                  <select value={feedbackKind} onChange={(event) => setFeedbackKind(event.target.value as FeedbackKind)}>
+                    {(["Bug", "Missing game", "Duplicate game", "Feature idea", "UI polish", "Other"] as FeedbackKind[]).map((item) => <option key={item}>{item}</option>)}
+                  </select>
+                </label>
+                <label>Game / page / target
+                  <input value={feedbackTarget} onChange={(event) => setFeedbackTarget(event.target.value)} placeholder="Example: Silent Hill 2 duplicate" />
+                </label>
+                <label>Contact optional
+                  <input value={feedbackContact} onChange={(event) => setFeedbackContact(event.target.value)} placeholder="Discord, email, or username" />
+                </label>
+                <label className="full-span">What happened?
+                  <textarea value={feedbackBody} onChange={(event) => setFeedbackBody(event.target.value)} rows={5} placeholder="Quick note: what felt broken, confusing, missing, or awesome?" />
+                </label>
+              </div>
+              <div className="actions">
+                <button className="primary" onClick={submitBetaFeedback} disabled={feedbackSending}><Send size={18} /> {feedbackSending ? "Sending..." : "Send feedback"}</button>
+                <button className="secondary" onClick={() => openMissingGameReport()}><Target size={18} /> Missing game</button>
+              </div>
+              <p className="muted small">If the Supabase feedback table is not installed yet, GameLog saves the note locally and copies it so you can paste it anywhere.</p>
+            </div>
+
+            <div className="card">
+              <p className="eyebrow">Launch checklist</p>
+              <h2>Before sharing wider</h2>
+              <div className="checklist">
+                <div><CheckCircle2 size={18} /><span>Vercel deploys from GitHub main</span></div>
+                <div><CheckCircle2 size={18} /><span>Supabase auth redirect uses live Vercel URL</span></div>
+                <div><CheckCircle2 size={18} /><span>IGDB keys are in local and Vercel env vars</span></div>
+                <div><CheckCircle2 size={18} /><span>AI Gateway smoke test works</span></div>
+                <div><CheckCircle2 size={18} /><span>Games tab can import and clean duplicates</span></div>
+                <div><CheckCircle2 size={18} /><span>Mobile bottom nav works on phone</span></div>
+              </div>
+            </div>
+
+            <div className="card">
+              <p className="eyebrow">Queued locally</p>
+              <h2>{feedbackQueue.length} saved notes</h2>
+              {feedbackQueue.length ? (
+                <div className="mini-list">
+                  {feedbackQueue.slice(0, 5).map((item, index) => (
+                    <div className="mini-row" key={`${item.created_at}-${index}`}>
+                      <span>{item.kind}</span>
+                      <strong>{item.target || "General"}</strong>
+                    </div>
+                  ))}
+                </div>
+              ) : <p className="muted">No local notes yet. Connected users can write into Supabase after running the v1.12 SQL.</p>}
+            </div>
+          </div>
+        </section>
+      )}
+
       {view === "quests" && (
         <section className="grid quests-view">
           <div className="col-12 hero-card quest-hero">
@@ -2875,7 +3048,7 @@ export default function GameLogApp() {
               </div>
             </div>
             <div className="catalog-engine-note">
-              <BadgeCheck size={16} /> v1.11 keeps the v1.10 duplicate cleanup and Show More flow, then adds mobile launch polish and PWA-ready app metadata.
+              <BadgeCheck size={16} /> v1.12 keeps duplicate cleanup and Show More, then adds a beta feedback loop so testers can help fix missing games and UI friction fast.
             </div>
             <div className="catalog-toolbar">
               <span><strong>{filteredGames.length}</strong> matches</span>

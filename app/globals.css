@@ -2517,3 +2517,64 @@ textarea:focus {
     justify-content: center;
   }
 }
+
+
+/* v1.12 public beta kit */
+.beta-hero {
+  border-color: rgba(236, 72, 153, 0.28);
+  background: radial-gradient(circle at top left, rgba(236, 72, 153, 0.14), transparent 34%), rgba(255, 255, 255, 0.04);
+}
+
+.beta-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(260px, 0.9fr);
+  gap: 16px;
+}
+
+.beta-grid .card:first-child {
+  grid-row: span 2;
+}
+
+.compact-form textarea {
+  min-height: 126px;
+}
+
+.full-span {
+  grid-column: 1 / -1;
+}
+
+.checklist {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.checklist div {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  color: var(--text);
+  padding: 10px 12px;
+  border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 16px;
+  background: rgba(255,255,255,0.035);
+}
+
+.checklist svg {
+  color: #22d3ee;
+  flex: 0 0 auto;
+}
+
+.small {
+  font-size: 0.88rem;
+}
+
+@media (max-width: 860px) {
+  .beta-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .beta-grid .card:first-child {
+    grid-row: auto;
+  }
+}
