@@ -46,7 +46,7 @@ import { demoProfile, loadDemoState, saveDemoState, starterGames } from "@/lib/d
 import { getEffectiveCoverUrl, getKnownCoverUrl, withKnownCover } from "@/lib/coverArt";
 import type { Follow, Game, GameList, GameLog, Profile, ReviewComment } from "@/lib/types";
 
-type View = "home" | "pulse" | "match" | "arena" | "prices" | "deals" | "radar" | "collections" | "discover" | "library" | "coach" | "charts" | "share" | "beta" | "quests" | "wrapped" | "games" | "log" | "feed" | "lists" | "people" | "history" | "sources" | "profile";
+type View = "home" | "onboarding" | "pulse" | "match" | "arena" | "prices" | "deals" | "radar" | "collections" | "discover" | "library" | "coach" | "charts" | "share" | "beta" | "quests" | "wrapped" | "games" | "log" | "feed" | "lists" | "people" | "history" | "sources" | "profile";
 type AuthMode = "signin" | "signup";
 type FeedFilter = "all" | "following" | "mine";
 type DiscoverMode = "forYou" | "fresh" | "all" | "backlog" | "passed";
@@ -558,7 +558,7 @@ export default function GameLogApp() {
   const [view, setView] = useState<View>("home");
   useEffect(() => {
     const requestedView = new URLSearchParams(window.location.search).get("view") as View | null;
-    const allowedViews: View[] = ["home", "pulse", "match", "arena", "prices", "deals", "radar", "discover", "library", "coach", "charts", "share", "beta", "quests", "wrapped", "games", "log", "feed", "lists", "people", "history", "sources", "profile"];
+    const allowedViews: View[] = ["home", "onboarding", "pulse", "match", "arena", "prices", "deals", "radar", "discover", "library", "coach", "charts", "share", "beta", "quests", "wrapped", "games", "log", "feed", "lists", "people", "history", "sources", "profile"];
     if (requestedView && allowedViews.includes(requestedView)) setView(requestedView);
   }, []);
   const [feedFilter, setFeedFilter] = useState<FeedFilter>("all");
@@ -1245,6 +1245,76 @@ export default function GameLogApp() {
     { title: "Pressure-test the catalog", body: "Search one missing game and import it from IGDB.", action: () => setView("games" as View), cta: "Search games", done: primaryCatalogGames.some((game) => gameSource(game) === "IGDB") }
   ];
 
+  const onboardingSteps = [
+    {
+      title: "Make your profile feel real",
+      body: "Add a name, favorite game, and quick bio so public pages do not feel empty.",
+      cta: "Edit profile",
+      icon: "👤",
+      done: !profileNeedsSetup,
+      action: () => setView("profile" as View)
+    },
+    {
+      title: "Import or seed the catalog",
+      body: "Bring in enough games for Search, Matchmaker, Arena, Deals, and Collections to feel alive.",
+      cta: "Import games",
+      icon: "📥",
+      done: primaryCatalogGames.length >= 100 || primaryCatalogGames.some((game) => gameSource(game) === "IGDB"),
+      action: () => setView("sources" as View)
+    },
+    {
+      title: "Build your taste profile",
+      body: "Pick starter taste signals or swipe a few games so GameLog learns your lane.",
+      cta: "Tune taste",
+      icon: "✨",
+      done: tasteOnboarded || tasteGenres.length > 0 || tasteMoods.length > 0 || discoveryActions.length >= 5,
+      action: () => setView("discover" as View)
+    },
+    {
+      title: "Save a first backlog pick",
+      body: "Put at least one game in Want or Backlog so Matchmaker has a real target.",
+      cta: "Find a pick",
+      icon: "🎯",
+      done: backlogCount > 0,
+      action: () => setView("match" as View)
+    },
+    {
+      title: "Log your first game",
+      body: "Add one rating, status, or short review to make the Library and Pulse personal.",
+      cta: "Log game",
+      icon: "⭐",
+      done: myLogs.length > 0,
+      action: () => setView("log" as View)
+    },
+    {
+      title: "Watch a price or deal",
+      body: "Track one game price so Deal Radar can tell you when it is actually worth buying.",
+      cta: "Open deals",
+      icon: "💸",
+      done: priceWatchIds.length > 0 || priceSnapshots.length > 0,
+      action: () => setView("deals" as View)
+    },
+    {
+      title: "Make one shareable thing",
+      body: "Create a list, collection, or review link so the beta has something people can react to.",
+      cta: "Share Studio",
+      icon: "🔗",
+      done: Boolean(topShareList) || reviewedCount > 0 || savedCollectionIds.length > 0,
+      action: () => setView("share" as View)
+    }
+  ];
+  const onboardingDoneCount = onboardingSteps.filter((step) => step.done).length;
+  const onboardingProgress = clampProgress(onboardingDoneCount, onboardingSteps.length);
+  const onboardingNextStep = onboardingSteps.find((step) => !step.done) ?? onboardingSteps[0];
+  const applyStarterTaste = () => {
+    const nextGenres = Array.from(new Set([...tasteGenres, "RPG", "Action", "Indie", "Adventure"])).slice(0, 8);
+    const nextMoods = Array.from(new Set<DiscoveryMood>([...tasteMoods, "Story", "Cozy", "Hardcore"])).slice(0, 6);
+    setTasteGenres(nextGenres);
+    setTasteMoods(nextMoods);
+    setTasteOnboarded(true);
+    setMessage({ type: "ok", text: "Starter taste signals saved. Matchmaker and Pulse have a better read now." });
+  };
+
   const todayKey = today();
   const todayDiscoveryActions = useMemo(() => discoveryActions.filter((action) => dateKey(action.created_at) === todayKey), [discoveryActions, todayKey]);
   const todayPlayedLogs = useMemo(() => myLogs.filter((log) => dateKey(log.played_on ?? log.created_at) === todayKey), [myLogs, todayKey]);
@@ -1453,7 +1523,7 @@ export default function GameLogApp() {
       const stored = window.localStorage.getItem("gamelog_beta_feedback_queue");
       if (stored) setFeedbackQueue(JSON.parse(stored));
       const requestedView = new URLSearchParams(window.location.search).get("view") as View | null;
-      if (requestedView && ["home", "pulse", "match", "arena", "prices", "deals", "radar", "collections", "discover", "library", "coach", "charts", "share", "beta", "games", "log", "feed", "sources", "profile"].includes(requestedView)) {
+      if (requestedView && ["home", "onboarding", "pulse", "match", "arena", "prices", "deals", "radar", "collections", "discover", "library", "coach", "charts", "share", "beta", "games", "log", "feed", "sources", "profile"].includes(requestedView)) {
         setView(requestedView);
       }
     } catch {
@@ -3005,6 +3075,7 @@ ${item.body}`;
           <nav className="nav-pills" aria-label="Main navigation">
             {[
               ["home", "Home"],
+              ["onboarding", "Start"],
               ["pulse", "Pulse"],
               ["match", "Match"],
               ["arena", "Arena"],
@@ -3087,7 +3158,8 @@ ${item.body}`;
                 GameLog is now built around three loops: Discover games fast, manage your library, and share your taste. Extra tools live behind Import/Profile so the app does not feel like a cockpit.
               </p>
               <div className="actions">
-                <button className="primary" onClick={() => setView("pulse")}><Flame size={18} /> Open Pulse</button>
+                <button className="primary" onClick={() => setView("onboarding")}><CheckCircle2 size={18} /> Start setup</button>
+                <button className="secondary" onClick={() => setView("pulse")}><Flame size={18} /> Open Pulse</button>
                 <button className="secondary" onClick={() => setView("discover")}><Sparkles size={18} /> Start swiping</button>
                 <button className="secondary" onClick={() => setView("match")}><Target size={18} /> Matchmaker</button>
                 <button className="secondary" onClick={() => setView("arena")}><Trophy size={18} /> Arena</button>
@@ -3134,7 +3206,8 @@ ${item.body}`;
               <p className="muted">Pulse gives players a reason to open the app every day. Charts makes the catalog feel alive. Coach stays part of the product without shouting about the tech behind it.</p>
             </div>
             <div className="launch-actions">
-              <button className="primary" onClick={() => setView("pulse")}><Flame size={18} /> Open Pulse</button>
+              <button className="primary" onClick={() => setView("onboarding")}><CheckCircle2 size={18} /> Start setup</button>
+              <button className="secondary" onClick={() => setView("pulse")}><Flame size={18} /> Open Pulse</button>
               <button className="secondary" onClick={() => setView("match")}><Target size={18} /> Matchmaker</button>
               <button className="secondary" onClick={() => setView("arena")}><Trophy size={18} /> Open Arena</button>
               <button className="secondary" onClick={() => setView("deals")}><DollarSign size={18} /> Deal Radar</button>
@@ -3146,6 +3219,12 @@ ${item.body}`;
           </section>
 
           <section className="grid command-grid-v20">
+            <button className="command-card card setup-command-card" onClick={() => setView("onboarding")}>
+              <span className="eyebrow">First run</span>
+              <strong>{onboardingDoneCount}/{onboardingSteps.length} launch steps done</strong>
+              <p>Follow the guided setup so GameLog feels useful in the first minute.</p>
+              <div className="progress-bar"><span style={{ width: `${onboardingProgress}%` }} /></div>
+            </button>
             <button className="command-card card" onClick={() => setView("pulse")}>
               <span className="eyebrow">Daily</span>
               <strong>Open Pulse</strong>
@@ -3186,6 +3265,18 @@ ${item.body}`;
               <strong>Pick tonight&apos;s game</strong>
               <p>GameLog turns your backlog and taste into a clean play plan.</p>
             </button>
+          </section>
+
+          <section className="onboarding-strip card setup-strip-v31">
+            <div>
+              <p className="eyebrow">v3.1 first-run setup</p>
+              <h2>{onboardingDoneCount}/{onboardingSteps.length} steps ready for beta testers</h2>
+              <p className="muted">Next up: {onboardingNextStep.title}. This keeps new users from landing in a powerful app with no idea where to start.</p>
+            </div>
+            <div className="actions onboarding-actions">
+              <button className="primary" onClick={() => setView("onboarding")}><CheckCircle2 size={18} /> Open setup</button>
+              <button className="secondary" onClick={() => onboardingNextStep.action()}>{onboardingNextStep.cta}</button>
+            </div>
           </section>
 
           {profileNeedsSetup && (
@@ -3253,6 +3344,74 @@ ${item.body}`;
               <div className="divider" />
               <h3>Top rated here</h3>
               <MiniTopGames games={topGames} />
+            </div>
+          </section>
+        </>
+      )}
+
+      {view === "onboarding" && (
+        <>
+          <section className="hero onboarding-hero-v31">
+            <div className="hero-card">
+              <p className="eyebrow">v3.1 new-user onboarding</p>
+              <h1>Get GameLog useful in the first minute.</h1>
+              <p className="lede">This is the guided setup beta testers need: profile, catalog, taste, backlog, first log, deals, and sharing. No one should open the app and wonder what to do next.</p>
+              <div className="actions">
+                <button className="primary" onClick={() => onboardingNextStep.action()}><CheckCircle2 size={18} /> Continue: {onboardingNextStep.cta}</button>
+                <button className="secondary" onClick={applyStarterTaste}><Sparkles size={18} /> Apply starter taste</button>
+                <button className="secondary" onClick={() => setView("pulse")}><Flame size={18} /> Open Pulse</button>
+              </div>
+            </div>
+            <div className="side-panel card setup-score-card">
+              <p className="eyebrow">Launch readiness</p>
+              <strong className="setup-score">{onboardingProgress}%</strong>
+              <div className="progress-bar"><span style={{ width: `${onboardingProgress}%` }} /></div>
+              <p className="muted">{onboardingDoneCount} of {onboardingSteps.length} first-run steps complete.</p>
+              <div className="stats mini-stats-v31">
+                <div className="stat"><strong>{myLogs.length}</strong><span>Logs</span></div>
+                <div className="stat"><strong>{backlogCount}</strong><span>Backlog</span></div>
+                <div className="stat"><strong>{discoveryActions.length}</strong><span>Swipes</span></div>
+                <div className="stat"><strong>{priceWatchIds.length}</strong><span>Watched</span></div>
+              </div>
+            </div>
+          </section>
+
+          <section className="grid onboarding-grid-v31">
+            {onboardingSteps.map((step, index) => (
+              <article className={`card onboarding-step-card ${step.done ? "done" : ""}`} key={step.title}>
+                <div className="step-topline">
+                  <span className="step-icon">{step.done ? "✅" : step.icon}</span>
+                  <span className="tag">Step {index + 1}</span>
+                </div>
+                <h2>{step.title}</h2>
+                <p className="muted">{step.body}</p>
+                <button className={step.done ? "secondary" : "primary"} onClick={() => step.action()}>
+                  {step.done ? "Review" : step.cta}
+                </button>
+              </article>
+            ))}
+          </section>
+
+          <section className="grid">
+            <div className="col-8 card">
+              <div className="review-top">
+                <div>
+                  <p className="eyebrow">Starter picks</p>
+                  <h2>Give a new user something to click immediately.</h2>
+                </div>
+                <button className="pill" onClick={() => setView("match")}>Open Matchmaker</button>
+              </div>
+              <SignalStrip items={signalGames.slice(0, 6)} onPick={(game) => { setSelectedGameId(game.id); setView("games"); }} />
+            </div>
+            <div className="col-4 card">
+              <p className="eyebrow">First-session goal</p>
+              <h2>Finish one loop.</h2>
+              <p className="muted">Best beta path: import a few games, save one backlog pick, log one game, then share feedback.</p>
+              <div className="divider" />
+              <button className="mini-row button-row" onClick={() => setView("sources")}><span>Import games</span><strong>{primaryCatalogGames.length}</strong></button>
+              <button className="mini-row button-row" onClick={() => setView("match")}><span>Pick tonight</span><strong>Match</strong></button>
+              <button className="mini-row button-row" onClick={() => setView("deals")}><span>Track one deal</span><strong>Radar</strong></button>
+              <button className="mini-row button-row" onClick={() => setView("beta")}><span>Send feedback</span><strong>Beta</strong></button>
             </div>
           </section>
         </>

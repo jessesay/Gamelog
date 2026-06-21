@@ -9,8 +9,8 @@ export const metadata: Metadata = {
 
 const starterActions = [
   { title: "Import games first", text: "A full catalog makes every other feature feel better.", href: "/app?view=sources" },
-  { title: "Build taste signals", text: "Rate, save, and log a few games so GameLog can shape better picks.", href: "/app?view=library" },
-  { title: "Pick tonight's game", text: "Pulse, Matchmaker, and Arena should get a tester to one clear answer.", href: "/app?view=pulse" },
+  { title: "Build taste signals", text: "Use the in-app setup hub to choose starter taste, save a backlog pick, and open the right next tool.", href: "/app?view=onboarding" },
+  { title: "Pick tonight's game", text: "Pulse, Matchmaker, and Arena should get a tester to one clear answer.", href: "/app?view=match" },
   { title: "Try the buy loop", text: "Track one price, open Deal Radar, and watch one upcoming release.", href: "/app?view=deals" }
 ];
 
@@ -27,9 +27,9 @@ export default function StartGuidePage() {
       </header>
 
       <section className="legal-card page-hero-card">
-        <p className="eyebrow">First 60 seconds</p>
-        <h1>Give every tester a clear path.</h1>
-        <p>The best beta flow is simple: fill the catalog, build taste, pick a game, check a deal, share one thing, then tell us what broke or felt good.</p>
+        <p className="eyebrow">v3.1 first 60 seconds</p>
+        <h1>Give every tester a clear path inside the app.</h1>
+        <p>The best beta flow is simple: open the guided setup, fill the catalog, build taste, pick a game, check a deal, share one thing, then tell us what broke or felt good.</p>
       </section>
 
       <LaunchChecklistClient />

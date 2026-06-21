@@ -1,41 +1,23 @@
-# GameLog v3.0 — Beta Launch System
+# GameLog v3.1 — New User Onboarding Polish
 
-GameLog is a mobile-first gaming command center for tracking your library, deciding what to play, watching prices, following releases, building collections, and sharing your taste.
+GameLog is a gaming command center for tracking, discovering, buying, and sharing games.
 
-## v3.0 adds
+## v3.1 adds
 
-- Beta signup / waitlist page at `/join`
-- First-run tester checklist at `/start`
-- Feedback inbox and voting board at `/feedback`
-- What's new page at `/updates`
-- Updated landing page funnel
-- Updated beta, features, changelog, sitemap, PWA shortcuts, and metadata
-- Optional Supabase beta launch schema at `supabase/v3_0_beta_launch.sql`
+- In-app guided setup hub at `/app?view=onboarding`
+- Start setup button on the app home screen
+- Launch readiness score inside the app
+- Seven first-run steps for beta testers
+- Starter taste button
+- Better `/start` guide links
+- PWA shortcut for setup
 
-## Run locally
+## Install
 
-```bash
-pnpm install
-pnpm dev
-```
+Copy the patch files into your GameLog project and replace existing files.
 
-Open:
+Commit:
 
-```text
-http://localhost:3000
-```
+`Build GameLog v3.1 onboarding polish`
 
-## Test v3.0
-
-```text
-/           landing page
-/join       beta signup
-/start      first-run checklist
-/feedback   feedback and voting
-/updates    what's new
-/app        full GameLog app
-```
-
-## Optional Supabase
-
-Run `supabase/v3_0_beta_launch.sql` when you want beta waitlist, feedback, and onboarding progress stored in Supabase instead of local browser storage.
+Then push and redeploy Vercel.

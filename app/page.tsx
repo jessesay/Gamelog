@@ -30,7 +30,7 @@ const productPillars = [
   }
 ];
 
-const featureRail = ["Pulse", "Matchmaker", "Arena", "Charts", "Collections", "Release Radar", "Deal Radar", "Price Watch", "Beta Launch"];
+const featureRail = ["Guided Setup", "Pulse", "Matchmaker", "Arena", "Charts", "Collections", "Release Radar", "Deal Radar", "Price Watch", "Beta Launch"];
 
 const launchSteps = [
   "Join the beta list",
@@ -43,7 +43,7 @@ const launchSteps = [
 
 const betaActions = [
   { title: "Join beta", text: "Capture tester info and copy a clean invite message.", href: "/join", icon: UserPlus },
-  { title: "Start guide", text: "Walk new users through the first 60 seconds of GameLog.", href: "/start", icon: CheckCircle2 },
+  { title: "Start guide", text: "Walk new users through the first 60 seconds of GameLog, then continue inside /app setup.", href: "/start", icon: CheckCircle2 },
   { title: "Feedback board", text: "Turn bug reports and feature ideas into the next build.", href: "/feedback", icon: MessageSquare }
 ];
 

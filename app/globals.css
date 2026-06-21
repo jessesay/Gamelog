@@ -4176,3 +4176,56 @@ textarea:focus {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* v3.1 onboarding polish */
+.setup-command-card .progress-bar,
+.setup-score-card .progress-bar,
+.setup-strip-v31 .progress-bar {
+  margin-top: 12px;
+}
+
+.setup-score {
+  display: block;
+  font-size: clamp(3rem, 8vw, 5.25rem);
+  line-height: .9;
+  letter-spacing: -0.08em;
+  margin: 10px 0 16px;
+}
+
+.onboarding-grid-v31 {
+  grid-template-columns: repeat(auto-fit, minmax(245px, 1fr));
+}
+
+.onboarding-step-card {
+  display: flex;
+  min-height: 260px;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.onboarding-step-card.done {
+  border-color: rgba(89, 255, 169, 0.28);
+}
+
+.step-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.step-icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 1.2rem;
+}
+
+.mini-stats-v31 {
+  margin-top: 18px;
+}

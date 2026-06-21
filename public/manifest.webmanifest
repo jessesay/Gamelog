@@ -1,7 +1,7 @@
 {
   "name": "GameLog",
   "short_name": "GameLog",
-  "description": "GameLog is a mobile-first gaming command center with library tracking, play recommendations, price watch, release radar, collections, beta onboarding, and feedback.",
+  "description": "GameLog is a mobile-first gaming command center with guided onboarding, library tracking, play recommendations, price watch, release radar, collections, beta signup, and feedback.",
   "start_url": "/app",
   "scope": "/",
   "display": "standalone",
@@ -23,7 +23,12 @@
     }
   ],
   "shortcuts": [
-
+    {
+      "name": "Setup GameLog",
+      "short_name": "Setup",
+      "description": "Open the in-app first-run setup checklist.",
+      "url": "/app?view=onboarding"
+    },
     {
       "name": "Join Beta",
       "short_name": "Join",
