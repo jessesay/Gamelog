@@ -46,7 +46,7 @@ import { demoProfile, loadDemoState, saveDemoState, starterGames } from "@/lib/d
 import { getEffectiveCoverUrl, getKnownCoverUrl, withKnownCover } from "@/lib/coverArt";
 import type { Follow, Game, GameList, GameLog, Profile, ReviewComment } from "@/lib/types";
 
-type View = "home" | "pulse" | "match" | "arena" | "prices" | "deals" | "radar" | "discover" | "library" | "coach" | "charts" | "share" | "beta" | "quests" | "wrapped" | "games" | "log" | "feed" | "lists" | "people" | "history" | "sources" | "profile";
+type View = "home" | "pulse" | "match" | "arena" | "prices" | "deals" | "radar" | "collections" | "discover" | "library" | "coach" | "charts" | "share" | "beta" | "quests" | "wrapped" | "games" | "log" | "feed" | "lists" | "people" | "history" | "sources" | "profile";
 type AuthMode = "signin" | "signup";
 type FeedFilter = "all" | "following" | "mine";
 type DiscoverMode = "forYou" | "fresh" | "all" | "backlog" | "passed";
@@ -84,6 +84,15 @@ type SalePriceRow = {
   latest: PriceSnapshot;
   low: PriceSnapshot | null;
   addOnCount: number;
+};
+type CollectionPack = {
+  id: string;
+  title: string;
+  tagline: string;
+  description: string;
+  games: Game[];
+  accent: string;
+  reason: string;
 };
 type DiscoveryAction = { id: string; user_id: string; game_id: string; action: DiscoveryActionName; created_at: string; games?: Game | null };
 type UndoAction =
@@ -483,6 +492,10 @@ function priceWatchStorageKey(userId: string) {
   return `gamelog_price_watchlist_${userId}`;
 }
 
+function collectionSaveStorageKey(userId: string) {
+  return `gamelog_saved_collections_${userId}`;
+}
+
 function deriveSteamAppId(game: Game) {
   const haystack = [game.slug, game.source_url, game.summary].filter(Boolean).join(" ");
   const match = haystack.match(/(?:steam-|app\/|AppID:\s*)(\d{3,8})/i) ?? haystack.match(/\b(\d{3,8})\b/);
@@ -603,6 +616,7 @@ export default function GameLogApp() {
   const [priceCheckingId, setPriceCheckingId] = useState<string | null>(null);
   const [priceSearch, setPriceSearch] = useState("");
   const [priceSelectedGameId, setPriceSelectedGameId] = useState<string | null>(null);
+  const [savedCollectionIds, setSavedCollectionIds] = useState<string[]>([]);
 
   const [userId, setUserId] = useState<string | null>(null);
   const [profile, setProfile] = useState<Profile>(demoProfile);
@@ -1072,6 +1086,98 @@ export default function GameLogApp() {
     return backlogAttackPlan.slice(0, 4).map((log) => log.games).filter(Boolean) as Game[];
   }, [backlogAttackPlan]);
 
+  const collectionPacks = useMemo<CollectionPack[]>(() => {
+    const unique = (items: Array<Game | null | undefined>, limit = 8) => {
+      const seen = new Set<string>();
+      return items.filter((game): game is Game => {
+        if (!game) return false;
+        const key = normalizeTitleKey(game.title);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      }).slice(0, limit);
+    };
+
+    const multiplayerPicks = unique(primaryCatalogGames.filter((game) => gameMoodTags(game).includes("Multiplayer")), 8);
+    const rainyWeekendPicks = unique([
+      ...primaryCatalogGames.filter((game) => gameMoodTags(game).some((tag) => ["Cozy", "Story", "Open World"].includes(tag))),
+      ...signalGames.map((item) => item.game)
+    ], 8);
+    const underTenDeals = unique(dealDigestRows.filter((row) => Number(row.latest.current_price ?? 999) <= 10).map((row) => row.game), 8);
+    const upcomingWatch = unique(releaseRadarRows.filter((row) => ["Upcoming", "This year", "Recent"].includes(row.launchBand)).map((row) => row.game), 8);
+    const backlogPlan = unique(backlogAttackPlan.map((log) => log.games), 8);
+    const tonightPicks = unique(matchmakerPicks.map((item) => item.game), 8);
+    const addOnDealPicks = unique(dealDigestRows.filter((row) => row.saleProduct.id !== row.game.id || row.addOnCount > 0).flatMap((row) => [row.game, row.saleProduct]), 8);
+
+    return [
+      {
+        id: "tonight-shortlist",
+        title: "Tonight's shortlist",
+        tagline: "Fast picks for the next session",
+        description: "A clean set of games from Matchmaker, Pulse, and your current taste signals so you can stop scrolling and start playing.",
+        games: tonightPicks,
+        accent: "Matchmaker",
+        reason: `${tonightPicks.length} ranked picks`
+      },
+      {
+        id: "backlog-battle-plan",
+        title: "Backlog battle plan",
+        tagline: "Turn the pile into a playlist",
+        description: "Your backlog, reordered into a more playable collection based on ratings, genre signals, and what GameLog thinks is easiest to restart.",
+        games: backlogPlan.length ? backlogPlan : tonightPicks,
+        accent: "Library",
+        reason: `${backlogPlan.length || tonightPicks.length} backlog-ready games`
+      },
+      {
+        id: "hidden-gems-under-ten",
+        title: "Hidden gems under $10",
+        tagline: "Cheap enough to actually act on",
+        description: "Deal Radar picks where the sale price is low enough to feel useful, not just noisy.",
+        games: underTenDeals.length ? underTenDeals : unique(dealDigestRows.map((row) => row.game), 8),
+        accent: "Deals",
+        reason: `${underTenDeals.length || dealDigestRows.length} deal picks`
+      },
+      {
+        id: "dlc-and-add-on-watch",
+        title: "DLC and add-on watch",
+        tagline: "Smaller products without catalog clutter",
+        description: "A nested collection for expansions, soundtracks, passes, and add-ons tied back to the base games that matter.",
+        games: addOnDealPicks.length ? addOnDealPicks : unique(primaryCatalogGames.filter((game) => (addOnsByGameId.get(game.id) ?? []).length > 0), 8),
+        accent: "Price Watch",
+        reason: `${addOnDealPicks.length || hiddenAddOnCount} add-on signals`
+      },
+      {
+        id: "upcoming-watchlist",
+        title: "Upcoming watchlist",
+        tagline: "What to keep an eye on next",
+        description: "Release Radar picks for upcoming games, recent drops, and families worth price-watching before you buy.",
+        games: upcomingWatch.length ? upcomingWatch : unique(releaseRadarRows.map((row) => row.game), 8),
+        accent: "Radar",
+        reason: `${upcomingWatch.length || releaseRadarRows.length} radar picks`
+      },
+      {
+        id: "rainy-weekend-games",
+        title: "Rainy weekend games",
+        tagline: "Cozy, story, and long-session energy",
+        description: "A mood-first shelf for the kind of games people save, share, and actually come back to.",
+        games: rainyWeekendPicks,
+        accent: "Mood",
+        reason: `${rainyWeekendPicks.length} comfort picks`
+      },
+      {
+        id: "couch-coop-social",
+        title: "Couch co-op and social picks",
+        tagline: "Games to play with people",
+        description: "A shareable shelf for multiplayer, co-op, party, squad, MMO, and social games.",
+        games: multiplayerPicks.length ? multiplayerPicks : unique(primaryCatalogGames.slice(0, 8), 8),
+        accent: "Social",
+        reason: `${multiplayerPicks.length} social picks`
+      }
+    ].filter((pack) => pack.games.length > 0);
+  }, [addOnsByGameId, backlogAttackPlan, dealDigestRows, hiddenAddOnCount, matchmakerPicks, primaryCatalogGames, releaseRadarRows, signalGames]);
+
+  const savedCollectionPacks = useMemo(() => collectionPacks.filter((pack) => savedCollectionIds.includes(pack.id)), [collectionPacks, savedCollectionIds]);
+
   const mostLoggedChart = useMemo(() => {
     return primaryCatalogGames
       .map((game) => {
@@ -1347,7 +1453,7 @@ export default function GameLogApp() {
       const stored = window.localStorage.getItem("gamelog_beta_feedback_queue");
       if (stored) setFeedbackQueue(JSON.parse(stored));
       const requestedView = new URLSearchParams(window.location.search).get("view") as View | null;
-      if (requestedView && ["home", "pulse", "match", "arena", "prices", "discover", "library", "coach", "charts", "share", "beta", "games", "log", "feed", "sources", "profile"].includes(requestedView)) {
+      if (requestedView && ["home", "pulse", "match", "arena", "prices", "deals", "radar", "collections", "discover", "library", "coach", "charts", "share", "beta", "games", "log", "feed", "sources", "profile"].includes(requestedView)) {
         setView(requestedView);
       }
     } catch {
@@ -1385,6 +1491,26 @@ export default function GameLogApp() {
       // Ignore local watchlist storage failures.
     }
   }, [currentUserId, loading, priceWatchIds]);
+
+
+  useEffect(() => {
+    if (!currentUserId || loading) return;
+    try {
+      const stored = window.localStorage.getItem(collectionSaveStorageKey(currentUserId));
+      if (stored) setSavedCollectionIds(JSON.parse(stored));
+    } catch {
+      setSavedCollectionIds([]);
+    }
+  }, [currentUserId, loading]);
+
+  useEffect(() => {
+    if (!currentUserId || loading) return;
+    try {
+      window.localStorage.setItem(collectionSaveStorageKey(currentUserId), JSON.stringify(savedCollectionIds.slice(0, 100)));
+    } catch {
+      // Ignore local collection storage failures.
+    }
+  }, [currentUserId, loading, savedCollectionIds]);
 
   useEffect(() => {
     if (view !== "discover") return;
@@ -1853,6 +1979,70 @@ export default function GameLogApp() {
       };
     }));
     setMessage({ type: "ok", text: `${game.title} added to the list.` });
+  }
+
+
+  function toggleSavedCollection(id: string) {
+    setSavedCollectionIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [id, ...current].slice(0, 100));
+  }
+
+  async function copyCollectionShare(pack: CollectionPack) {
+    const text = [
+      `${pack.title} on GameLog`,
+      pack.tagline,
+      pack.description,
+      pack.games.slice(0, 8).map((game, index) => `${index + 1}. ${game.title}`).join("\n"),
+      `${window.location.origin}/?view=collections`
+    ].filter(Boolean).join("\n\n");
+    await copyShareText(text, "Collection");
+  }
+
+  async function publishCollectionAsList(pack: CollectionPack) {
+    if (!pack.games.length) {
+      setMessage({ type: "info", text: "This collection needs games before it can become a list." });
+      return;
+    }
+
+    if (connected && supabase) {
+      if (!requireSignIn("publish collections")) return;
+      const { data, error } = await supabase
+        .from("game_lists")
+        .insert({ user_id: userId, title: pack.title, description: pack.description })
+        .select("*, profiles(username, display_name), list_items(id, games(*))")
+        .single();
+
+      if (error) {
+        setMessage({ type: "error", text: error.message });
+        return;
+      }
+
+      const list = data as GameList;
+      const remoteGames = (await Promise.all(pack.games.map((game) => ensureGameInRemoteCatalog(game)))).filter(Boolean) as Game[];
+      if (remoteGames.length) {
+        const { error: itemError } = await supabase.from("list_items").insert(remoteGames.map((game) => ({ list_id: list.id, game_id: game.id })));
+        if (itemError) {
+          setMessage({ type: "error", text: itemError.message });
+          return;
+        }
+      }
+      await loadRemoteData(userId);
+      setSelectedList(list.id);
+      setMessage({ type: "ok", text: `${pack.title} published as a public list.` });
+      return;
+    }
+
+    const newList: GameList = {
+      id: crypto.randomUUID(),
+      user_id: profile.id,
+      title: pack.title,
+      description: pack.description,
+      created_at: new Date().toISOString(),
+      profiles: profile,
+      list_items: pack.games.map((game) => ({ id: crypto.randomUUID(), games: game }))
+    };
+    setLists((current) => [newList, ...current]);
+    setSelectedList(newList.id);
+    setMessage({ type: "ok", text: `${pack.title} saved as a list.` });
   }
 
   function nextDiscover() {
@@ -2821,6 +3011,7 @@ ${item.body}`;
               ["prices", "Prices"],
               ["deals", "Deals"],
               ["radar", "Radar"],
+              ["collections", "Collections"],
               ["discover", "Discover"],
               ["games", "Games"],
               ["charts", "Charts"],
@@ -2866,6 +3057,10 @@ ${item.body}`;
           <CalendarDays size={18} />
           <span>Radar</span>
         </button>
+        <button className={`mobile-nav-item ${view === "collections" || view === "lists" ? "active" : ""}`} onClick={() => setView("collections")} aria-label="Collections">
+          <ListPlus size={18} />
+          <span>Collect</span>
+        </button>
         <button className={`mobile-nav-item ${view === "games" || view === "charts" ? "active" : ""}`} onClick={() => setView("games")} aria-label="Games">
           <Search size={18} />
           <span>Games</span>
@@ -2904,6 +3099,7 @@ ${item.body}`;
                 <button className="secondary" onClick={() => openAiCoach("next")}><Sparkles size={18} /> GameLog Coach</button>
                 <button className="secondary" onClick={() => setView("feed")}><Sparkles size={18} /> Social feed</button>
                 <button className="secondary" onClick={() => setView("share")}><Share2 size={18} /> Share profile</button>
+                <button className="secondary" onClick={() => setView("collections")}><ListPlus size={18} /> Collections</button>
                 <button className="secondary" onClick={() => setView("sources")}><DownloadCloud size={18} /> Import games</button>
                 <button className="secondary" onClick={() => setView("beta")}><Rocket size={18} /> Beta board</button>
               </div>
@@ -2944,6 +3140,7 @@ ${item.body}`;
               <button className="secondary" onClick={() => setView("deals")}><DollarSign size={18} /> Deal Radar</button>
               <button className="secondary" onClick={() => setView("charts")}><Trophy size={18} /> Open Charts</button>
               <button className="secondary" onClick={() => setView("share")}><Share2 size={18} /> Share Studio</button>
+              <button className="secondary" onClick={() => setView("collections")}><ListPlus size={18} /> Collections</button>
               <button className="secondary" onClick={copyBetaInvite}><Share2 size={18} /> Copy beta invite</button>
             </div>
           </section>
@@ -2978,6 +3175,11 @@ ${item.body}`;
               <span className="eyebrow">Release Radar</span>
               <strong>Track what is coming next</strong>
               <p>Follow upcoming games, recent launches, DLC families, and watchlist-ready drops.</p>
+            </button>
+            <button className="command-card card" onClick={() => setView("collections")}>
+              <span className="eyebrow">Collections</span>
+              <strong>Build shareable shelves</strong>
+              <p>Turn Matchmaker, Deals, Radar, and your backlog into public playlists people can copy.</p>
             </button>
             <button className="command-card card" onClick={() => openAiCoach("next")}>
               <span className="eyebrow">Coach</span>
@@ -4581,6 +4783,88 @@ ${item.body}`;
         </section>
       )}
 
+      {view === "collections" && (
+        <section className="grid">
+          <div className="col-12 card">
+            <div className="review-top">
+              <div>
+                <p className="eyebrow">GameLog Collections</p>
+                <h2>Shareable shelves built from the whole app</h2>
+                <p className="lede">Collections turn Matchmaker, Arena, Deals, Release Radar, Price Watch, and your backlog into ready-made playlists. Save one, share it, or publish it as a public list.</p>
+              </div>
+              <div className="actions" style={{ marginTop: 0 }}>
+                <button className="primary" onClick={() => setView("lists")}><ListPlus size={18} /> Open lists</button>
+                <button className="secondary" onClick={() => setView("deals")}><DollarSign size={18} /> Deal Radar</button>
+                <button className="secondary" onClick={() => setView("match")}><Target size={18} /> Matchmaker</button>
+              </div>
+            </div>
+          </div>
+
+          {savedCollectionPacks.length > 0 && (
+            <div className="col-12 card">
+              <div className="review-top">
+                <div>
+                  <p className="eyebrow">Saved collections</p>
+                  <h2>Your pinned shelves</h2>
+                </div>
+                <span className="tag">{savedCollectionPacks.length} saved</span>
+              </div>
+              <div className="cover-grid compact-cover-grid">
+                {savedCollectionPacks.map((pack) => (
+                  <button key={pack.id} className="mini-game-card" onClick={() => copyCollectionShare(pack)}>
+                    <strong>{pack.title}</strong>
+                    <span>{pack.reason}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {collectionPacks.map((pack) => {
+            const isSaved = savedCollectionIds.includes(pack.id);
+            return (
+              <article className="col-6 card" key={pack.id}>
+                <div className="review-top">
+                  <div>
+                    <p className="eyebrow">{pack.accent}</p>
+                    <h2>{pack.title}</h2>
+                    <p className="muted">{pack.tagline}</p>
+                  </div>
+                  <span className="tag">{pack.reason}</span>
+                </div>
+                <p>{pack.description}</p>
+                <CoverRail games={pack.games.slice(0, 6)} onPick={(game) => { setSelectedGameId(game.id); setView("games"); }} />
+                <div className="actions">
+                  <button className={isSaved ? "primary" : "secondary"} onClick={() => toggleSavedCollection(pack.id)}>
+                    <BookmarkPlus size={16} /> {isSaved ? "Saved" : "Save collection"}
+                  </button>
+                  <button className="secondary" onClick={() => publishCollectionAsList(pack)}><ListPlus size={16} /> Publish as list</button>
+                  <button className="secondary" onClick={() => copyCollectionShare(pack)}><Share2 size={16} /> Copy share text</button>
+                </div>
+              </article>
+            );
+          })}
+
+          <div className="col-12 card">
+            <div className="review-top">
+              <div>
+                <p className="eyebrow">Collection ideas</p>
+                <h2>Next shelves people will actually share</h2>
+              </div>
+              <span className="tag">v2.7</span>
+            </div>
+            <div className="quest-grid">
+              {["Games for a rainy weekend", "Hidden gems under $10", "Best couch co-op", "Backlog battle plan", "DLC worth watching", "Upcoming watchlist"].map((idea) => (
+                <div className="quest-card" key={idea}>
+                  <strong>{idea}</strong>
+                  <p className="muted">A collection format built for sharing, saving, and turning into a public list.</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {view === "lists" && (
         <section className="grid">
           <div className="col-5 card">
@@ -4864,6 +5148,7 @@ ${item.body}`;
                   <ProfileMini profile={profile} completedCount={completedCount} backlogCount={backlogCount} avgRating={avgRating} followerCount={followerCount} followingCount={followingCount} />
                   <a className="secondary inline-link" href={`/u/${profile.username}`} target="_blank" rel="noreferrer"><ExternalLink size={16} /> Open public profile</a>
                   <button className="secondary" onClick={() => setView("share")}><Share2 size={18} /> Share Studio</button>
+              <button className="secondary" onClick={() => setView("collections")}><ListPlus size={18} /> Collections</button>
                   <button className="secondary" onClick={signOut}>Sign out</button>
                 </div>
               ) : (
@@ -4887,6 +5172,7 @@ ${item.body}`;
               <div className="form-grid">
                 <ProfileMini profile={profile} completedCount={completedCount} backlogCount={backlogCount} avgRating={avgRating} followerCount={followerCount} followingCount={followingCount} />
                 <button className="secondary" onClick={() => setView("share")}><Share2 size={18} /> Share Studio</button>
+              <button className="secondary" onClick={() => setView("collections")}><ListPlus size={18} /> Collections</button>
                 <button className="secondary" onClick={exportDemoData}>Export demo data</button>
               </div>
             )}

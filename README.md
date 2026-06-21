@@ -21,3 +21,9 @@ Copy the patch files into your repo, replace existing files, commit, push, and r
 Recommended commit message:
 
 `Build GameLog v2.6 Release Radar layer`
+
+## GameLog v2.7 - Collections Layer
+
+GameLog now includes a Collections hub for shareable shelves and playlists. It turns Matchmaker, Deal Radar, Release Radar, DLC families, and the user's backlog into ready-made collections such as Tonight's Shortlist, Hidden Gems Under $10, Backlog Battle Plan, DLC and Add-on Watch, Upcoming Watchlist, Rainy Weekend Games, and Couch Co-op/Social Picks. Collections can be saved locally, copied as share text, or published into normal public GameLog lists.
+
+Test path: Home -> Collections, top nav -> Collections, mobile nav -> Collect.

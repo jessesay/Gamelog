@@ -1,7 +1,7 @@
 {
   "name": "GameLog",
   "short_name": "GameLog",
-  "description": "A mobile-first gaming command center with Pulse, Matchmaker, Arena, Release Radar, Deal Radar, charts, swipe discovery, library tracking, public profiles, and GameLog Coach.",
+  "description": "A mobile-first gaming command center with Pulse, Matchmaker, Arena, Collections, Release Radar, Deal Radar, charts, swipe discovery, library tracking, public profiles, and GameLog Coach.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -47,6 +47,12 @@
       "short_name": "Radar",
       "description": "Track upcoming games, recent drops, and DLC families.",
       "url": "/?view=radar"
+    },
+    {
+      "name": "Collections",
+      "short_name": "Collect",
+      "description": "Open shareable GameLog shelves and playlists.",
+      "url": "/?view=collections"
     },
     {
       "name": "Matchmaker",
