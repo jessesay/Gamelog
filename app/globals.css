@@ -1901,3 +1901,172 @@ textarea:focus {
     gap: 8px;
   }
 }
+
+/* v1.4 Quest Board */
+.quest-hero {
+  grid-template-columns: minmax(0, 1fr) 260px;
+  align-items: stretch;
+  overflow: hidden;
+  position: relative;
+}
+
+.quest-hero::after {
+  content: "";
+  position: absolute;
+  inset: auto -12% -55% 40%;
+  height: 280px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(34, 197, 94, 0.24), transparent 62%);
+  pointer-events: none;
+}
+
+.level-card {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  gap: 10px;
+  padding: 20px;
+  border-radius: 24px;
+  background: linear-gradient(145deg, rgba(15, 23, 42, 0.82), rgba(88, 28, 135, 0.45));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.level-orb {
+  display: grid;
+  place-items: center;
+  width: 112px;
+  height: 112px;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.9), transparent 14%),
+    linear-gradient(135deg, rgba(34, 197, 94, 0.95), rgba(59, 130, 246, 0.88), rgba(168, 85, 247, 0.82));
+  color: white;
+  font-size: 1.8rem;
+  font-weight: 950;
+  letter-spacing: -0.08em;
+  box-shadow: 0 20px 45px rgba(34, 197, 94, 0.18);
+}
+
+.progress-bar {
+  width: 100%;
+  height: 9px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(148, 163, 184, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.progress-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  box-shadow: 0 0 22px rgba(34, 197, 94, 0.35);
+  transition: width 220ms ease;
+}
+
+.quest-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.quest-card,
+.achievement-badge {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr);
+  gap: 14px;
+  padding: 16px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.quest-card.complete,
+.achievement-badge.unlocked {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.16), rgba(59, 130, 246, 0.08));
+  border-color: rgba(34, 197, 94, 0.28);
+}
+
+.quest-icon,
+.badge-medal {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 17px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 1.45rem;
+}
+
+.quest-card.complete .quest-icon,
+.achievement-badge.unlocked .badge-medal {
+  color: #86efac;
+  background: rgba(34, 197, 94, 0.13);
+}
+
+.quest-title-row {
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.quest-title-row h3,
+.achievement-badge h3 {
+  margin: 0;
+}
+
+.quest-card p,
+.achievement-badge p {
+  margin: 0 0 12px;
+}
+
+.quest-card button {
+  margin-top: 12px;
+}
+
+.achievement-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.big-progress strong {
+  display: block;
+  margin-bottom: 10px;
+  color: white;
+  font-size: 1.35rem;
+}
+
+@media (max-width: 980px) {
+  .quest-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .level-card {
+    min-height: 220px;
+  }
+
+  .quest-grid,
+  .achievement-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .quest-card,
+  .achievement-badge {
+    grid-template-columns: 44px minmax(0, 1fr);
+    padding: 14px;
+  }
+
+  .quest-icon,
+  .badge-medal {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+  }
+}

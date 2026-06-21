@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState, type CSSProperties, type Dispatch, type SetStateAction } from "react";
 import {
+  Award,
+  BadgeCheck,
   BookmarkPlus,
   CalendarDays,
   CheckCircle2,
@@ -18,6 +20,7 @@ import {
   ListPlus,
   LogIn,
   MessageCircle,
+  Rocket,
   Search,
   Share2,
   SlidersHorizontal,
@@ -28,6 +31,7 @@ import {
   Sparkles,
   Star,
   Trash2,
+  Target,
   Trophy,
   UserMinus,
   UserPlus,
@@ -41,7 +45,7 @@ import { demoProfile, loadDemoState, saveDemoState, starterGames } from "@/lib/d
 import { getEffectiveCoverUrl, getKnownCoverUrl, withKnownCover } from "@/lib/coverArt";
 import type { Follow, Game, GameList, GameLog, Profile, ReviewComment } from "@/lib/types";
 
-type View = "home" | "discover" | "library" | "games" | "log" | "feed" | "lists" | "people" | "history" | "sources" | "profile";
+type View = "home" | "discover" | "library" | "quests" | "games" | "log" | "feed" | "lists" | "people" | "history" | "sources" | "profile";
 type AuthMode = "signin" | "signup";
 type FeedFilter = "all" | "following" | "mine";
 type DiscoverMode = "forYou" | "fresh" | "all" | "backlog" | "passed";
@@ -205,6 +209,22 @@ function matchPercent(game: Game, myLogs: GameLog[], tasteGenres: string[], tast
   const score = gameTasteScore(game, myLogs, tasteGenres, tasteMoods);
   if (!score) return 64;
   return Math.min(98, 70 + score * 3);
+}
+
+
+function clampProgress(value: number, target: number) {
+  if (!target) return 0;
+  return Math.min(100, Math.round((value / target) * 100));
+}
+
+function dateKey(value?: string | null) {
+  return (value ?? "").slice(0, 10);
+}
+
+function monthLabel(monthKey: string) {
+  const [year, month] = monthKey.split("-").map(Number);
+  if (!year || !month) return "This month";
+  return new Date(year, month - 1, 1).toLocaleString(undefined, { month: "long", year: "numeric" });
 }
 
 function sortByNewest(a: { created_at?: string }, b: { created_at?: string }) {
@@ -486,6 +506,64 @@ export default function GameLogApp() {
       })
       .slice(0, 5);
   }, [myLogs, tasteGenres, tasteMoods]);
+
+  const todayKey = today();
+  const todayDiscoveryActions = useMemo(() => discoveryActions.filter((action) => dateKey(action.created_at) === todayKey), [discoveryActions, todayKey]);
+  const todayPlayedLogs = useMemo(() => myLogs.filter((log) => dateKey(log.played_on ?? log.created_at) === todayKey), [myLogs, todayKey]);
+  const monthlyCompleted = useMemo(() => monthlyLogs.filter((log) => ["Completed", "100% Completed"].includes(log.status)), [monthlyLogs]);
+  const playerXp = myLogs.length * 40 + completedCount * 80 + reviewedCount * 70 + backlogCount * 20 + discoveryActions.length * 8 + followerCount * 30 + followingCount * 20;
+  const playerLevel = Math.max(1, Math.floor(playerXp / 250) + 1);
+  const nextLevelXp = playerLevel * 250;
+  const currentLevelBaseXp = (playerLevel - 1) * 250;
+  const levelProgress = clampProgress(playerXp - currentLevelBaseXp, nextLevelXp - currentLevelBaseXp);
+  const questCards = useMemo(() => [
+    {
+      title: "Swipe the deck",
+      body: "Pass or save 10 games today so your recommendations get smarter.",
+      progress: todayDiscoveryActions.length,
+      target: 10,
+      cta: "Open Discover",
+      action: () => setView("discover" as View),
+      icon: "⚡"
+    },
+    {
+      title: "Write one real review",
+      body: "Turn a completed game into a social post people can react to.",
+      progress: myLogs.filter((log) => Boolean(log.review?.trim()) && dateKey(log.created_at) === todayKey).length,
+      target: 1,
+      cta: "Review a game",
+      action: () => setView("log" as View),
+      icon: "✍️"
+    },
+    {
+      title: "Beat something this month",
+      body: "Finish at least one game in " + monthLabel(currentMonthKey) + ".",
+      progress: monthlyCompleted.length,
+      target: 1,
+      cta: "Open Library",
+      action: () => setView("library" as View),
+      icon: "🏆"
+    },
+    {
+      title: "Backlog attack",
+      body: "Keep at least 5 games ready so the next play is never a debate.",
+      progress: backlogCount,
+      target: 5,
+      cta: "Find games",
+      action: () => setView("discover" as View),
+      icon: "🎯"
+    }
+  ], [backlogCount, currentMonthKey, monthlyCompleted.length, myLogs, todayDiscoveryActions.length, todayKey]);
+  const achievementBadges = useMemo(() => [
+    { title: "First log", body: "Log your first game.", progress: myLogs.length, target: 1 },
+    { title: "Backlog builder", body: "Save 10 games to play later.", progress: backlogCount, target: 10 },
+    { title: "Completionist spark", body: "Complete 5 games.", progress: completedCount, target: 5 },
+    { title: "Critic mode", body: "Write 10 reviews.", progress: reviewedCount, target: 10 },
+    { title: "Taste trained", body: "Swipe or save 50 games.", progress: discoveryActions.length, target: 50 },
+    { title: "Social player", body: "Follow 5 players.", progress: followingCount, target: 5 }
+  ], [backlogCount, completedCount, discoveryActions.length, followingCount, myLogs.length, reviewedCount]);
+  const unlockedAchievements = achievementBadges.filter((badge) => badge.progress >= badge.target).length;
+  const nextAchievement = achievementBadges.find((badge) => badge.progress < badge.target) ?? achievementBadges[achievementBadges.length - 1];
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
@@ -1567,6 +1645,7 @@ export default function GameLogApp() {
               ["home", "Home"],
               ["discover", "Discover"],
               ["library", "Library"],
+              ["quests", "Quests"],
               ["games", "Games"],
               ["log", "Log"],
               ["feed", "Feed"],
@@ -1603,6 +1682,7 @@ export default function GameLogApp() {
                 <button className="primary" onClick={() => setView("discover")}><Sparkles size={18} /> Start swiping</button>
                 <button className="secondary" onClick={() => setView("log")}><Gamepad2 size={18} /> Log a game</button>
                 <button className="secondary" onClick={() => setView("library")}><Layers3 size={18} /> My library</button>
+                <button className="secondary" onClick={() => setView("quests")}><Target size={18} /> Quest board</button>
                 <button className="secondary" onClick={() => setView("feed")}><Sparkles size={18} /> View feed</button>
                 <button className="secondary" onClick={() => setView("people")}><Users size={18} /> Find players</button>
               </div>
@@ -1981,6 +2061,121 @@ export default function GameLogApp() {
               </div>
             ) : (
               <EmptyState title="Reviews caught up" body="Completed games with no review will show here, so you can turn logs into social posts." />
+            )}
+          </div>
+        </section>
+      )}
+
+      {view === "quests" && (
+        <section className="grid quests-view">
+          <div className="col-12 hero-card quest-hero">
+            <div>
+              <p className="eyebrow">GameLog v1.4</p>
+              <h1>Daily quests for your gaming life.</h1>
+              <p className="lede">The Quest Board turns GameLog into a habit loop: swipe a few games, write one review, clear the backlog, and unlock profile milestones.</p>
+              <div className="actions">
+                <button className="primary" onClick={() => setView("discover")}><Zap size={18} /> Start today&apos;s deck</button>
+                <button className="secondary" onClick={backlogRoulette}><Shuffle size={18} /> Pick tonight&apos;s game</button>
+                <button className="secondary" onClick={() => setView("library")}><Layers3 size={18} /> Open library</button>
+              </div>
+            </div>
+            <div className="level-card">
+              <div className="level-orb">Lv {playerLevel}</div>
+              <strong>{playerXp.toLocaleString()} XP</strong>
+              <p className="muted">{Math.max(0, nextLevelXp - playerXp).toLocaleString()} XP to level {playerLevel + 1}</p>
+              <div className="progress-bar"><span style={{ width: `${levelProgress}%` }} /></div>
+            </div>
+          </div>
+
+          <div className="col-8 card">
+            <div className="review-top">
+              <div>
+                <p className="eyebrow">Today&apos;s board</p>
+                <h2>Keep the loop moving</h2>
+              </div>
+              <span className="tag"><BadgeCheck size={13} /> {questCards.filter((quest) => quest.progress >= quest.target).length}/{questCards.length} done</span>
+            </div>
+            <div className="quest-grid">
+              {questCards.map((quest) => (
+                <QuestCard key={quest.title} quest={quest} />
+              ))}
+            </div>
+          </div>
+
+          <aside className="col-4 card">
+            <p className="eyebrow">Next unlock</p>
+            <h2>{nextAchievement.title}</h2>
+            <p className="muted">{nextAchievement.body}</p>
+            <div className="big-progress">
+              <strong>{Math.min(nextAchievement.progress, nextAchievement.target)}/{nextAchievement.target}</strong>
+              <div className="progress-bar"><span style={{ width: `${clampProgress(nextAchievement.progress, nextAchievement.target)}%` }} /></div>
+            </div>
+            <div className="divider" />
+            <div className="stats compact-stats">
+              <div className="stat"><strong>{todayPlayedLogs.length}</strong><span>Today logs</span></div>
+              <div className="stat"><strong>{todayDiscoveryActions.length}</strong><span>Today swipes</span></div>
+              <div className="stat"><strong>{unlockedAchievements}</strong><span>Badges</span></div>
+              <div className="stat"><strong>{completionRate}%</strong><span>Done rate</span></div>
+            </div>
+          </aside>
+
+          <div className="col-12 card achievement-card">
+            <div className="review-top">
+              <div>
+                <p className="eyebrow">Profile badges</p>
+                <h2>Milestones that make the profile feel alive</h2>
+              </div>
+              <button className="pill" onClick={() => setView("profile")}>View profile</button>
+            </div>
+            <div className="achievement-grid">
+              {achievementBadges.map((badge) => (
+                <AchievementBadge key={badge.title} badge={badge} />
+              ))}
+            </div>
+          </div>
+
+          <div className="col-7 card">
+            <div className="review-top">
+              <div>
+                <p className="eyebrow">Tonight&apos;s best picks</p>
+                <h2>Recommended from your backlog</h2>
+              </div>
+              <button className="pill" onClick={backlogRoulette}>Roulette</button>
+            </div>
+            {backlogAttackPlan.length ? (
+              <div className="attack-list">
+                {backlogAttackPlan.map((log, index) => log.games ? (
+                  <button className="attack-row" key={log.id} onClick={() => startEditLog(log)}>
+                    <span className="attack-rank">#{index + 1}</span>
+                    <GameCover game={log.games} />
+                    <span><strong>{log.games.title}</strong><em>{getDiscoveryReasons(log.games, myLogs).slice(0, 2).join(" · ") || log.games.genre || "Backlog pick"}</em></span>
+                  </button>
+                ) : null)}
+              </div>
+            ) : (
+              <EmptyState title="No backlog to attack" body="Swipe games into Want or Backlog and this becomes your nightly pick list." />
+            )}
+          </div>
+
+          <div className="col-5 card">
+            <div className="review-top">
+              <div>
+                <p className="eyebrow">Review fuel</p>
+                <h2>Games waiting for a take</h2>
+              </div>
+              <span className="tag">{unreviewedCompletions.length} prompts</span>
+            </div>
+            {unreviewedCompletions.length ? (
+              <div className="mini-list">
+                {unreviewedCompletions.map((log) => (
+                  <button className="mini-row button-row" key={log.id} onClick={() => startEditLog(log)}>
+                    <span>{log.games?.title ?? "Unknown game"}</span>
+                    <strong>Review</strong>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <EmptyState title="No review debt" body="Complete more games or mark older logs as completed to generate prompts." />
             )}
           </div>
         </section>
@@ -2770,6 +2965,50 @@ function LibraryShelf({ title, subtitle, logs, onLog }: { title: string; subtitl
         <p className="muted shelf-empty">Nothing here yet.</p>
       )}
     </section>
+  );
+}
+
+type QuestCardModel = {
+  title: string;
+  body: string;
+  progress: number;
+  target: number;
+  cta: string;
+  action: () => void;
+  icon: string;
+};
+
+function QuestCard({ quest }: { quest: QuestCardModel }) {
+  const complete = quest.progress >= quest.target;
+  const percent = clampProgress(quest.progress, quest.target);
+  return (
+    <article className={`quest-card ${complete ? "complete" : ""}`}>
+      <div className="quest-icon">{complete ? <BadgeCheck size={22} /> : quest.icon}</div>
+      <div>
+        <div className="review-top quest-title-row">
+          <h3>{quest.title}</h3>
+          <span className="tag">{Math.min(quest.progress, quest.target)}/{quest.target}</span>
+        </div>
+        <p className="muted">{quest.body}</p>
+        <div className="progress-bar"><span style={{ width: `${percent}%` }} /></div>
+        <button className={complete ? "secondary" : "primary"} onClick={quest.action}>{complete ? "Done" : quest.cta}</button>
+      </div>
+    </article>
+  );
+}
+
+function AchievementBadge({ badge }: { badge: { title: string; body: string; progress: number; target: number } }) {
+  const complete = badge.progress >= badge.target;
+  return (
+    <article className={`achievement-badge ${complete ? "unlocked" : ""}`}>
+      <div className="badge-medal">{complete ? <Award size={24} /> : <Target size={22} />}</div>
+      <div>
+        <h3>{badge.title}</h3>
+        <p className="muted">{badge.body}</p>
+        <div className="progress-bar"><span style={{ width: `${clampProgress(badge.progress, badge.target)}%` }} /></div>
+        <span className="tag">{Math.min(badge.progress, badge.target)}/{badge.target} {complete ? "unlocked" : "progress"}</span>
+      </div>
+    </article>
   );
 }
 
