@@ -1,0 +1,2 @@
+# Gamelog
+letterboxed for videogames
