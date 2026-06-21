@@ -15,7 +15,7 @@ importers:
         specifier: latest
         version: 2.108.2
       ai:
-        specifier: ^6.0.208
+        specifier: 6.0.208
         version: 6.0.208(zod@4.4.3)
       lucide-react:
         specifier: latest
