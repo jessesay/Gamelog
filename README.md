@@ -1,8 +1,8 @@
-# GameLog v1.0
+# GameLog v1.1
 
 GameLog is a Letterboxd-style social game diary with a fast mobile discovery loop: swipe/pass/save games, log reviews, build a backlog, follow people, and grow a real catalog with cover art.
 
-## What v1.0 fixes
+## What v1.1 fixes
 
 - Games no longer vanish when Supabase is connected but the `games` table is empty.
 - GameLog now falls back to a built-in starter catalog so Discover still works.
@@ -65,7 +65,7 @@ supabase/cover_updates.sql
 
 That usually means you moved to a new Supabase project/table state or opened a fresh repo version without rerunning the seed.
 
-GameLog v1.0 handles it better:
+GameLog v1.1 handles it better:
 
 1. It shows the built-in starter catalog locally instead of an empty app.
 2. Go to **Sources**.
@@ -104,3 +104,13 @@ Starter catalog
 - Steam cover fallbacks are visual fallbacks in the app. They make the starter catalog look good even when the database cover field is blank.
 - IGDB is still the best long-term source for cross-platform box art, platforms, genres, summaries, developers, and release years.
 - itch.io does not behave like a simple public “all games” catalog in this version, so GameLog supports manual and bulk import for itch.io titles.
+
+## v1.1 update
+
+- Mobile-first Discover redesign
+- For You mode based on local taste setup
+- Bigger swipe cards and deck preview
+- Swipe badges, keyboard shortcuts, and smoother touch drag state
+- Edit Taste flow for genre/mood preferences
+- Better recommendation sidebar and Up Next preview
+

@@ -5,17 +5,22 @@ import {
   BookmarkPlus,
   CalendarDays,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   DownloadCloud,
   Edit3,
   ExternalLink,
+  Flame,
   Gamepad2,
   Heart,
   History,
+  Layers3,
   ListPlus,
   LogIn,
   MessageCircle,
   Search,
   Share2,
+  SlidersHorizontal,
   Shuffle,
   RotateCcw,
   Send,
@@ -28,7 +33,8 @@ import {
   UserPlus,
   UserRound,
   Users,
-  X
+  X,
+  Zap
 } from "lucide-react";
 import { getSupabaseBrowserClient, hasSupabaseEnv } from "@/lib/supabase";
 import { demoProfile, loadDemoState, saveDemoState, starterGames } from "@/lib/demo";
@@ -38,7 +44,7 @@ import type { Follow, Game, GameList, GameLog, Profile, ReviewComment } from "@/
 type View = "home" | "discover" | "games" | "log" | "feed" | "lists" | "people" | "history" | "sources" | "profile";
 type AuthMode = "signin" | "signup";
 type FeedFilter = "all" | "following" | "mine";
-type DiscoverMode = "fresh" | "all" | "backlog" | "passed";
+type DiscoverMode = "forYou" | "fresh" | "all" | "backlog" | "passed";
 type DiscoveryActionName = "Pass" | "Want to Play" | "Backlog" | "Currently Playing" | "Completed";
 type DiscoveryMood = "All" | "Cozy" | "Hardcore" | "Multiplayer" | "Story" | "Short" | "Open World" | "Shooter" | "Strategy" | "Indie";
 type DiscoveryAction = { id: string; user_id: string; game_id: string; action: DiscoveryActionName; created_at: string; games?: Game | null };
@@ -173,6 +179,34 @@ function discoveryStorageKey(userId: string) {
   return `gamelog_discovery_actions_${userId}`;
 }
 
+function tasteStorageKey(userId: string) {
+  return `gamelog_taste_prefs_${userId}`;
+}
+
+function gameTasteScore(game: Game, myLogs: GameLog[], tasteGenres: string[], tasteMoods: DiscoveryMood[]) {
+  const moodTags = gameMoodTags(game);
+  const likedLogs = myLogs.filter((log) => Number(log.rating ?? 0) >= 4 || ["Completed", "100% Completed"].includes(log.status));
+  const likedGenres = new Set(likedLogs.map((log) => log.games?.genre).filter(Boolean));
+  const likedPlatforms = new Set(likedLogs.flatMap((log) => log.games?.platforms ?? []));
+  let score = 0;
+
+  if (game.genre && tasteGenres.includes(game.genre)) score += 7;
+  score += moodTags.filter((tag) => tasteMoods.includes(tag)).length * 5;
+  if (game.genre && likedGenres.has(game.genre)) score += 4;
+  score += (game.platforms ?? []).filter((platform) => likedPlatforms.has(platform)).length * 2;
+  if (getEffectiveCoverUrl(game)) score += 1;
+  if (game.release_year && game.release_year >= 2022) score += 1;
+  if (game.is_community) score += 1;
+
+  return score;
+}
+
+function matchPercent(game: Game, myLogs: GameLog[], tasteGenres: string[], tasteMoods: DiscoveryMood[]) {
+  const score = gameTasteScore(game, myLogs, tasteGenres, tasteMoods);
+  if (!score) return 64;
+  return Math.min(98, 70 + score * 3);
+}
+
 function sortByNewest(a: { created_at?: string }, b: { created_at?: string }) {
   return new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime();
 }
@@ -184,14 +218,18 @@ export default function GameLogApp() {
 
   const [view, setView] = useState<View>("home");
   const [feedFilter, setFeedFilter] = useState<FeedFilter>("all");
-  const [discoverMode, setDiscoverMode] = useState<DiscoverMode>("fresh");
+  const [discoverMode, setDiscoverMode] = useState<DiscoverMode>("forYou");
   const [discoverQuery, setDiscoverQuery] = useState("");
   const [discoverGenre, setDiscoverGenre] = useState("All");
   const [discoverMood, setDiscoverMood] = useState<DiscoveryMood>("All");
   const [discoverIndex, setDiscoverIndex] = useState(0);
+  const [tasteGenres, setTasteGenres] = useState<string[]>([]);
+  const [tasteMoods, setTasteMoods] = useState<DiscoveryMood[]>([]);
+  const [tasteOnboarded, setTasteOnboarded] = useState(false);
   const [discoveryActions, setDiscoveryActions] = useState<DiscoveryAction[]>([]);
   const [lastUndo, setLastUndo] = useState<UndoAction | null>(null);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const [dragOffset, setDragOffset] = useState(0);
   const [rawgPage, setRawgPage] = useState(1);
   const [importingGames, setImportingGames] = useState(false);
   const [igdbQuery, setIgdbQuery] = useState("zelda");
@@ -272,16 +310,18 @@ export default function GameLogApp() {
   const followerCount = follows.filter((follow) => follow.following_id === currentUserId).length;
   const genres = useMemo(() => ["All", ...Array.from(new Set(games.map((game) => game.genre).filter(Boolean) as string[])).sort()], [games]);
   const coverCount = useMemo(() => games.filter((game) => Boolean(getEffectiveCoverUrl(game))).length, [games]);
+  const starterTasteGenres = useMemo(() => genres.filter((item) => item !== "All").slice(0, 14), [genres]);
   const loggedGameIds = useMemo(() => new Set(myLogs.map((log) => log.game_id)), [myLogs]);
   const passedGameIds = useMemo(() => new Set(discoveryActions.filter((action) => action.action === "Pass").map((action) => action.game_id)), [discoveryActions]);
   const discoveryHistory = useMemo(() => discoveryActions.map((action) => ({ ...action, games: games.find((game) => game.id === action.game_id) ?? action.games ?? null })).sort(sortByNewest), [discoveryActions, games]);
 
   const discoverPool = useMemo(() => {
     const needle = discoverQuery.toLowerCase();
-    return games
+    const pool = games
       .filter((game) => discoverGenre === "All" || game.genre === discoverGenre)
       .filter((game) => discoverMood === "All" || gameMoodTags(game).includes(discoverMood))
       .filter((game) => {
+        if (discoverMode === "forYou") return !loggedGameIds.has(game.id) && !passedGameIds.has(game.id);
         if (discoverMode === "fresh") return !loggedGameIds.has(game.id) && !passedGameIds.has(game.id);
         if (discoverMode === "passed") return passedGameIds.has(game.id);
         if (discoverMode === "backlog") return myLogs.some((log) => log.game_id === game.id && ["Backlog", "Want to Play"].includes(log.status));
@@ -295,18 +335,30 @@ export default function GameLogApp() {
           .toLowerCase()
           .includes(needle);
       });
-  }, [discoverGenre, discoverMode, discoverMood, discoverQuery, games, loggedGameIds, myLogs, passedGameIds]);
+
+    if (discoverMode !== "forYou") return pool;
+
+    return [...pool].sort((a, b) => {
+      const scoreA = gameTasteScore(a, myLogs, tasteGenres, tasteMoods);
+      const scoreB = gameTasteScore(b, myLogs, tasteGenres, tasteMoods);
+      return scoreB - scoreA || Number(Boolean(getEffectiveCoverUrl(b))) - Number(Boolean(getEffectiveCoverUrl(a))) || a.title.localeCompare(b.title);
+    });
+  }, [discoverGenre, discoverMode, discoverMood, discoverQuery, games, loggedGameIds, myLogs, passedGameIds, tasteGenres, tasteMoods]);
 
   const discoverGame = discoverPool.length ? discoverPool[discoverIndex % discoverPool.length] : null;
   const discoverReasons = discoverGame ? getDiscoveryReasons(discoverGame, myLogs) : [];
+  const discoverMatch = discoverGame ? matchPercent(discoverGame, myLogs, tasteGenres, tasteMoods) : 0;
+  const nextUpGames = useMemo(() => discoverPool.slice(discoverIndex + 1, discoverIndex + 4), [discoverIndex, discoverPool]);
   const recommendedGames = useMemo(() => {
-    const likedGenres = new Set(myLogs.filter((log) => Number(log.rating ?? 0) >= 4 || ["Completed", "100% Completed"].includes(log.status)).map((log) => log.games?.genre).filter(Boolean));
     return games
       .filter((game) => game.id !== discoverGame?.id)
       .filter((game) => !loggedGameIds.has(game.id) && !passedGameIds.has(game.id))
-      .filter((game) => game.genre && likedGenres.has(game.genre))
-      .slice(0, 5);
-  }, [discoverGame?.id, games, loggedGameIds, myLogs, passedGameIds]);
+      .map((game) => ({ game, score: gameTasteScore(game, myLogs, tasteGenres, tasteMoods) }))
+      .filter((item) => item.score > 0)
+      .sort((a, b) => b.score - a.score || a.game.title.localeCompare(b.game.title))
+      .slice(0, 5)
+      .map((item) => item.game);
+  }, [discoverGame?.id, games, loggedGameIds, myLogs, passedGameIds, tasteGenres, tasteMoods]);
 
   const filteredGames = useMemo(() => {
     const needle = query.toLowerCase();
@@ -434,6 +486,37 @@ export default function GameLogApp() {
     }
   }, [currentUserId, loading]);
 
+
+  useEffect(() => {
+    if (!currentUserId || loading) return;
+    try {
+      const saved = window.localStorage.getItem(tasteStorageKey(currentUserId));
+      if (!saved) {
+        setTasteGenres([]);
+        setTasteMoods([]);
+        setTasteOnboarded(false);
+        return;
+      }
+      const parsed = JSON.parse(saved) as { genres?: string[]; moods?: DiscoveryMood[]; onboarded?: boolean };
+      setTasteGenres(parsed.genres ?? []);
+      setTasteMoods((parsed.moods ?? []).filter((mood) => mood !== "All"));
+      setTasteOnboarded(Boolean(parsed.onboarded));
+    } catch {
+      setTasteGenres([]);
+      setTasteMoods([]);
+      setTasteOnboarded(false);
+    }
+  }, [currentUserId, loading]);
+
+  useEffect(() => {
+    if (!currentUserId || loading) return;
+    try {
+      window.localStorage.setItem(tasteStorageKey(currentUserId), JSON.stringify({ genres: tasteGenres, moods: tasteMoods, onboarded: tasteOnboarded }));
+    } catch {
+      // Taste setup is optional; ignore storage failures.
+    }
+  }, [currentUserId, loading, tasteGenres, tasteMoods, tasteOnboarded]);
+
   useEffect(() => {
     if (!currentUserId || loading) return;
     try {
@@ -442,6 +525,26 @@ export default function GameLogApp() {
       // Ignore local storage failures; discovery still works for this session.
     }
   }, [currentUserId, discoveryActions, loading]);
+
+
+  useEffect(() => {
+    if (view !== "discover") return;
+    const handler = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)) return;
+      if (event.key === "ArrowLeft" && discoverGame) passDiscoverGame(discoverGame);
+      if (event.key === "ArrowRight" && discoverGame) quickLogGame(discoverGame, "Backlog");
+      if (event.key === "1" && discoverGame) quickLogGame(discoverGame, "Want to Play");
+      if (event.key === "2" && discoverGame) quickLogGame(discoverGame, "Backlog");
+      if (event.key === "3" && discoverGame) quickLogGame(discoverGame, "Currently Playing");
+      if (event.key === "4" && discoverGame) quickLogGame(discoverGame, "Completed");
+      if (event.key.toLowerCase() === "u") undoLastDiscoveryAction();
+      if (event.key.toLowerCase() === "r") randomDiscover();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, discoverGame, lastUndo, discoverPool.length]);
 
   async function loadRemoteData(currentUserId: string | null) {
     if (!supabase) return;
@@ -1321,6 +1424,23 @@ export default function GameLogApp() {
     }
   }
 
+
+  function toggleTasteGenre(item: string) {
+    setTasteGenres((current) => current.includes(item) ? current.filter((genre) => genre !== item) : [...current, item].slice(0, 8));
+  }
+
+  function toggleTasteMood(item: DiscoveryMood) {
+    if (item === "All") return;
+    setTasteMoods((current) => current.includes(item) ? current.filter((mood) => mood !== item) : [...current, item].slice(0, 6));
+  }
+
+  function saveTasteSetup() {
+    setTasteOnboarded(true);
+    setDiscoverMode("forYou");
+    setDiscoverIndex(0);
+    setMessage({ type: "ok", text: "Taste setup saved. Your For You stream now prioritizes those genres and moods." });
+  }
+
   function backlogRoulette() {
     const backlog = myLogs.filter((log) => log.status === "Backlog" || log.status === "Want to Play");
     const pick = backlog[Math.floor(Math.random() * backlog.length)];
@@ -1395,7 +1515,7 @@ export default function GameLogApp() {
               <p className="eyebrow">Letterboxd energy, but for games</p>
               <h1>Track what you play. Review what hits. Attack the backlog.</h1>
               <p className="lede">
-                GameLog is a social game diary for ratings, reviews, lists, profiles, follows, likes, comments, and friend activity. v0.9 adds IGDB imports so GameLog can pull true cover art and a much bigger cross-platform catalog.
+                GameLog is now built around fast mobile discovery: swipe through cover-art cards, save what looks good, pass what does not, and turn the backlog into a social game diary.
               </p>
               <div className="actions">
                 <button className="primary" onClick={() => setView("discover")}><Sparkles size={18} /> Start swiping</button>
@@ -1450,7 +1570,7 @@ export default function GameLogApp() {
               <h2>Your profile</h2>
               <ProfileMini profile={profile} completedCount={completedCount} backlogCount={backlogCount} avgRating={avgRating} followerCount={followerCount} followingCount={followingCount} />
               <div className="divider" />
-              <p className="muted">v0.9 adds IGDB imports, so the catalog can grow past a hand-written seed list with real cover art and better cross-platform metadata.</p>
+              <p className="muted">v1.1 makes Discover the main loop: a mobile-first stream with taste setup, swipe memory, cover cards, and smarter recommendations.</p>
               <div className="divider" />
               <h3>Top rated here</h3>
               <MiniTopGames games={topGames} />
@@ -1460,25 +1580,59 @@ export default function GameLogApp() {
       )}
 
       {view === "discover" && (
-        <section className="discover-layout">
-          <div className="discover-main card">
-            <div className="review-top discover-header">
+        <section className="discover-layout discover-layout-v11">
+          <div className="discover-main card discover-main-v11">
+            <div className="review-top discover-header discover-header-v11">
               <div>
-                <p className="eyebrow">Swipe-style discovery</p>
-                <h2>Endless game cards</h2>
-                <p className="muted" style={{ marginBottom: 0 }}>Swipe right to save, swipe left to pass, or use the buttons. GameLog remembers passes so the stream stays fresh.</p>
+                <p className="eyebrow">Mobile-first Discover</p>
+                <h2>Swipe through games fast</h2>
+                <p className="muted" style={{ marginBottom: 0 }}>Right saves it. Left passes it. Tap details when a cover catches you.</p>
               </div>
-              <span className="tag">{discoverPool.length ? `${(discoverIndex % discoverPool.length) + 1}/${discoverPool.length}` : "0 games"}</span>
+              <div className="discover-counter">
+                <span className="tag">{discoverPool.length ? `${(discoverIndex % discoverPool.length) + 1}/${discoverPool.length}` : "0 games"}</span>
+                {discoverGame && <span className="match-pill"><Zap size={14} /> {discoverMatch}% match</span>}
+              </div>
             </div>
 
-            <div className="discover-filters">
-              <div className="segmented">
+            {!tasteOnboarded && (
+              <section className="taste-onboarding">
+                <div>
+                  <p className="eyebrow">First run setup</p>
+                  <h3>Pick what you actually want to see</h3>
+                  <p className="muted">This stays local for now and powers the For You stream. Pick a few genres and moods, then start swiping.</p>
+                </div>
+                <div className="taste-section">
+                  <strong>Genres</strong>
+                  <div className="taste-grid">
+                    {starterTasteGenres.map((item) => (
+                      <button key={item} className={`taste-chip ${tasteGenres.includes(item) ? "selected" : ""}`} onClick={() => toggleTasteGenre(item)}>{item}</button>
+                    ))}
+                  </div>
+                </div>
+                <div className="taste-section">
+                  <strong>Moods</strong>
+                  <div className="taste-grid">
+                    {discoveryMoods.filter((item) => item !== "All").map((item) => (
+                      <button key={item} className={`taste-chip ${tasteMoods.includes(item) ? "selected" : ""}`} onClick={() => toggleTasteMood(item)}>{item}</button>
+                    ))}
+                  </div>
+                </div>
+                <div className="actions" style={{ marginTop: 14 }}>
+                  <button className="primary" onClick={saveTasteSetup}><SlidersHorizontal size={17} /> Save taste setup</button>
+                  <button className="secondary" onClick={() => setTasteOnboarded(true)}>Skip for now</button>
+                </div>
+              </section>
+            )}
+
+            <div className="discover-filters discover-filters-v11">
+              <div className="segmented mode-strip">
+                <button className={`pill ${discoverMode === "forYou" ? "active" : ""}`} onClick={() => setDiscoverMode("forYou")}><Flame size={15} /> For You</button>
                 <button className={`pill ${discoverMode === "fresh" ? "active" : ""}`} onClick={() => setDiscoverMode("fresh")}>Fresh</button>
-                <button className={`pill ${discoverMode === "all" ? "active" : ""}`} onClick={() => setDiscoverMode("all")}>All games</button>
-                <button className={`pill ${discoverMode === "backlog" ? "active" : ""}`} onClick={() => setDiscoverMode("backlog")}>My backlog</button>
+                <button className={`pill ${discoverMode === "all" ? "active" : ""}`} onClick={() => setDiscoverMode("all")}>All</button>
+                <button className={`pill ${discoverMode === "backlog" ? "active" : ""}`} onClick={() => setDiscoverMode("backlog")}>Backlog</button>
                 <button className={`pill ${discoverMode === "passed" ? "active" : ""}`} onClick={() => setDiscoverMode("passed")}>Passed</button>
               </div>
-              <div className="form-grid three">
+              <div className="form-grid three compact-filter-grid">
                 <div className="field">
                   <label><Search size={14} /> Search stream</label>
                   <input value={discoverQuery} onChange={(event) => setDiscoverQuery(event.target.value)} placeholder="soulslike, cozy, shooter..." />
@@ -1498,31 +1652,47 @@ export default function GameLogApp() {
               </div>
             </div>
 
-            {discoverGame ? (
-              <article className="swipe-card" key={discoverGame.id} onTouchStart={(event) => setTouchStartX(event.touches[0]?.clientX ?? null)} onTouchEnd={(event) => { if (touchStartX === null) return; handleSwipeEnd((event.changedTouches[0]?.clientX ?? touchStartX) - touchStartX); setTouchStartX(null); }}>
-                <GameCover game={discoverGame} variant="hero" />
-                <div className="swipe-info">
-                  <div className="review-top">
-                    <div>
-                      <h2>{discoverGame.title}</h2>
-                      <p className="muted" style={{ marginBottom: 0 }}>{discoverGame.release_year ?? "TBA"} · {discoverGame.genre ?? "Game"}</p>
+            <div className="deck-wrap">
+              {nextUpGames.map((game, index) => <div key={game.id} className={`deck-shadow-card deck-${index + 1}`}><GameCover game={game} variant="hero" /></div>)}
+              {discoverGame ? (
+                <article
+                  className={`swipe-card swipe-card-v11 ${dragOffset > 70 ? "swiping-right" : dragOffset < -70 ? "swiping-left" : ""}`}
+                  key={discoverGame.id}
+                  style={{ transform: dragOffset ? `translateX(${dragOffset}px) rotate(${dragOffset / 24}deg)` : undefined }}
+                  onTouchStart={(event) => { setTouchStartX(event.touches[0]?.clientX ?? null); setDragOffset(0); }}
+                  onTouchMove={(event) => { if (touchStartX === null) return; setDragOffset((event.touches[0]?.clientX ?? touchStartX) - touchStartX); }}
+                  onTouchEnd={() => { handleSwipeEnd(dragOffset); setTouchStartX(null); setDragOffset(0); }}
+                >
+                  <div className="swipe-badges">
+                    <span className="swipe-badge pass-badge"><ChevronLeft size={18} /> PASS</span>
+                    <span className="swipe-badge save-badge">SAVE <ChevronRight size={18} /></span>
+                  </div>
+                  <button className="cover-button" onClick={() => setSelectedGameId(discoverGame.id)} aria-label={`Open details for ${discoverGame.title}`}>
+                    <GameCover game={discoverGame} variant="hero" />
+                  </button>
+                  <div className="swipe-info swipe-info-v11">
+                    <div className="review-top">
+                      <div>
+                        <h2>{discoverGame.title}</h2>
+                        <p className="muted" style={{ marginBottom: 0 }}>{discoverGame.release_year ?? "TBA"} · {discoverGame.genre ?? "Game"}</p>
+                      </div>
+                      {loggedGameIds.has(discoverGame.id) && <span className="tag">Already logged</span>}
                     </div>
-                    {loggedGameIds.has(discoverGame.id) && <span className="tag">Already logged</span>}
+                    <p className="lede swipe-summary">{discoverGame.summary ?? "No summary yet. Swipe it into your backlog if it looks interesting."}</p>
+                    <div className="tag-row">
+                      {discoverGame.developer && <span className="tag">{discoverGame.developer}</span>}
+                      {(discoverGame.platforms ?? []).slice(0, 4).map((platform) => <span className="tag" key={platform}>{platform}</span>)}
+                      {discoverReasons.map((reason) => <span className="tag reason-tag" key={reason}>{reason}</span>)}
+                    </div>
+                    <p className="swipe-hint">Swipe left/right · keyboard: ← pass, → save, 1 want, 2 backlog, 3 playing, 4 done, U undo</p>
                   </div>
-                  <p className="lede swipe-summary">{discoverGame.summary ?? "No summary yet. Swipe it into your backlog if it looks interesting."}</p>
-                  <div className="tag-row">
-                    {discoverGame.developer && <span className="tag">{discoverGame.developer}</span>}
-                    {(discoverGame.platforms ?? []).slice(0, 4).map((platform) => <span className="tag" key={platform}>{platform}</span>)}
-                    {discoverReasons.map((reason) => <span className="tag reason-tag" key={reason}>{reason}</span>)}
-                  </div>
-                  <p className="swipe-hint">Mobile: swipe left to pass · swipe right to backlog</p>
-                </div>
-              </article>
-            ) : (
-              <div className="empty big-empty">No games match this stream. Switch filters or import more games.</div>
-            )}
+                </article>
+              ) : (
+                <div className="empty big-empty">No games match this stream. Switch filters or import more games.</div>
+              )}
+            </div>
 
-            <div className="discover-controls">
+            <div className="discover-controls discover-controls-v11">
               <button className="secondary round-action pass-action" onClick={() => discoverGame && passDiscoverGame(discoverGame)} disabled={!discoverGame}><SkipForward size={22} /> Pass</button>
               <button className="secondary round-action" onClick={() => discoverGame && quickLogGame(discoverGame, "Want to Play")} disabled={!discoverGame}><Heart size={22} /> Want</button>
               <button className="primary round-action" onClick={() => discoverGame && quickLogGame(discoverGame, "Backlog")} disabled={!discoverGame}><BookmarkPlus size={22} /> Backlog</button>
@@ -1532,11 +1702,11 @@ export default function GameLogApp() {
 
             <div className="actions discover-secondary-actions">
               <button className="secondary" onClick={undoLastDiscoveryAction} disabled={!lastUndo}><RotateCcw size={16} /> Undo</button>
-              <button className="secondary" onClick={randomDiscover} disabled={!discoverPool.length}><Shuffle size={16} /> Random card</button>
+              <button className="secondary" onClick={randomDiscover} disabled={!discoverPool.length}><Shuffle size={16} /> Random</button>
               <button className="secondary" onClick={() => discoverGame && setSelectedGameId(discoverGame.id)} disabled={!discoverGame}>Details</button>
               <button className="secondary" onClick={() => setView("history")}><History size={16} /> History</button>
               <button className="secondary" onClick={clearPassedGames} disabled={!passedGameIds.size}>Clear passes</button>
-              <button className="secondary" onClick={importRawgTrendingGames} disabled={importingGames}><DownloadCloud size={16} /> {importingGames ? "Importing..." : rawgApiKey ? "Import 40 games" : "Connect RAWG covers"}</button>
+              <button className="secondary" onClick={() => setTasteOnboarded(false)}><SlidersHorizontal size={16} /> Edit taste</button>
             </div>
 
             {selectedGame && (
@@ -1549,9 +1719,9 @@ export default function GameLogApp() {
             )}
           </div>
 
-          <aside className="discover-side card">
-            <h2>Why this matters</h2>
-            <p className="muted">A huge catalog is good, but a fast loop is the product. GameLog should feel like opening TikTok/Tinder for games: one card, one decision, instant next game. Use Sources to keep loading games and cover art.</p>
+          <aside className="discover-side card discover-side-v11">
+            <h2>For You engine</h2>
+            <p className="muted">v1.1 pushes GameLog toward the real hook: an endless, fast, personalized mobile feed for games with box art and one-tap logging.</p>
             <div className="stats compact-stats">
               <div className="stat"><strong>{games.length}</strong><span>Catalog</span></div>
               <div className="stat"><strong>{coverCount}</strong><span>Covers</span></div>
@@ -1561,15 +1731,31 @@ export default function GameLogApp() {
               <div className="stat"><strong>{passedGameIds.size}</strong><span>Passed</span></div>
             </div>
             <div className="divider" />
+            <h3>Your taste picks</h3>
+            <div className="tag-row">
+              {tasteGenres.length || tasteMoods.length ? [...tasteGenres, ...tasteMoods].map((item) => <span className="tag reason-tag" key={item}>{item}</span>) : <span className="tag">No taste setup yet</span>}
+            </div>
+            <div className="divider" />
+            <h3><Layers3 size={17} /> Up next</h3>
+            {nextUpGames.length ? (
+              <div className="mini-cover-list">
+                {nextUpGames.map((game) => (
+                  <button className="mini-cover-row" key={game.id} onClick={() => { setSelectedGameId(game.id); setDiscoverMode("all"); setDiscoverIndex(Math.max(0, games.findIndex((item) => item.id === game.id))); }}>
+                    <GameCover game={game} />
+                    <span>{game.title}</span>
+                  </button>
+                ))}
+              </div>
+            ) : <p className="muted">Import more games or loosen filters to keep the deck full.</p>}
+            <div className="divider" />
             <h3>Because you liked...</h3>
             {recommendedGames.length ? (
               <div className="mini-list">
                 {recommendedGames.map((game) => <button className="mini-row button-row" key={game.id} onClick={() => { setSelectedGameId(game.id); setDiscoverMode("all"); setDiscoverIndex(Math.max(0, games.findIndex((item) => item.id === game.id))); }}><span>{game.title}</span><strong>{game.genre}</strong></button>)}
               </div>
-            ) : <p className="muted">Rate or complete a few games and this turns into personalized recommendations.</p>}
+            ) : <p className="muted">Pick taste tags or rate a few games and this becomes smarter.</p>}
             <div className="divider" />
-            <h3>Next data upgrade</h3>
-            <p className="muted">Go to Sources to import from IGDB, Steam search, RAWG, itch.io manual links, or bulk game lines. The seed catalog uses fallback posters until cover_url exists.</p>
+            <button className="primary" onClick={() => setView("sources")}><DownloadCloud size={18} /> Import more games</button>
           </aside>
         </section>
       )}
@@ -1837,7 +2023,7 @@ export default function GameLogApp() {
               <div className="stat"><strong>{discoverPool.length}</strong><span>Fresh now</span></div>
             </div>
             <div className="divider" />
-            <p className="muted">For v0.7, this memory is stored locally per user/browser. Later we can move it into Supabase so it follows the account across devices.</p>
+            <p className="muted">For v1.1, this discovery memory is stored locally per user/browser. Later we can move it into Supabase so it follows the account across devices.</p>
             <button className="primary" onClick={() => setView("discover")}>Back to Discover</button>
           </aside>
         </section>
