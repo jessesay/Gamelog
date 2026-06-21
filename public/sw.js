@@ -1,5 +1,5 @@
-const CACHE_NAME = "gamelog-shell-v1-12";
-const SHELL_ASSETS = ["/", "/favicon.svg", "/icon.svg", "/manifest.webmanifest"];
+const CACHE_NAME = "gamelog-shell-v2-8";
+const SHELL_ASSETS = ["/", "/app", "/favicon.svg", "/icon.svg", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -24,7 +24,7 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
 
   if (request.mode === "navigate") {
-    event.respondWith(fetch(request).catch(() => caches.match("/")));
+    event.respondWith(fetch(request).catch(() => caches.match("/app").then((cached) => cached || caches.match("/"))));
     return;
   }
 

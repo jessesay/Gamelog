@@ -2,8 +2,12 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "GameLog — Your daily gaming home",
-  description: "A mobile-first social game diary with Pulse, charts, swipe discovery, IGDB-powered catalog imports, public profiles, shareable lists, and GameLog Coach.",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://gamelog.app"),
+  title: {
+    default: "GameLog — Your gaming command center",
+    template: "%s | GameLog"
+  },
+  description: "Track your library, decide what to play, watch prices, follow releases, build collections, and share your gaming taste.",
   manifest: "/manifest.webmanifest",
   icons: {
     icon: "/favicon.svg",
@@ -16,8 +20,13 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "GameLog",
-    description: "Track what you play. Review what hits. Open Pulse. Share your taste. Attack the backlog.",
+    description: "Decide what to play. Track what you love. Watch prices. Share your taste.",
     type: "website"
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "GameLog",
+    description: "Your gaming command center."
   }
 };
 

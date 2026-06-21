@@ -1992,7 +1992,7 @@ export default function GameLogApp() {
       pack.tagline,
       pack.description,
       pack.games.slice(0, 8).map((game, index) => `${index + 1}. ${game.title}`).join("\n"),
-      `${window.location.origin}/?view=collections`
+      `${window.location.origin}/app?view=collections`
     ].filter(Boolean).join("\n\n");
     await copyShareText(text, "Collection");
   }

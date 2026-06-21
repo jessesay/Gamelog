@@ -1,8 +1,8 @@
 {
   "name": "GameLog",
   "short_name": "GameLog",
-  "description": "A mobile-first gaming command center with Pulse, Matchmaker, Arena, Collections, Release Radar, Deal Radar, charts, swipe discovery, library tracking, public profiles, and GameLog Coach.",
-  "start_url": "/",
+  "description": "A mobile-first gaming command center for deciding what to play, tracking your library, watching deals, following releases, and sharing taste.",
+  "start_url": "/app",
   "scope": "/",
   "display": "standalone",
   "background_color": "#05070b",
@@ -27,13 +27,13 @@
       "name": "Pulse",
       "short_name": "Pulse",
       "description": "Open your daily GameLog command center",
-      "url": "/?view=pulse"
+      "url": "/app?view=pulse"
     },
     {
       "name": "Deal Radar",
       "short_name": "Deals",
       "description": "See ranked sales and price drops.",
-      "url": "/?view=deals",
+      "url": "/app?view=deals",
       "icons": [
         {
           "src": "/icon.svg",
@@ -46,55 +46,55 @@
       "name": "Release Radar",
       "short_name": "Radar",
       "description": "Track upcoming games, recent drops, and DLC families.",
-      "url": "/?view=radar"
+      "url": "/app?view=radar"
     },
     {
       "name": "Collections",
       "short_name": "Collect",
       "description": "Open shareable GameLog shelves and playlists.",
-      "url": "/?view=collections"
+      "url": "/app?view=collections"
     },
     {
       "name": "Matchmaker",
       "short_name": "Match",
       "description": "Find the right game for tonight",
-      "url": "/?view=match"
+      "url": "/app?view=match"
     },
     {
       "name": "Arena",
       "short_name": "Arena",
       "description": "Run head-to-head game duels",
-      "url": "/?view=arena"
+      "url": "/app?view=arena"
     },
     {
       "name": "Discover",
       "short_name": "Discover",
       "description": "Swipe through games",
-      "url": "/?view=discover"
+      "url": "/app?view=discover"
     },
     {
       "name": "Charts",
       "short_name": "Charts",
       "description": "Browse GameLog charts and taste picks",
-      "url": "/?view=charts"
+      "url": "/app?view=charts"
     },
     {
       "name": "Library",
       "short_name": "Library",
       "description": "Open your GameLog library",
-      "url": "/?view=library"
+      "url": "/app?view=library"
     },
     {
       "name": "Beta Feedback",
       "short_name": "Feedback",
       "description": "Send GameLog beta feedback",
-      "url": "/?view=beta"
+      "url": "/app?view=beta"
     },
     {
       "name": "Share Studio",
       "short_name": "Share",
       "description": "Copy GameLog profile, review, and list links.",
-      "url": "/?view=share",
+      "url": "/app?view=share",
       "icons": [
         {
           "src": "/icon.svg",
@@ -107,7 +107,7 @@
       "name": "Price Watch",
       "short_name": "Prices",
       "description": "Track game prices and deals.",
-      "url": "/?view=prices",
+      "url": "/app?view=prices",
       "icons": [
         {
           "src": "/icon.svg",

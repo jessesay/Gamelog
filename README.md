@@ -1,3 +1,22 @@
+
+## GameLog v2.8 — Launch Website Layer
+
+GameLog now has a real website shell in front of the app. The public home page explains the product, while the full app now lives at `/app`.
+
+New public routes:
+
+- `/` — marketing landing page
+- `/app` — full GameLog app
+- `/about` — product story
+- `/roadmap` — public roadmap
+- `/press` — press kit / launch copy
+- `/privacy` — beta privacy page
+- `/terms` — beta terms page
+- `/launch` — beta launch checklist
+- `/robots.txt` and `/sitemap.xml` — SEO basics
+
+Also updated PWA shortcuts to open `/app?view=...`, refreshed metadata, and added launch-ready footer links.
+
 # GameLog v2.6 — Release Radar Layer
 
 GameLog is now a gaming command center: Pulse, Matchmaker, Arena, Deal Radar, Price Watch, and Release Radar.
