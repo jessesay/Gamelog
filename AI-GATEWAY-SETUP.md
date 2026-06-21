@@ -1,6 +1,6 @@
 # GameLog AI Gateway Setup
 
-GameLog v1.8 uses Vercel AI Gateway through the Vercel AI SDK.
+GameLog uses Vercel AI Gateway through the Vercel AI SDK behind the GameLog Coach.
 
 ## Local setup
 
@@ -25,13 +25,13 @@ run-ai-gateway-test.bat
 
 ## In-app feature
 
-Open GameLog and use **AI Coach** from Home or Library. It calls:
+Open GameLog and use **GameLog Coach** from Home or Library. It calls:
 
 ```text
 /api/ai/backlog-coach
 ```
 
-That endpoint streams an AI Backlog Coach response using your GameLog data.
+That endpoint streams a GameLog Coach response using your GameLog data.
 
 ## Notes
 

@@ -45,7 +45,7 @@ import { demoProfile, loadDemoState, saveDemoState, starterGames } from "@/lib/d
 import { getEffectiveCoverUrl, getKnownCoverUrl, withKnownCover } from "@/lib/coverArt";
 import type { Follow, Game, GameList, GameLog, Profile, ReviewComment } from "@/lib/types";
 
-type View = "home" | "discover" | "library" | "coach" | "beta" | "quests" | "wrapped" | "games" | "log" | "feed" | "lists" | "people" | "history" | "sources" | "profile";
+type View = "home" | "discover" | "library" | "coach" | "share" | "beta" | "quests" | "wrapped" | "games" | "log" | "feed" | "lists" | "people" | "history" | "sources" | "profile";
 type AuthMode = "signin" | "signup";
 type FeedFilter = "all" | "following" | "mine";
 type DiscoverMode = "forYou" | "fresh" | "all" | "backlog" | "passed";
@@ -377,6 +377,11 @@ export default function GameLogApp() {
   const rawgApiKey = process.env.NEXT_PUBLIC_RAWG_API_KEY ?? "";
 
   const [view, setView] = useState<View>("home");
+  useEffect(() => {
+    const requestedView = new URLSearchParams(window.location.search).get("view") as View | null;
+    const allowedViews: View[] = ["home", "discover", "library", "coach", "share", "beta", "quests", "wrapped", "games", "log", "feed", "lists", "people", "history", "sources", "profile"];
+    if (requestedView && allowedViews.includes(requestedView)) setView(requestedView);
+  }, []);
   const [feedFilter, setFeedFilter] = useState<FeedFilter>("all");
   const [discoverMode, setDiscoverMode] = useState<DiscoverMode>("forYou");
   const [discoverQuery, setDiscoverQuery] = useState("");
@@ -639,6 +644,29 @@ export default function GameLogApp() {
   }, [games, homeTrendingGames, myLogs, profile.favorite_game]);
 
   const profileNeedsSetup = signedIn && (profile.display_name === "New Player" || !profile.favorite_game || !profile.bio);
+  const latestShareReview = useMemo(() => {
+    return [...myLogs]
+      .filter((log) => Boolean(log.review?.trim()) || (log.rating !== null && log.rating !== undefined))
+      .sort(sortByNewest)[0] ?? null;
+  }, [myLogs]);
+  const topShareList = useMemo(() => {
+    const mine = lists.filter((list) => list.user_id === currentUserId);
+    return [...mine]
+      .sort((a, b) => (b.list_items?.length ?? 0) - (a.list_items?.length ?? 0) || new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime())[0] ?? null;
+  }, [currentUserId, lists]);
+  const publicProfilePath = `/u/${profile.username || "player"}`;
+  const shareKitText = [
+    `${profile.display_name || "GameLog Player"} on GameLog`,
+    `@${profile.username || "player"}`,
+    profile.bio ? `Bio: ${profile.bio}` : null,
+    profile.favorite_game ? `Favorite game: ${profile.favorite_game}` : null,
+    `${myLogs.length} logs · ${completedCount} completed · ${backlogCount} backlog · ${reviewedCount} reviews`,
+    `Average rating: ${avgRating}`,
+    `Top genre: ${topLibraryGenre}`,
+    `Top vibe: ${topLibraryVibe}`,
+    `Profile: ${typeof window !== "undefined" ? window.location.origin : ""}${publicProfilePath}`
+  ].filter(Boolean).join("
+");
   const recentReviews = useMemo(() => logs.filter((log) => Boolean(log.review?.trim())).slice(0, 5), [logs]);
   const currentYear = new Date().getFullYear();
   const currentMonthKey = new Date().toISOString().slice(0, 7);
@@ -692,7 +720,7 @@ export default function GameLogApp() {
   const questCards = useMemo(() => [
     {
       title: "Swipe the deck",
-      body: "Pass or save 10 games today so your recommendations get smarter.",
+      body: "Pass or save 10 games today so GameLog gets sharper.",
       progress: todayDiscoveryActions.length,
       target: 10,
       cta: "Open Discover",
@@ -1989,9 +2017,18 @@ export default function GameLogApp() {
     }
   }
 
+  async function copyShareText(text: string, label: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setMessage({ type: "ok", text: `${label} copied.` });
+    } catch {
+      setMessage({ type: "info", text });
+    }
+  }
+
   async function copyBetaInvite() {
     const url = window.location.origin;
-    const text = `I am testing GameLog — a mobile-first game diary with swipe discovery, IGDB imports, and an AI backlog coach. Try it here: ${url}`;
+    const text = `I am testing GameLog — a mobile-first game diary with swipe discovery, IGDB imports, and a smart backlog coach. Try it here: ${url}`;
     try {
       await navigator.clipboard.writeText(text);
       setMessage({ type: "ok", text: "Beta invite copied. Send it to one gamer friend." });
@@ -2161,7 +2198,7 @@ ${item.body}`;
 
       if (!response.ok) {
         const body = await response.json().catch(() => null);
-        throw new Error(body?.error || `AI Coach failed with status ${response.status}.`);
+        throw new Error(body?.error || `GameLog Coach failed with status ${response.status}.`);
       }
 
       const reader = response.body?.getReader();
@@ -2181,7 +2218,7 @@ ${item.body}`;
       nextText += decoder.decode();
       setAiCoachText(nextText);
     } catch (error) {
-      const text = error instanceof Error ? error.message : "AI Coach failed.";
+      const text = error instanceof Error ? error.message : "GameLog Coach failed.";
       setMessage({ type: "error", text });
     } finally {
       setAiCoachLoading(false);
@@ -2230,6 +2267,7 @@ ${item.body}`;
               ["library", "Library"],
               ["games", "Games"],
               ["feed", "Social"],
+              ["share", "Share"],
               ["sources", "Import"],
               ["profile", "Profile"],
               ["beta", "Beta"]
@@ -2259,7 +2297,7 @@ ${item.body}`;
           <Layers3 size={18} />
           <span>Library</span>
         </button>
-        <button className={`mobile-nav-item ${view === "coach" ? "active" : ""}`} onClick={() => openAiCoach("next")} aria-label="AI Coach">
+        <button className={`mobile-nav-item ${view === "coach" ? "active" : ""}`} onClick={() => openAiCoach("next")} aria-label="GameLog Coach">
           <Zap size={18} />
           <span>Coach</span>
         </button>
@@ -2284,8 +2322,9 @@ ${item.body}`;
                 <button className="primary" onClick={() => setView("discover")}><Sparkles size={18} /> Start swiping</button>
                 <button className="secondary" onClick={() => setView("log")}><Gamepad2 size={18} /> Log a game</button>
                 <button className="secondary" onClick={() => setView("library")}><Layers3 size={18} /> My library</button>
-                <button className="secondary" onClick={() => openAiCoach("next")}><Sparkles size={18} /> AI Coach</button>
+                <button className="secondary" onClick={() => openAiCoach("next")}><Sparkles size={18} /> GameLog Coach</button>
                 <button className="secondary" onClick={() => setView("feed")}><Sparkles size={18} /> Social feed</button>
+                <button className="secondary" onClick={() => setView("share")}><Share2 size={18} /> Share profile</button>
                 <button className="secondary" onClick={() => setView("sources")}><DownloadCloud size={18} /> Import games</button>
                 <button className="secondary" onClick={() => setView("beta")}><Rocket size={18} /> Beta board</button>
               </div>
@@ -2315,12 +2354,13 @@ ${item.body}`;
 
           <section className="launch-strip card">
             <div>
-              <p className="eyebrow">v1.12 public beta kit</p>
-              <h2>GameLog is ready for a small group of testers.</h2>
-              <p className="muted">The core loop is playable: swipe, import from IGDB, track your library, and ask AI Coach what to play next. Now the app has a beta feedback board so testers can report missing games, duplicates, bugs, and UI polish ideas.</p>
+              <p className="eyebrow">v1.13 public share layer</p>
+              <h2>Turn your profile into something worth sending.</h2>
+              <p className="muted">The app now has cleaner public profiles, review pages, public list pages, and a Share Studio so testers can send links that feel like a real social product.</p>
             </div>
             <div className="launch-actions">
               <button className="primary" onClick={() => setView("discover")}><Sparkles size={18} /> Open swipe deck</button>
+              <button className="secondary" onClick={() => setView("share")}><Share2 size={18} /> Open Share Studio</button>
               <button className="secondary" onClick={copyBetaInvite}><Share2 size={18} /> Copy beta invite</button>
               <button className="secondary" onClick={() => setView("beta")}><MessageCircle size={18} /> Give feedback</button>
             </div>
@@ -2387,7 +2427,7 @@ ${item.body}`;
               <h2>Your profile</h2>
               <ProfileMini profile={profile} completedCount={completedCount} backlogCount={backlogCount} avgRating={avgRating} followerCount={followerCount} followingCount={followingCount} />
               <div className="divider" />
-              <p className="muted">v1.12 adds the public beta command center, quick feedback capture, missing-game reports, and a launch checklist while keeping AI Coach, IGDB imports, and mobile nav intact.</p>
+              <p className="muted">v1.13 makes GameLog easier to share: profile cards, public list links, better review pages, and a clean Share Studio for beta invites.</p>
               <div className="divider" />
               <h3>Top rated here</h3>
               <MiniTopGames games={topGames} />
@@ -2583,12 +2623,12 @@ ${item.body}`;
             <div>
               <p className="eyebrow">Your player library</p>
               <h1>Turn the backlog into an actual plan.</h1>
-              <p className="lede">v1.3 gives GameLog a real library hub: shelves, monthly progress, review prompts, and a smarter backlog attack plan.</p>
+              <p className="lede">GameLog turns shelves, progress, play history, and taste signals into a cleaner next-play plan.</p>
               <div className="actions">
                 <button className="primary" onClick={() => setView("discover")}><Sparkles size={18} /> Find more games</button>
                 <button className="secondary" onClick={backlogRoulette}><Shuffle size={18} /> Backlog roulette</button>
                 <button className="secondary" onClick={() => setView("log")}><Star size={18} /> Write a review</button>
-                <button className="secondary" onClick={() => openAiCoach("next")}><Sparkles size={18} /> AI Coach</button>
+                <button className="secondary" onClick={() => openAiCoach("next")}><Sparkles size={18} /> GameLog Coach</button>
               </div>
             </div>
             <div className="library-score-card">
@@ -2688,27 +2728,27 @@ ${item.body}`;
           <div className="col-8 card ai-coach-card">
             <div className="review-top">
               <div>
-                <p className="eyebrow">GameLog v1.8 · AI Taste Engine</p>
-                <h2>AI Backlog Coach</h2>
-                <p className="muted" style={{ marginBottom: 0 }}>GameLog sends a compact snapshot of your backlog, ratings, vibes, and taste setup to AI Gateway, then streams back a play plan.</p>
+                <p className="eyebrow">GameLog v1.14 · Taste Engine</p>
+                <h2>GameLog Coach</h2>
+                <p className="muted" style={{ marginBottom: 0 }}>GameLog reads your backlog, ratings, vibes, and taste setup, then turns them into a clean play plan without feeling like a chatbot.</p>
               </div>
-              <span className="match-pill"><Sparkles size={14} /> AI Gateway</span>
+              <span className="match-pill"><Sparkles size={14} /> GameLog Engine</span>
             </div>
 
             <div className="actions coach-actions">
               <button className={`pill ${aiCoachMode === "next" ? "active" : ""}`} onClick={() => runAiCoach("next")} disabled={aiCoachLoading}>Next game</button>
               <button className={`pill ${aiCoachMode === "weekend" ? "active" : ""}`} onClick={() => runAiCoach("weekend")} disabled={aiCoachLoading}>Weekend plan</button>
-              <button className={`pill ${aiCoachMode === "review" ? "active" : ""}`} onClick={() => runAiCoach("review")} disabled={aiCoachLoading}>Review help</button>
+              <button className={`pill ${aiCoachMode === "review" ? "active" : ""}`} onClick={() => runAiCoach("review")} disabled={aiCoachLoading}>Log prompts</button>
               <button className={`pill ${aiCoachMode === "taste" ? "active" : ""}`} onClick={() => runAiCoach("taste")} disabled={aiCoachLoading}>Taste profile</button>
             </div>
 
             <div className="ai-response-box">
               {aiCoachLoading && !aiCoachText ? (
-                <div className="empty-state"><Sparkles size={24} /><h3>Thinking through your library...</h3><p>Checking backlog pressure, favorite genres, ratings, and completed games.</p></div>
+                <div className="empty-state"><Sparkles size={24} /><h3>Building your play plan...</h3><p>Checking backlog pressure, favorite genres, ratings, and completed games.</p></div>
               ) : aiCoachText ? (
                 <pre>{aiCoachText}</pre>
               ) : (
-                <div className="empty-state"><Target size={24} /><h3>Ask the coach what to play next</h3><p>Use the buttons above to generate a backlog plan, weekend lineup, review starters, or a shareable taste summary.</p></div>
+                <div className="empty-state"><Target size={24} /><h3>Ask GameLog what to play next</h3><p>Use the buttons above to build a backlog plan, weekend lineup, reflection prompts, or a shareable taste summary.</p></div>
               )}
             </div>
           </div>
@@ -2740,6 +2780,93 @@ ${item.body}`;
         </section>
       )}
 
+      {view === "share" && (
+        <section className="grid share-view">
+          <div className="col-12 hero-card share-hero-card">
+            <div>
+              <p className="eyebrow">GameLog v1.13</p>
+              <h1>Share Studio</h1>
+              <p className="lede">Public profile, latest review, favorite shelf, and lists in one place. This is the layer that makes GameLog feel social instead of just private tracking.</p>
+              <div className="actions">
+                <button className="primary" onClick={() => copyShareLink(publicProfilePath, "Profile")}><Share2 size={18} /> Copy profile link</button>
+                <a className="secondary inline-link" href={publicProfilePath} target="_blank" rel="noreferrer"><ExternalLink size={16} /> Open public profile</a>
+                <button className="secondary" onClick={() => copyShareText(shareKitText, "Profile share card")}><MessageCircle size={18} /> Copy share card</button>
+              </div>
+            </div>
+            <div className="public-share-card">
+              <p className="eyebrow">Public profile</p>
+              <h2>{profile.display_name || "GameLog Player"}</h2>
+              <p>@{profile.username || "player"}</p>
+              <div className="share-card-shelf">
+                {favoriteShelfGames.slice(0, 4).map((game) => <GameCover key={game.id} game={game} />)}
+              </div>
+              <div className="wrapped-mini-grid">
+                <span><strong>{myLogs.length}</strong><em>logs</em></span>
+                <span><strong>{completedCount}</strong><em>done</em></span>
+                <span><strong>{avgRating}</strong><em>avg</em></span>
+                <span><strong>{backlogCount}</strong><em>backlog</em></span>
+              </div>
+            </div>
+          </div>
+
+          <div className="col-4 card share-action-card">
+            <p className="eyebrow">Profile</p>
+            <h2>Send your GameLog</h2>
+            <p className="muted">Best general link for friends, testers, or social bios. It shows stats, shelf, recent reviews, and lists.</p>
+            <div className="actions vertical-actions">
+              <button className="primary" onClick={() => copyShareLink(publicProfilePath, "Profile")}><Share2 size={18} /> Copy profile link</button>
+              <button className="secondary" onClick={() => setView("profile")}><UserRound size={18} /> Edit profile</button>
+            </div>
+          </div>
+
+          <div className="col-4 card share-action-card">
+            <p className="eyebrow">Latest take</p>
+            <h2>{latestShareReview?.games?.title ?? "No review yet"}</h2>
+            <p className="muted">{latestShareReview?.review || "Write one quick review and this becomes a shareable take."}</p>
+            <div className="tag-row">
+              {latestShareReview?.rating !== undefined && latestShareReview?.rating !== null && <span className="tag stars">{stars(latestShareReview.rating)}</span>}
+              {latestShareReview?.vibe && <span className="tag">{latestShareReview.vibe}</span>}
+            </div>
+            <div className="actions vertical-actions">
+              {latestShareReview ? <button className="primary" onClick={() => copyShareLink(`/r/${latestShareReview.id}`, "Review")}><Share2 size={18} /> Copy review link</button> : <button className="primary" onClick={() => setView("log")}><Star size={18} /> Write a review</button>}
+              {latestShareReview && <a className="secondary inline-link" href={`/r/${latestShareReview.id}`} target="_blank" rel="noreferrer"><ExternalLink size={16} /> Open review page</a>}
+            </div>
+          </div>
+
+          <div className="col-4 card share-action-card">
+            <p className="eyebrow">Lists</p>
+            <h2>{topShareList?.title ?? "Create a list"}</h2>
+            <p className="muted">{topShareList?.description || "Lists are perfect for sharing taste: favorites, hidden gems, cozy picks, horror nights, or backlog goals."}</p>
+            <div className="actions vertical-actions">
+              {topShareList ? <button className="primary" onClick={() => copyShareLink(`/l/${topShareList.id}`, "List")}><Share2 size={18} /> Copy list link</button> : <button className="primary" onClick={() => setView("lists")}><ListPlus size={18} /> Make a list</button>}
+              {topShareList && <a className="secondary inline-link" href={`/l/${topShareList.id}`} target="_blank" rel="noreferrer"><ExternalLink size={16} /> Open list page</a>}
+            </div>
+          </div>
+
+          <div className="col-7 card">
+            <div className="review-top">
+              <div>
+                <p className="eyebrow">Copy/paste invite</p>
+                <h2>Beta message that does not sound boring</h2>
+              </div>
+              <button className="secondary" onClick={copyBetaInvite}><Share2 size={16} /> Copy invite</button>
+            </div>
+            <p className="share-script">I am testing GameLog — a mobile-first game diary with swipe discovery, IGDB imports, public profiles, lists, and a smart backlog coach. Build your profile, import a few games, and tell me what feels rough.</p>
+          </div>
+
+          <aside className="col-5 card">
+            <p className="eyebrow">Public links checklist</p>
+            <h2>Make the share page hit harder</h2>
+            <div className="mini-list">
+              <button className="mini-row button-row" onClick={() => setView("profile")}><span>Profile polish</span><strong>{profileNeedsSetup ? "Needs setup" : "Looks good"}</strong></button>
+              <button className="mini-row button-row" onClick={() => setView("log")}><span>Review count</span><strong>{reviewedCount} written</strong></button>
+              <button className="mini-row button-row" onClick={() => setView("lists")}><span>Public lists</span><strong>{lists.filter((list) => list.user_id === currentUserId).length}</strong></button>
+              <button className="mini-row button-row" onClick={() => setView("wrapped")}><span>Wrapped card</span><strong>{currentYear}</strong></button>
+            </div>
+          </aside>
+        </section>
+      )}
+
       {view === "beta" && (
         <section className="stack">
           <div className="hero-card beta-hero">
@@ -2749,7 +2876,7 @@ ${item.body}`;
             <div className="actions">
               <button className="primary" onClick={copyBetaInvite}><Share2 size={18} /> Copy beta invite</button>
               <button className="secondary" onClick={() => setView("games")}><Search size={18} /> Check catalog</button>
-              <button className="secondary" onClick={() => openAiCoach("next")}><Zap size={18} /> Test AI Coach</button>
+              <button className="secondary" onClick={() => openAiCoach("next")}><Zap size={18} /> Test Coach</button>
             </div>
           </div>
 
@@ -2787,7 +2914,7 @@ ${item.body}`;
                 <div><CheckCircle2 size={18} /><span>Vercel deploys from GitHub main</span></div>
                 <div><CheckCircle2 size={18} /><span>Supabase auth redirect uses live Vercel URL</span></div>
                 <div><CheckCircle2 size={18} /><span>IGDB keys are in local and Vercel env vars</span></div>
-                <div><CheckCircle2 size={18} /><span>AI Gateway smoke test works</span></div>
+                <div><CheckCircle2 size={18} /><span>GameLog Engine smoke test works</span></div>
                 <div><CheckCircle2 size={18} /><span>Games tab can import and clean duplicates</span></div>
                 <div><CheckCircle2 size={18} /><span>Mobile bottom nav works on phone</span></div>
               </div>
@@ -2883,7 +3010,7 @@ ${item.body}`;
             <div className="review-top">
               <div>
                 <p className="eyebrow">Tonight&apos;s best picks</p>
-                <h2>Recommended from your backlog</h2>
+                <h2>For you from your backlog</h2>
               </div>
               <button className="pill" onClick={backlogRoulette}>Roulette</button>
             </div>
@@ -3024,7 +3151,7 @@ ${item.body}`;
               </div>
             </div>
             <div className="mini-list">
-              <button className="mini-row button-row" onClick={() => setView("discover")}><span>Train recommendations</span><strong>{Math.max(0, 50 - discoveryActions.length)} swipes to badge</strong></button>
+              <button className="mini-row button-row" onClick={() => setView("discover")}><span>Train your taste</span><strong>{Math.max(0, 50 - discoveryActions.length)} swipes to badge</strong></button>
               <button className="mini-row button-row" onClick={() => setView("library")}><span>Cut the backlog</span><strong>{backlogAttackPlan[0]?.games?.title ?? "Pick a game"}</strong></button>
               <button className="mini-row button-row" onClick={() => setView("log")}><span>Write more takes</span><strong>{unreviewedCompletions.length} prompts</strong></button>
               <button className="mini-row button-row" onClick={() => setView("quests")}><span>Daily loop</span><strong>{questCards.filter((quest) => quest.progress >= quest.target).length}/{questCards.length} quests</strong></button>
@@ -3248,7 +3375,7 @@ ${item.body}`;
           <div className="col-7 card">
             <h2>Public lists</h2>
             <div className="list-stack">
-              {lists.length ? lists.map((list) => <GameListCard key={list.id} list={list} />) : <div className="empty">No lists yet.</div>}
+              {lists.length ? lists.map((list) => <GameListCard key={list.id} list={list} onShare={(id) => copyShareLink(`/l/${id}`, "List")} />) : <div className="empty">No lists yet.</div>}
             </div>
           </div>
         </section>
@@ -3492,6 +3619,7 @@ ${item.body}`;
                 <div className="form-grid">
                   <ProfileMini profile={profile} completedCount={completedCount} backlogCount={backlogCount} avgRating={avgRating} followerCount={followerCount} followingCount={followingCount} />
                   <a className="secondary inline-link" href={`/u/${profile.username}`} target="_blank" rel="noreferrer"><ExternalLink size={16} /> Open public profile</a>
+                  <button className="secondary" onClick={() => setView("share")}><Share2 size={18} /> Share Studio</button>
                   <button className="secondary" onClick={signOut}>Sign out</button>
                 </div>
               ) : (
@@ -3514,6 +3642,7 @@ ${item.body}`;
             ) : (
               <div className="form-grid">
                 <ProfileMini profile={profile} completedCount={completedCount} backlogCount={backlogCount} avgRating={avgRating} followerCount={followerCount} followingCount={followingCount} />
+                <button className="secondary" onClick={() => setView("share")}><Share2 size={18} /> Share Studio</button>
                 <button className="secondary" onClick={exportDemoData}>Export demo data</button>
               </div>
             )}
@@ -3552,7 +3681,10 @@ ${item.body}`;
                 <h2>Favorite games row</h2>
                 <p className="muted" style={{ marginBottom: 0 }}>This row is built from your favorite game, high ratings, completions, and trending picks until you log more.</p>
               </div>
-              <button className="secondary" onClick={() => copyShareLink(`/u/${profile.username}`, "Profile")}><Share2 size={16} /> Copy profile link</button>
+              <div className="actions" style={{ marginTop: 0 }}>
+                <button className="secondary" onClick={() => setView("share")}><Share2 size={16} /> Share Studio</button>
+                <button className="secondary" onClick={() => copyShareLink(`/u/${profile.username}`, "Profile")}><Share2 size={16} /> Copy profile link</button>
+              </div>
             </div>
             <CoverRail games={favoriteShelfGames} onPick={(game) => setSelectedGameId(game.id)} />
           </div>
@@ -3931,9 +4063,9 @@ function MiniReviewList({ logs }: { logs: GameLog[] }) {
   );
 }
 
-function GameListCard({ list }: { list: GameList }) {
+function GameListCard({ list, onShare }: { list: GameList; onShare?: (listId: string) => void }) {
   return (
-    <article className="list-card">
+    <article className="list-card list-card-v13">
       <div className="review-top">
         <div>
           <h3>{list.title}</h3>
@@ -3942,8 +4074,15 @@ function GameListCard({ list }: { list: GameList }) {
         <span className="tag">{list.list_items?.length ?? 0} games</span>
       </div>
       {list.description && <p className="muted" style={{ marginTop: 12 }}>{list.description}</p>}
+      <div className="list-cover-strip">
+        {(list.list_items ?? []).slice(0, 5).map((item) => item.games ? <GameCover key={item.id} game={item.games} /> : null)}
+      </div>
       <div className="tag-row">
-        {(list.list_items ?? []).map((item) => item.games ? <span className="tag" key={item.id}>{item.games.title}</span> : null)}
+        {(list.list_items ?? []).slice(0, 8).map((item) => item.games ? <span className="tag" key={item.id}>{item.games.title}</span> : null)}
+      </div>
+      <div className="card-actions">
+        <a className="secondary inline-link" href={`/l/${list.id}`} target="_blank" rel="noreferrer"><ExternalLink size={15} /> Open list</a>
+        {onShare && <button className="secondary" onClick={() => onShare(list.id)}><Share2 size={15} /> Copy link</button>}
       </div>
     </article>
   );
