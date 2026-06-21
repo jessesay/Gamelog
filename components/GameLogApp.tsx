@@ -111,9 +111,47 @@ function makeSlug(title: string) {
 function normalizeTitleKey(title?: string | null) {
   return (title ?? "")
     .toLowerCase()
-    .replace(/\b(game of the year|goty|remastered|remaster|definitive edition|complete edition|deluxe edition)\b/g, "")
+    .replace(/\b(game of the year|goty|remastered|remaster|definitive edition|complete edition|deluxe edition|ultimate edition|collector'?s edition|standard edition)\b/g, "")
+    .replace(/\bthe\b/g, "")
+    .replace(/&/g, "and")
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
+}
+
+function recordQualityScore(game: Game) {
+  return (gameSource(game) === "IGDB" ? 100 : 0)
+    + (isUuid(game.id) ? 28 : 0)
+    + (getEffectiveCoverUrl(game) ? 20 : 0)
+    + (game.summary ? Math.min(24, Math.floor(game.summary.length / 80)) : 0)
+    + (game.release_year ? 8 : 0)
+    + ((game.platforms?.length ?? 0) * 2)
+    + (game.developer && game.developer !== "GameLog starter catalog" ? 5 : 0);
+}
+
+function dedupeGameRecords(records: Game[]) {
+  const byKey = new Map<string, Game>();
+
+  for (const game of records) {
+    const baseKey = normalizeTitleKey(game.title) || game.slug || game.id;
+    const existing = byKey.get(baseKey);
+
+    if (!existing) {
+      byKey.set(baseKey, game);
+      continue;
+    }
+
+    const yearsConflict = existing.release_year && game.release_year && Math.abs(existing.release_year - game.release_year) > 4;
+    if (yearsConflict) {
+      byKey.set(`${baseKey}-${game.release_year}`, game);
+      continue;
+    }
+
+    const winner = recordQualityScore(game) > recordQualityScore(existing) ? game : existing;
+    const loser = winner.id === game.id ? existing : game;
+    byKey.set(baseKey, mergeGameRecord(winner, loser));
+  }
+
+  return Array.from(byKey.values()).sort((a, b) => a.title.localeCompare(b.title));
 }
 
 function isUuid(value?: string | null) {
@@ -392,6 +430,7 @@ export default function GameLogApp() {
 
   const [query, setQuery] = useState("");
   const [genre, setGenre] = useState("All");
+  const [gameDisplayLimit, setGameDisplayLimit] = useState(48);
   const [authMode, setAuthMode] = useState<AuthMode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -439,8 +478,10 @@ export default function GameLogApp() {
   const backlogCount = myLogs.filter((log) => log.status === "Backlog" || log.status === "Want to Play").length;
   const followingCount = follows.filter((follow) => follow.follower_id === currentUserId).length;
   const followerCount = follows.filter((follow) => follow.following_id === currentUserId).length;
-  const genres = useMemo(() => ["All", ...Array.from(new Set(games.map((game) => game.genre).filter(Boolean) as string[])).sort()], [games]);
-  const coverCount = useMemo(() => games.filter((game) => Boolean(getEffectiveCoverUrl(game))).length, [games]);
+  const catalogGames = useMemo(() => dedupeGameRecords(games), [games]);
+  const hiddenDuplicateCount = Math.max(0, games.length - catalogGames.length);
+  const genres = useMemo(() => ["All", ...Array.from(new Set(catalogGames.map((game) => game.genre).filter(Boolean) as string[])).sort()], [catalogGames]);
+  const coverCount = useMemo(() => catalogGames.filter((game) => Boolean(getEffectiveCoverUrl(game))).length, [catalogGames]);
   const starterTasteGenres = useMemo(() => genres.filter((item) => item !== "All").slice(0, 14), [genres]);
   const loggedGameIds = useMemo(() => new Set(myLogs.map((log) => log.game_id)), [myLogs]);
   const passedGameIds = useMemo(() => new Set(discoveryActions.filter((action) => action.action === "Pass").map((action) => action.game_id)), [discoveryActions]);
@@ -448,7 +489,7 @@ export default function GameLogApp() {
 
   const discoverPool = useMemo(() => {
     const needle = discoverQuery.toLowerCase();
-    const pool = games
+    const pool = catalogGames
       .filter((game) => discoverGenre === "All" || game.genre === discoverGenre)
       .filter((game) => discoverMood === "All" || gameMoodTags(game).includes(discoverMood))
       .filter((game) => {
@@ -474,14 +515,14 @@ export default function GameLogApp() {
       const scoreB = gameTasteScore(b, myLogs, tasteGenres, tasteMoods);
       return scoreB - scoreA || Number(Boolean(getEffectiveCoverUrl(b))) - Number(Boolean(getEffectiveCoverUrl(a))) || a.title.localeCompare(b.title);
     });
-  }, [discoverGenre, discoverMode, discoverMood, discoverQuery, games, loggedGameIds, myLogs, passedGameIds, tasteGenres, tasteMoods]);
+  }, [catalogGames, discoverGenre, discoverMode, discoverMood, discoverQuery, loggedGameIds, myLogs, passedGameIds, tasteGenres, tasteMoods]);
 
   const discoverGame = discoverPool.length ? discoverPool[discoverIndex % discoverPool.length] : null;
   const discoverReasons = discoverGame ? getDiscoveryReasons(discoverGame, myLogs) : [];
   const discoverMatch = discoverGame ? matchPercent(discoverGame, myLogs, tasteGenres, tasteMoods) : 0;
   const nextUpGames = useMemo(() => discoverPool.slice(discoverIndex + 1, discoverIndex + 4), [discoverIndex, discoverPool]);
   const recommendedGames = useMemo(() => {
-    return games
+    return catalogGames
       .filter((game) => game.id !== discoverGame?.id)
       .filter((game) => !loggedGameIds.has(game.id) && !passedGameIds.has(game.id))
       .map((game) => ({ game, score: gameTasteScore(game, myLogs, tasteGenres, tasteMoods) }))
@@ -489,11 +530,11 @@ export default function GameLogApp() {
       .sort((a, b) => b.score - a.score || a.game.title.localeCompare(b.game.title))
       .slice(0, 5)
       .map((item) => item.game);
-  }, [discoverGame?.id, games, loggedGameIds, myLogs, passedGameIds, tasteGenres, tasteMoods]);
+  }, [catalogGames, discoverGame?.id, loggedGameIds, myLogs, passedGameIds, tasteGenres, tasteMoods]);
 
   const filteredGames = useMemo(() => {
     const needle = query.toLowerCase();
-    return games
+    return catalogGames
       .filter((game) => genre === "All" || game.genre === genre)
       .filter((game) => {
         if (!needle) return true;
@@ -504,7 +545,14 @@ export default function GameLogApp() {
           .includes(needle);
       })
       .sort((a, b) => a.title.localeCompare(b.title));
-  }, [games, genre, query]);
+  }, [catalogGames, genre, query]);
+
+  const displayedGames = useMemo(() => filteredGames.slice(0, gameDisplayLimit), [filteredGames, gameDisplayLimit]);
+  const remainingFilteredGames = Math.max(0, filteredGames.length - displayedGames.length);
+
+  useEffect(() => {
+    setGameDisplayLimit(48);
+  }, [query, genre]);
 
   const feedLogs = useMemo(() => {
     if (feedFilter === "mine") return logs.filter((log) => log.user_id === currentUserId);
@@ -871,7 +919,7 @@ export default function GameLogApp() {
     const visibleGames = loadedGames.length ? loadedGames : fallbackGames;
     setRemoteCatalogEmpty(!loadedGames.length);
     setUsingStarterFallback(!loadedGames.length);
-    setGames(visibleGames);
+    setGames(dedupeGameRecords(visibleGames));
     setLogs(((logsResult.data as GameLog[]) ?? []).map((log) => ({ ...log, comments: [...(log.comments ?? [])].sort(sortByNewest) })));
     setLists((listsResult.data as GameList[]) ?? []);
     setProfiles((profilesResult.data as Profile[]) ?? []);
@@ -1457,6 +1505,7 @@ export default function GameLogApp() {
     const seenNewSlugs = new Set<string>();
     const inserts: Partial<Game>[] = [];
     const enrichments: Array<{ existing: Game; next: Game }> = [];
+    const shadowedFallbackIds = new Set<string>();
 
     for (const rawGame of incomingGames) {
       const game = sanitizeImportedGame(rawGame);
@@ -1467,7 +1516,8 @@ export default function GameLogApp() {
 
       if (existing) {
         if (connected && !isUuid(existing.id)) {
-          // Supabase fallback games have local demo IDs. Treat the IGDB record as insertable so the real remote catalog can be built.
+          // Supabase fallback games have local demo IDs. Insert the real record, then hide the starter copy locally.
+          shadowedFallbackIds.add(existing.id);
         } else {
           if (hasUsefulIncomingData(existing, game)) {
             enrichments.push({ existing, next: mergeGameRecord(existing, game) });
@@ -1529,25 +1579,42 @@ export default function GameLogApp() {
           setMessage({ type: "error", text: error.message });
           return changed;
         }
-        setGames((current) => [...current, ...((data as Game[]) ?? [])]);
+        setGames((current) => dedupeGameRecords([
+          ...current
+            .filter((game) => !shadowedFallbackIds.has(game.id))
+            .map((game) => enrichments.find((item) => item.existing.id === game.id)?.next ?? game),
+          ...((data as Game[]) ?? [])
+        ]));
         changed += (data ?? []).length;
-      }
-
-      if (enrichments.length) {
-        setGames((current) => current.map((game) => enrichments.find((item) => item.existing.id === game.id)?.next ?? game));
+      } else if (enrichments.length || shadowedFallbackIds.size) {
+        setGames((current) => dedupeGameRecords(
+          current
+            .filter((game) => !shadowedFallbackIds.has(game.id))
+            .map((game) => enrichments.find((item) => item.existing.id === game.id)?.next ?? game)
+        ));
       }
 
       return changed;
     }
 
     const demoRecords = inserts.map((game) => ({ ...game, id: crypto.randomUUID() })) as Game[];
-    setGames((current) => [
+    setGames((current) => dedupeGameRecords([
       ...current.map((game) => enrichments.find((item) => item.existing.id === game.id)?.next ?? game),
       ...demoRecords
-    ]);
+    ]));
     return demoRecords.length + enrichments.length;
   }
 
+
+  function cleanVisibleDuplicates() {
+    const next = dedupeGameRecords(games);
+    const removed = games.length - next.length;
+    setGames(next);
+    setMessage({
+      type: removed ? "ok" : "info",
+      text: removed ? `Cleaned ${removed} duplicate catalog card${removed === 1 ? "" : "s"} from this view.` : "No duplicate catalog cards found in the current app state."
+    });
+  }
 
   async function installStarterCatalog() {
     setImportingGames(true);
@@ -2761,11 +2828,18 @@ export default function GameLogApp() {
               </div>
               <div className="actions" style={{ marginTop: 0 }}>
                 <button className="secondary" onClick={enrichVisibleGamesFromIgdb} disabled={catalogEnriching}><Sparkles size={16} /> {catalogEnriching ? "Enriching..." : "Enrich visible"}</button>
+                <button className="secondary" onClick={cleanVisibleDuplicates} disabled={!hiddenDuplicateCount}>Clean duplicates{hiddenDuplicateCount ? ` (${hiddenDuplicateCount})` : ""}</button>
                 <button className="secondary" onClick={() => setView("log")}>Log selected</button>
               </div>
             </div>
             <div className="catalog-engine-note">
-              <BadgeCheck size={16} /> v1.9 makes IGDB the first stop for missing games, better covers, and cleaner duplicate handling. Search below, then import straight from IGDB if GameLog comes up empty.
+              <BadgeCheck size={16} /> v1.10 hides duplicate catalog cards, replaces starter copies with IGDB records, and keeps the Games page lighter with Show More.
+            </div>
+            <div className="catalog-toolbar">
+              <span><strong>{filteredGames.length}</strong> matches</span>
+              <span><strong>{displayedGames.length}</strong> showing</span>
+              <span><strong>{coverCount}</strong> covers</span>
+              {hiddenDuplicateCount ? <span><strong>{hiddenDuplicateCount}</strong> dupes hidden</span> : <span>Clean catalog view</span>}
             </div>
             <div className="form-grid two" style={{ marginBottom: 16 }}>
               <div className="field">
@@ -2780,10 +2854,16 @@ export default function GameLogApp() {
               </div>
             </div>
             <div className="game-grid">
-              {filteredGames.map((game) => (
+              {displayedGames.map((game) => (
                 <GameCard key={game.id} game={game} onLog={() => { setLogGameId(game.id); setView("log"); }} onDetails={() => setSelectedGameId(game.id)} />
               ))}
             </div>
+            {remainingFilteredGames > 0 && (
+              <div className="show-more-row">
+                <button className="primary" onClick={() => setGameDisplayLimit((current) => current + 48)}>Show more games ({remainingFilteredGames} left)</button>
+                <button className="secondary" onClick={() => setGameDisplayLimit(filteredGames.length)}>Show all</button>
+              </div>
+            )}
             {!filteredGames.length && (
               <div className="empty big-empty catalog-miss">
                 <h3>No local match for “{query || "that search"}”</h3>
@@ -2812,7 +2892,7 @@ export default function GameLogApp() {
               <div className="field">
                 <label>Game</label>
                 <select value={logGameId} onChange={(event) => setLogGameId(event.target.value)}>
-                  {games.map((game) => <option key={game.id} value={game.id}>{game.title}</option>)}
+                  {catalogGames.map((game) => <option key={game.id} value={game.id}>{game.title}</option>)}
                 </select>
               </div>
               <div className="form-grid three">
@@ -2944,7 +3024,7 @@ export default function GameLogApp() {
               <div className="field">
                 <label>Game</label>
                 <select value={selectedListGame} onChange={(event) => setSelectedListGame(event.target.value)}>
-                  {games.map((game) => <option key={game.id} value={game.id}>{game.title}</option>)}
+                  {catalogGames.map((game) => <option key={game.id} value={game.id}>{game.title}</option>)}
                 </select>
               </div>
               <button className="secondary" onClick={addGameToList} disabled={!lists.length}>Add to list</button>
@@ -3118,7 +3198,7 @@ export default function GameLogApp() {
 
               {sourceMode === "igdb" && (
                 <>
-                  <div className="review-top"><div><h3>IGDB-first catalog engine</h3><p className="muted">Best for real game covers, platforms, genres, summaries, and cross-platform catalog quality. v1.9 also merges duplicates by title so imports enrich existing records instead of flooding the catalog.</p></div><span className="tag source-igdb">Primary source</span></div>
+                  <div className="review-top"><div><h3>IGDB-first catalog engine</h3><p className="muted">Best for real game covers, platforms, genres, summaries, and cross-platform catalog quality. v1.10 also merges duplicates by title so imports enrich existing records instead of flooding the catalog.</p></div><span className="tag source-igdb">Primary source</span></div>
                   <div className="form-grid three">
                     <div className="field"><label><Search size={14} /> IGDB search</label><input value={igdbQuery} onChange={(event) => setIgdbQuery(event.target.value)} placeholder="zelda, minecraft, one piece, horror..." /></div>
                     <div className="field"><label>Limit</label><select value={igdbLimit} onChange={(event) => setIgdbLimit(event.target.value)}><option>10</option><option>30</option><option>50</option><option>75</option></select></div>
@@ -3173,7 +3253,7 @@ export default function GameLogApp() {
 
           <aside className="col-4 card">
             <h2>Less panels, more product</h2>
-            <p className="muted">v1.9 keeps the import hub compact but makes IGDB the primary catalog engine: search, import, enrich, and de-duplicate.</p>
+            <p className="muted">v1.10 keeps the import hub compact but makes IGDB the primary catalog engine: search, import, enrich, and de-duplicate.</p>
             <div className="divider" />
             <div className="mini-list">
               <button className="mini-row button-row" onClick={() => setSourceMode("archive")}><span>Archive</span><strong>Manuals/guides</strong></button>

@@ -1,4 +1,14 @@
-# GameLog v1.9 — IGDB-first Catalog Engine
+# GameLog v1.10 — IGDB-first Catalog Engine
+
+
+## v1.10 Catalog polish
+
+- Hides duplicate catalog cards in the Games page.
+- Replaces starter/fallback copies with stronger IGDB records in the local app view.
+- Adds **Clean duplicates** for quick cleanup after imports.
+- Adds Games page stats for matches, shown cards, covers, and hidden duplicates.
+- Adds **Show more** and **Show all** so large catalogs do not slam the UI all at once.
+- Keeps IGDB-first import, AI Coach, and Vercel-safe `ai@6.0.208`.
 
 This build makes IGDB the primary catalog growth path. Search a game in the Games tab; if GameLog does not have it, import it from IGDB right there. Existing games are enriched by title match instead of duplicated, so starter records can gain real cover art, summaries, platforms, and release years.
 

@@ -2369,3 +2369,50 @@ textarea:focus {
   border-color: rgba(74, 222, 128, 0.35);
   background: rgba(22, 101, 52, 0.18);
 }
+
+/* v1.10 catalog polish */
+.catalog-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+
+.catalog-toolbar span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.055);
+  font-size: 0.85rem;
+  font-weight: 750;
+}
+
+.catalog-toolbar strong {
+  color: var(--text);
+}
+
+.show-more-row {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 700px) {
+  .catalog-toolbar {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 4px;
+  }
+
+  .catalog-toolbar span {
+    white-space: nowrap;
+  }
+}
