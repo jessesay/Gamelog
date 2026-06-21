@@ -46,7 +46,7 @@ import { demoProfile, loadDemoState, saveDemoState, starterGames } from "@/lib/d
 import { getEffectiveCoverUrl, getKnownCoverUrl, withKnownCover } from "@/lib/coverArt";
 import type { Follow, Game, GameList, GameLog, Profile, ReviewComment } from "@/lib/types";
 
-type View = "home" | "pulse" | "match" | "arena" | "prices" | "deals" | "discover" | "library" | "coach" | "charts" | "share" | "beta" | "quests" | "wrapped" | "games" | "log" | "feed" | "lists" | "people" | "history" | "sources" | "profile";
+type View = "home" | "pulse" | "match" | "arena" | "prices" | "deals" | "radar" | "discover" | "library" | "coach" | "charts" | "share" | "beta" | "quests" | "wrapped" | "games" | "log" | "feed" | "lists" | "people" | "history" | "sources" | "profile";
 type AuthMode = "signin" | "signup";
 type FeedFilter = "all" | "following" | "mine";
 type DiscoverMode = "forYou" | "fresh" | "all" | "backlog" | "passed";
@@ -545,7 +545,7 @@ export default function GameLogApp() {
   const [view, setView] = useState<View>("home");
   useEffect(() => {
     const requestedView = new URLSearchParams(window.location.search).get("view") as View | null;
-    const allowedViews: View[] = ["home", "pulse", "match", "arena", "prices", "deals", "discover", "library", "coach", "charts", "share", "beta", "quests", "wrapped", "games", "log", "feed", "lists", "people", "history", "sources", "profile"];
+    const allowedViews: View[] = ["home", "pulse", "match", "arena", "prices", "deals", "radar", "discover", "library", "coach", "charts", "share", "beta", "quests", "wrapped", "games", "log", "feed", "lists", "people", "history", "sources", "profile"];
     if (requestedView && allowedViews.includes(requestedView)) setView(requestedView);
   }, []);
   const [feedFilter, setFeedFilter] = useState<FeedFilter>("all");
@@ -822,6 +822,44 @@ export default function GameLogApp() {
       .sort((a, b) => b.score - a.score || Number(b.latest.discount_percent ?? 0) - Number(a.latest.discount_percent ?? 0) || Number(a.latest.current_price ?? 9999) - Number(b.latest.current_price ?? 9999))
       .slice(0, 10);
   }, [myLogs, priceWatchIds, salePriceRows]);
+
+  const releaseRadarRows = useMemo(() => {
+    const loggedByGameId = new Map(myLogs.map((log) => [log.game_id, log]));
+    const currentYearNumber = new Date().getFullYear();
+    return primaryCatalogGames
+      .map((game) => {
+        const status = loggedByGameId.get(game.id)?.status ?? null;
+        const addOns = addOnsByGameId.get(game.id) ?? [];
+        const latest = latestSnapshotForGame(priceSnapshots, game.id);
+        const hasWatchedFamily = priceWatchIds.includes(game.id) || addOns.some((addOn) => priceWatchIds.includes(addOn.id));
+        const saleSignal = Number(latest?.discount_percent ?? 0) > 0;
+        const releaseYear = game.release_year ?? currentYearNumber;
+        const launchBand = releaseYear >= currentYearNumber + 1
+          ? "Upcoming"
+          : releaseYear === currentYearNumber
+            ? "This year"
+            : releaseYear === currentYearNumber - 1
+              ? "Recent"
+              : "Evergreen";
+        const score = matchPercent(game, myLogs, tasteGenres, tasteMoods)
+          + (hasWatchedFamily ? 9 : 0)
+          + (status === "Backlog" || status === "Want to Play" ? 7 : 0)
+          + (saleSignal ? 6 : 0)
+          + Math.max(0, Math.min(8, releaseYear - (currentYearNumber - 4)))
+          + Math.min(6, addOns.length * 2);
+        const reason = [
+          launchBand,
+          status ? `in ${status}` : null,
+          addOns.length ? `${addOns.length} nested add-on${addOns.length === 1 ? "" : "s"}` : null,
+          hasWatchedFamily ? "watched family" : null,
+          saleSignal ? `${latest?.discount_percent}% off` : null,
+          game.genre ? game.genre : null
+        ].filter(Boolean).join(" · ");
+        return { game, addOns, latest, launchBand, score, reason, status, hasWatchedFamily };
+      })
+      .sort((a, b) => b.score - a.score || (b.game.release_year ?? 0) - (a.game.release_year ?? 0) || a.game.title.localeCompare(b.game.title))
+      .slice(0, 12);
+  }, [addOnsByGameId, myLogs, priceSnapshots, priceWatchIds, primaryCatalogGames, tasteGenres, tasteMoods]);
 
   const priceSearchMatches = useMemo(() => {
     const needle = priceSearch.toLowerCase().trim();
@@ -2782,6 +2820,7 @@ ${item.body}`;
               ["arena", "Arena"],
               ["prices", "Prices"],
               ["deals", "Deals"],
+              ["radar", "Radar"],
               ["discover", "Discover"],
               ["games", "Games"],
               ["charts", "Charts"],
@@ -2822,6 +2861,10 @@ ${item.body}`;
         <button className={`mobile-nav-item ${view === "prices" || view === "deals" ? "active" : ""}`} onClick={() => setView("deals")} aria-label="Deals">
           <DollarSign size={18} />
           <span>Deals</span>
+        </button>
+        <button className={`mobile-nav-item ${view === "radar" ? "active" : ""}`} onClick={() => setView("radar")} aria-label="Release Radar">
+          <CalendarDays size={18} />
+          <span>Radar</span>
         </button>
         <button className={`mobile-nav-item ${view === "games" || view === "charts" ? "active" : ""}`} onClick={() => setView("games")} aria-label="Games">
           <Search size={18} />
@@ -2930,6 +2973,11 @@ ${item.body}`;
               <span className="eyebrow">Deals</span>
               <strong>Know when to buy</strong>
               <p>Watch sale drops, lowest seen prices, DLC deals, and backlog-worthy discounts.</p>
+            </button>
+            <button className="command-card card" onClick={() => setView("radar")}>
+              <span className="eyebrow">Release Radar</span>
+              <strong>Track what is coming next</strong>
+              <p>Follow upcoming games, recent launches, DLC families, and watchlist-ready drops.</p>
             </button>
             <button className="command-card card" onClick={() => openAiCoach("next")}>
               <span className="eyebrow">Coach</span>
@@ -4005,6 +4053,93 @@ ${item.body}`;
         </section>
       )}
 
+
+      {view === "radar" && (
+        <>
+          <section className="hero release-radar-hero-v26">
+            <div className="hero-card">
+              <p className="eyebrow">GameLog Release Radar</p>
+              <h1>Track what is next before the sale hits.</h1>
+              <p className="lede">Release Radar turns your catalog, backlog, DLC families, price watchlist, and taste signals into a launch board for upcoming games and recent drops.</p>
+              <div className="actions">
+                <button className="primary" onClick={() => setView("match")}><Target size={18} /> Find a match</button>
+                <button className="secondary" onClick={() => setView("deals")}><DollarSign size={18} /> Deal Radar</button>
+                <button className="secondary" onClick={() => setView("sources")}><DownloadCloud size={18} /> Import more</button>
+              </div>
+            </div>
+            <div className="side-panel card">
+              <p className="eyebrow">Launch board</p>
+              <div className="stats compact-stats">
+                <div className="stat"><strong>{releaseRadarRows.filter((row) => row.launchBand === "Upcoming").length}</strong><span>Upcoming</span></div>
+                <div className="stat"><strong>{releaseRadarRows.filter((row) => row.launchBand === "This year").length}</strong><span>This year</span></div>
+                <div className="stat"><strong>{releaseRadarRows.filter((row) => row.addOns.length).length}</strong><span>With add-ons</span></div>
+                <div className="stat"><strong>{releaseRadarRows.filter((row) => row.hasWatchedFamily).length}</strong><span>Watched</span></div>
+              </div>
+              <p className="muted">Tip: Import IGDB and Steam data often. Radar gets smarter as release years, DLC families, price snapshots, and your backlog fill in.</p>
+            </div>
+          </section>
+
+          <section className="grid">
+            <div className="col-8 card release-radar-panel-v26">
+              <div className="review-top">
+                <div>
+                  <p className="eyebrow">Radar board</p>
+                  <h2>Games to watch next</h2>
+                </div>
+                <span className="tag">Taste + catalog + price signals</span>
+              </div>
+              <div className="release-radar-list-v26">
+                {releaseRadarRows.map((row) => (
+                  <article className="release-radar-row-v26" key={row.game.id}>
+                    <button className="radar-cover-v26" onClick={() => setSelectedGameId(row.game.id)} aria-label={`Open ${row.game.title}`}>
+                      {getEffectiveCoverUrl(row.game) ? <img src={getEffectiveCoverUrl(row.game)!} alt="" /> : <span>{row.game.title.slice(0, 2)}</span>}
+                    </button>
+                    <div>
+                      <div className="radar-row-top-v26">
+                        <span className="price-deal-badge">{row.launchBand}</span>
+                        <span className="tag">{matchPercent(row.game, myLogs, tasteGenres, tasteMoods)}% match</span>
+                      </div>
+                      <h3>{row.game.title}</h3>
+                      <p className="muted">{row.reason || "Fresh catalog signal"}</p>
+                      {row.addOns.length > 0 && (
+                        <div className="addon-chip-row-v26">
+                          {row.addOns.slice(0, 3).map((addOn) => <span className="tag" key={addOn.id}>{addOnKind(addOn)}: {addOn.title}</span>)}
+                          {row.addOns.length > 3 && <span className="tag">+{row.addOns.length - 3} more</span>}
+                        </div>
+                      )}
+                      <div className="actions" style={{ marginTop: 10 }}>
+                        <button className="secondary" onClick={() => void quickLogGame(row.game, "Backlog")}><BookmarkPlus size={16} /> Save</button>
+                        <button className="secondary" onClick={() => watchPrice(row.game)}><DollarSign size={16} /> Watch price</button>
+                        <button className="secondary" onClick={() => setSelectedGameId(row.game.id)}><Search size={16} /> Details</button>
+                      </div>
+                    </div>
+                    <div className="radar-score-v26">
+                      <strong>{Math.min(99, Math.round(row.score))}</strong>
+                      <span>radar</span>
+                      <small>{row.game.release_year ?? "TBA"}</small>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </div>
+
+            <div className="col-4 card">
+              <div className="review-top">
+                <div>
+                  <p className="eyebrow">Next moves</p>
+                  <h2>Make Radar better</h2>
+                </div>
+              </div>
+              <div className="mini-list">
+                <button className="mini-row button-row" onClick={() => setView("sources")}><span>Import newer catalog data</span><strong>IGDB / Steam</strong></button>
+                <button className="mini-row button-row" onClick={() => setView("prices")}><span>Build price history</span><strong>{priceSnapshots.length} snapshots</strong></button>
+                <button className="mini-row button-row" onClick={() => setView("discover")}><span>Train taste</span><strong>{discoveryActions.length} swipes</strong></button>
+                <button className="mini-row button-row" onClick={() => setView("deals")}><span>Watch sale drops</span><strong>{dealDigestRows.length} deals</strong></button>
+              </div>
+            </div>
+          </section>
+        </>
+      )}
 
       {view === "deals" && (
         <>

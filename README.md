@@ -1,34 +1,23 @@
-# GameLog v2.5 — Deal Radar Layer
+# GameLog v2.6 — Release Radar Layer
 
-GameLog is a videogame diary, discovery, backlog, price watch, and deal-decision app.
+GameLog is now a gaming command center: Pulse, Matchmaker, Arena, Deal Radar, Price Watch, and Release Radar.
 
-## New in v2.5
+## New in v2.6
 
-- Deal Radar view
-- Deal Digest ranking for sales
-- Buy zone / strong sale / watch close verdicts
-- Lowest-seen price boost
-- Backlog and watchlist boosted deals
-- DLC/add-on sale detection under base-game families
-- Watchlist gaps from Matchmaker and For You picks
-- PWA shortcut for Deal Radar
+Release Radar adds a launch board for games and product families:
 
-## Run
+- Upcoming / this year / recent / evergreen labels
+- Radar score based on taste, backlog, watchlist, sale, release year, and DLC family signals
+- DLC and smaller products stay nested under the base game
+- Save to backlog from Radar
+- Watch price from Radar
+- Details from Radar
+- PWA shortcut for Release Radar
 
-```bash
-pnpm install
-pnpm dev
-```
+## Install
 
-## Vercel
+Copy the patch files into your repo, replace existing files, commit, push, and redeploy.
 
-Keep these environment variables in Vercel:
+Recommended commit message:
 
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
-- `IGDB_CLIENT_ID`
-- `IGDB_CLIENT_SECRET`
-
-## Notes
-
-Deal Radar uses the same price snapshots from Price Watch. Use Steam checks for real data or Seed sample history while testing.
+`Build GameLog v2.6 Release Radar layer`
