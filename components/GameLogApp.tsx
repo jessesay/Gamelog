@@ -4098,7 +4098,7 @@ ${item.body}`;
                 <span className="tag">Backlog + high-match picks</span>
               </div>
               <div className="price-watch-grid">
-                {[...matchmakerGames, ...recommendedGames].filter((game, index, arr) => arr.findIndex((item) => item.id === game.id) === index).filter((game) => !priceWatchIds.includes(game.id)).slice(0, 8).map((game) => (
+                {[...matchmakerPicks.map((item) => item.game), ...recommendedGames].filter((game, index, arr) => arr.findIndex((item) => item.id === game.id) === index).filter((game) => !priceWatchIds.includes(game.id)).slice(0, 8).map((game) => (
                   <article className="price-card-v23" key={game.id}>
                     <strong>{game.title}</strong>
                     <p className="muted">{game.genre ?? "Game"} · {matchPercent(game, myLogs, tasteGenres, tasteMoods)}% taste match</p>
