@@ -1,80 +1,22 @@
-# GameLog v1.12 — Public Beta Kit
+# GameLog v1.13 — Public Share Layer
 
-## New in v1.12
+GameLog is a mobile-first social game diary: swipe discovery, IGDB-powered catalog imports, library tracking, reviews, lists, beta feedback, and an AI Backlog Coach through Vercel AI Gateway.
 
-- Adds a **Beta** command center for tester feedback, missing games, duplicate reports, bugs, and UI polish notes.
-- Adds a beta invite copy button so you can share the app with one gamer friend fast.
-- Adds local feedback fallback when Supabase feedback SQL has not been installed yet.
-- Adds optional `supabase/v1_12_beta_feedback.sql` for a real feedback board.
-- Adds a Beta shortcut to the PWA manifest.
-- Keeps v1.11 mobile nav, v1.10 duplicate cleanup, v1.9 IGDB-first imports, and v1.8 AI Coach intact.
+## v1.13 highlights
 
-## Optional Supabase step
+- New **Share Studio** inside the app.
+- Better public profile pages at `/u/[username]`.
+- Better public review pages at `/r/[id]`.
+- New public list pages at `/l/[id]`.
+- Shareable list cards with cover strips and copy-link actions.
+- Profile share card with stats, shelf, top genre, top vibe, latest review, and list links.
+- Updated public-page styling so shared links look like a real product, not database output.
+- Keeps v1.12 beta feedback, v1.11 mobile/PWA polish, v1.10 catalog cleanup, v1.9 IGDB-first imports, and v1.8 AI Coach.
+- Keeps `ai` pinned to `6.0.208` for Vercel lockfile safety.
 
-Run this in Supabase SQL Editor when ready:
+## Local setup
 
-```sql
-supabase/v1_12_beta_feedback.sql
-```
-
-Then signed-in testers can submit feedback directly from the Beta page.
-
----
-
-# GameLog v1.10 — IGDB-first Catalog Engine
-
-
-## v1.10 Catalog polish
-
-- Hides duplicate catalog cards in the Games page.
-- Replaces starter/fallback copies with stronger IGDB records in the local app view.
-- Adds **Clean duplicates** for quick cleanup after imports.
-- Adds Games page stats for matches, shown cards, covers, and hidden duplicates.
-- Adds **Show more** and **Show all** so large catalogs do not slam the UI all at once.
-- Keeps IGDB-first import, AI Coach, and Vercel-safe `ai@6.0.208`.
-
-This build makes IGDB the primary catalog growth path. Search a game in the Games tab; if GameLog does not have it, import it from IGDB right there. Existing games are enriched by title match instead of duplicated, so starter records can gain real cover art, summaries, platforms, and release years.
-
-## New in v1.9
-
-- IGDB-first missing-game search from the Games tab
-- One-click “Search + import from IGDB” when local search has no results
-- “Enrich visible” button to improve visible catalog cards with IGDB data
-- Smarter duplicate prevention by slug and normalized title
-- Existing records get improved instead of flooded with copies
-- Source badges on game cards and detail panels
-- Optional Supabase migration for explicit `igdb_id`, `source`, and `source_url` fields
-- Keeps AI Gateway / v1.8 Coach intact
-
-## Recommended Supabase step
-
-Run this file in Supabase SQL Editor when ready:
-
-```text
-supabase/v1_9_catalog_engine.sql
-```
-
-The app works without it, but the migration gives you cleaner source tracking long-term.
-
----
-
-# GameLog v1.8
-
-GameLog is a Letterboxd-style social game diary with a fast mobile discovery loop: swipe/pass/save games, log reviews, build a backlog, follow people, and grow a real catalog with cover art.
-
-## What v1.0 fixes
-
-- Games no longer vanish when Supabase is connected but the `games` table is empty.
-- GameLog now falls back to a built-in starter catalog so Discover still works.
-- Added a **Catalog rescue** card in Sources that installs the starter catalog into Supabase.
-- Added built-in Steam cover-art fallbacks for many starter/PC games.
-- Added `supabase/cover_updates.sql` to patch existing blank covers.
-- Added a **Steam mega import** button that searches many categories and imports lots of Steam games with capsule art.
-- Existing IGDB, Steam search, RAWG, itch.io manual, and bulk import tools remain available.
-
-## Run locally
-
-```bash
+```cmd
 pnpm install
 pnpm dev
 ```
@@ -85,114 +27,80 @@ Open:
 http://localhost:3000
 ```
 
-If pnpm blocks dependency build scripts, run:
-
-```bash
-pnpm approve-builds --all
-pnpm install
-pnpm dev
-```
-
 ## Environment variables
 
-Create `.env.local`:
+Create `.env.local` in the project root.
+
+Required for Supabase:
 
 ```env
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your_supabase_publishable_key
+```
 
-# Optional, for IGDB imports
-IGDB_CLIENT_ID=your_twitch_client_id
-IGDB_CLIENT_SECRET=your_twitch_client_secret
+Required for IGDB import:
 
-# Optional, for RAWG imports
-NEXT_PUBLIC_RAWG_API_KEY=your_rawg_key
+```env
+IGDB_CLIENT_ID=your_twitch_igdb_client_id
+IGDB_CLIENT_SECRET=your_twitch_igdb_client_secret
+```
+
+Required for local Vercel AI Gateway tests:
+
+```cmd
+vercel env pull .env.local
+```
+
+## AI Gateway smoke test
+
+```cmd
+node --env-file=.env.local index.mjs
+```
+
+Or double-click:
+
+```text
+run-ai-gateway-test.bat
 ```
 
 ## Supabase setup
 
-Run these in Supabase SQL Editor:
+Run the SQL files in Supabase SQL Editor as needed:
 
 ```text
 supabase/schema.sql
 supabase/seed.sql
-supabase/cover_updates.sql
+supabase/mega_seed.sql
+supabase/v1_9_catalog_engine.sql
+supabase/v1_12_beta_feedback.sql
 ```
 
-`cover_updates.sql` is important if you already ran an older seed with blank `cover_url` values. It safely fills known cover images where possible.
+## v1.13 test checklist
 
-## If all games disappeared
+- Home → Share profile.
+- Share → Copy profile link.
+- Share → Copy share card.
+- Share → Copy latest review link.
+- Share → Copy list link.
+- Profile → Open public profile.
+- Feed → Open review.
+- Lists → Open list.
+- Public routes:
+  - `/u/[username]`
+  - `/r/[id]`
+  - `/l/[id]`
 
-That usually means you moved to a new Supabase project/table state or opened a fresh repo version without rerunning the seed.
+## Deploy on Vercel
 
-GameLog v1.0 handles it better:
+Use the existing GitHub repo. Vercel should detect Next.js and pnpm.
 
-1. It shows the built-in starter catalog locally instead of an empty app.
-2. Go to **Sources**.
-3. Click **Install starter catalog**.
-4. Then run **Steam mega import** or **IGDB popular import** to build a bigger catalog.
+Make sure Vercel has these environment variables:
 
-## Catalog strategy
-
-Do not try to ship “every game ever” in one static SQL file. That gets huge and stale. The better model is:
-
-```text
-Starter catalog
-+ Steam imports
-+ IGDB imports
-+ RAWG imports
-+ itch.io manual/bulk imports
-+ user-added games
-= growing GameLog catalog
+```env
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
+IGDB_CLIENT_ID=...
+IGDB_CLIENT_SECRET=...
 ```
 
-## Main app pages
-
-- Home
-- Discover
-- Games
-- Log
-- Feed
-- Lists
-- People
-- History
-- Sources
-- Profile
-
-## Notes
-
-- Steam cover fallbacks are visual fallbacks in the app. They make the starter catalog look good even when the database cover field is blank.
-- IGDB is still the best long-term source for cross-platform box art, platforms, genres, summaries, developers, and release years.
-- itch.io does not behave like a simple public “all games” catalog in this version, so GameLog supports manual and bulk import for itch.io titles.
-
-
-## v1.7 Mega Catalog
-
-GameLog now includes a built-in mega catalog expansion: **677 extra lightweight game records** on top of the existing starter catalog. Use **Import > Install / repair built-in games** to push the full built-in catalog into Supabase, or run `supabase/mega_seed.sql` after `seed.sql`. The Steam mega import search terms were also expanded for larger real-cover-art imports.
-
-
-## v1.8 AI Taste Engine
-
-GameLog now includes an AI Backlog Coach powered by Vercel AI Gateway.
-
-New files/features:
-
-- `app/api/ai/backlog-coach/route.ts` streams AI Coach responses through the Vercel AI SDK.
-- `AI Coach` buttons on Home and Library open a compact coach view.
-- Coach modes: next game, weekend plan, review help, and taste profile.
-- The app sends a compact snapshot of logs, backlog, completed games, ratings, vibes, and taste settings.
-- `ai` is now listed as a dependency in `package.json`.
-
-Local AI Gateway setup:
-
-```cmd
-setup-ai-gateway.bat
-```
-
-Smoke test:
-
-```cmd
-run-ai-gateway-test.bat
-```
-
-Do not commit `.env.local`.
+Then redeploy from the latest commit.

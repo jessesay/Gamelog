@@ -1,0 +1,58 @@
+{
+  "name": "GameLog",
+  "short_name": "GameLog",
+  "description": "Track, rate, review, discover, attack your backlog, and help shape the GameLog beta.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#05070b",
+  "theme_color": "#0b1020",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Discover",
+      "short_name": "Discover",
+      "description": "Swipe through games",
+      "url": "/?view=discover"
+    },
+    {
+      "name": "Library",
+      "short_name": "Library",
+      "description": "Open your GameLog library",
+      "url": "/?view=library"
+    },
+    {
+      "name": "Beta Feedback",
+      "short_name": "Feedback",
+      "description": "Send GameLog beta feedback",
+      "url": "/?view=beta"
+    },
+    {
+      "name": "Share Studio",
+      "short_name": "Share",
+      "description": "Copy GameLog profile, review, and list links.",
+      "url": "/?view=share",
+      "icons": [
+        {
+          "src": "/icon.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
+    }
+  ]
+}
