@@ -1,28 +1,16 @@
-# GameLog v1.6
+# GameLog v1.0
 
-GameLog is a Letterboxd-style social game diary for video games: discover, log, rate, review, build a backlog, and share your taste.
+GameLog is a Letterboxd-style social game diary with a fast mobile discovery loop: swipe/pass/save games, log reviews, build a backlog, follow people, and grow a real catalog with cover art.
 
-## v1.6 focus
+## What v1.0 fixes
 
-This release adds Internet Archive support while cutting down UI clutter.
-
-### New
-
-- Internet Archive importer in the Sources / Import hub
-- Archive search modes:
-  - Manuals / guides
-  - Software records
-  - Box art / scans
-- Archive thumbnails used as cover-art fallbacks
-- Archive source links stored in imported game summaries
-- Game detail preview now has a "Find manuals/guides" link
-- Public game pages now link to Internet Archive manual/guide searches
-- Top navigation trimmed down to the core app areas
-- Old multi-panel Sources page consolidated into one compact source picker
-
-## Important note about Internet Archive
-
-GameLog uses Internet Archive as a metadata, manuals, guides, scans, and preservation-link source. It should link to Archive item pages and respect rights/licensing. Do not use GameLog as a ROM-download app.
+- Games no longer vanish when Supabase is connected but the `games` table is empty.
+- GameLog now falls back to a built-in starter catalog so Discover still works.
+- Added a **Catalog rescue** card in Sources that installs the starter catalog into Supabase.
+- Added built-in Steam cover-art fallbacks for many starter/PC games.
+- Added `supabase/cover_updates.sql` to patch existing blank covers.
+- Added a **Steam mega import** button that searches many categories and imports lots of Steam games with capsule art.
+- Existing IGDB, Steam search, RAWG, itch.io manual, and bulk import tools remain available.
 
 ## Run locally
 
@@ -31,31 +19,93 @@ pnpm install
 pnpm dev
 ```
 
-Then open:
+Open:
 
 ```text
 http://localhost:3000
 ```
 
-## Windows shortcuts
+If pnpm blocks dependency build scripts, run:
 
-- `setup-gamelog.bat` — first setup
-- `start-gamelog.bat` — start local dev server
-- `update-gamelog.bat` — pull latest GitHub code, install dependencies, and start
-
-## Supabase
-
-Copy `.env.example` to `.env.local` and add your Supabase keys:
-
-```env
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
+```bash
+pnpm approve-builds --all
+pnpm install
+pnpm dev
 ```
 
-Optional external sources:
+## Environment variables
+
+Create `.env.local`:
 
 ```env
-IGDB_CLIENT_ID=
-IGDB_CLIENT_SECRET=
-NEXT_PUBLIC_RAWG_API_KEY=
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your_supabase_publishable_key
+
+# Optional, for IGDB imports
+IGDB_CLIENT_ID=your_twitch_client_id
+IGDB_CLIENT_SECRET=your_twitch_client_secret
+
+# Optional, for RAWG imports
+NEXT_PUBLIC_RAWG_API_KEY=your_rawg_key
 ```
+
+## Supabase setup
+
+Run these in Supabase SQL Editor:
+
+```text
+supabase/schema.sql
+supabase/seed.sql
+supabase/cover_updates.sql
+```
+
+`cover_updates.sql` is important if you already ran an older seed with blank `cover_url` values. It safely fills known cover images where possible.
+
+## If all games disappeared
+
+That usually means you moved to a new Supabase project/table state or opened a fresh repo version without rerunning the seed.
+
+GameLog v1.0 handles it better:
+
+1. It shows the built-in starter catalog locally instead of an empty app.
+2. Go to **Sources**.
+3. Click **Install starter catalog**.
+4. Then run **Steam mega import** or **IGDB popular import** to build a bigger catalog.
+
+## Catalog strategy
+
+Do not try to ship “every game ever” in one static SQL file. That gets huge and stale. The better model is:
+
+```text
+Starter catalog
++ Steam imports
++ IGDB imports
++ RAWG imports
++ itch.io manual/bulk imports
++ user-added games
+= growing GameLog catalog
+```
+
+## Main app pages
+
+- Home
+- Discover
+- Games
+- Log
+- Feed
+- Lists
+- People
+- History
+- Sources
+- Profile
+
+## Notes
+
+- Steam cover fallbacks are visual fallbacks in the app. They make the starter catalog look good even when the database cover field is blank.
+- IGDB is still the best long-term source for cross-platform box art, platforms, genres, summaries, developers, and release years.
+- itch.io does not behave like a simple public “all games” catalog in this version, so GameLog supports manual and bulk import for itch.io titles.
+
+
+## v1.7 Mega Catalog
+
+GameLog now includes a built-in mega catalog expansion: **677 extra lightweight game records** on top of the existing starter catalog. Use **Import > Install / repair built-in games** to push the full built-in catalog into Supabase, or run `supabase/mega_seed.sql` after `seed.sql`. The Steam mega import search terms were also expanded for larger real-cover-art imports.

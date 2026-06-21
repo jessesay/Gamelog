@@ -1,4 +1,5 @@
 import type { Game, GameList, GameLog, Profile } from "./types";
+import { megaStarterGames } from "./megaCatalog";
 
 export const demoProfile: Profile = {
   id: "demo-user",
@@ -8,7 +9,7 @@ export const demoProfile: Profile = {
   favorite_game: "Elden Ring"
 };
 
-export const starterGames: Game[] = [
+const coreStarterGames: Game[] = [
   {
     id: "elden-ring",
     title: "Elden Ring",
@@ -1121,6 +1122,8 @@ export const starterGames: Game[] = [
     summary: "Basketball sim with MyCareer, teams, online play, and yearly roster drama."
   }
 ];
+
+export const starterGames: Game[] = mergeGames(coreStarterGames, megaStarterGames);
 
 export const demoLogs: GameLog[] = [
   {

@@ -1448,12 +1448,17 @@ export default function GameLogApp() {
   const steamMegaTerms = [
     "call of duty", "souls", "grand theft auto", "minecraft", "survival", "horror", "farming",
     "strategy", "rpg", "co-op", "roguelike", "anime", "one piece", "simulation", "sports",
-    "racing", "indie", "deckbuilder", "open world", "shooter", "city builder"
+    "racing", "indie", "deckbuilder", "open world", "shooter", "city builder", "tactical", "zombie",
+    "space", "fantasy", "warhammer", "star wars", "base building", "automation", "factory", "management",
+    "colony", "detective", "mystery", "metroidvania", "platformer", "puzzle", "narrative", "visual novel",
+    "jrpg", "turn based", "strategy rpg", "fighting", "skate", "truck", "flight", "hunting", "fishing",
+    "card", "party", "local co-op", "vr", "sandbox", "crafting", "parkour", "stealth", "samurai", "pirate",
+    "mech", "cyberpunk", "post apocalyptic", "western", "medieval", "city", "football", "baseball", "basketball"
   ];
 
   async function importSteamMegaPack() {
     setSteamMegaImporting(true);
-    setMessage({ type: "info", text: "Starting Steam mega import. This can take a minute because it searches a bunch of game categories." });
+    setMessage({ type: "info", text: "Starting Steam mega import. This can take several minutes because it searches a much wider set of game categories." });
     let total = 0;
     try {
       for (const term of steamMegaTerms) {
@@ -1463,7 +1468,7 @@ export default function GameLogApp() {
         total += await importExternalGames(body.games ?? [], `Steam ${term}`);
       }
       if (connected && supabase) await loadRemoteData(userId);
-      setMessage({ type: "ok", text: `Steam mega import added ${total} new games with capsule art. Run it again later with different searches to keep growing.` });
+      setMessage({ type: "ok", text: `Steam mega import added ${total} new games with capsule art. This is the big catalog-builder button — run it whenever you want another wave.` });
     } catch (error) {
       setMessage({ type: "error", text: error instanceof Error ? error.message : "Steam mega import failed." });
     } finally {
