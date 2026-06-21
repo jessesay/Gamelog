@@ -2224,3 +2224,49 @@ textarea:focus {
     min-height: 132px;
   }
 }
+
+/* v1.6 compact import hub */
+.compact-import-page .source-card {
+  margin-top: 18px;
+}
+
+.source-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+
+.single-source-card {
+  min-height: 270px;
+  background:
+    radial-gradient(circle at top right, rgba(34, 211, 238, 0.10), transparent 42%),
+    rgba(255, 255, 255, 0.045);
+}
+
+.inline-button {
+  border: 0;
+  padding: 0;
+  margin: 0 3px;
+  background: transparent;
+  color: white;
+  text-decoration: underline;
+  font-weight: 850;
+}
+
+.nav-pills .pill {
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .source-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 6px;
+  }
+
+  .single-source-card .form-grid.three,
+  .single-source-card .form-grid.two {
+    grid-template-columns: 1fr;
+  }
+}

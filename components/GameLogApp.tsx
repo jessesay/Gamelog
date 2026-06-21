@@ -51,6 +51,8 @@ type FeedFilter = "all" | "following" | "mine";
 type DiscoverMode = "forYou" | "fresh" | "all" | "backlog" | "passed";
 type DiscoveryActionName = "Pass" | "Want to Play" | "Backlog" | "Currently Playing" | "Completed";
 type DiscoveryMood = "All" | "Cozy" | "Hardcore" | "Multiplayer" | "Story" | "Short" | "Open World" | "Shooter" | "Strategy" | "Indie";
+type SourceMode = "archive" | "igdb" | "steam" | "rawg" | "itch" | "bulk";
+type ArchiveMode = "guides" | "software" | "covers";
 type DiscoveryAction = { id: string; user_id: string; game_id: string; action: DiscoveryActionName; created_at: string; games?: Game | null };
 type UndoAction =
   | { kind: "pass"; action: DiscoveryAction }
@@ -211,6 +213,21 @@ function matchPercent(game: Game, myLogs: GameLog[], tasteGenres: string[], tast
   return Math.min(98, 70 + score * 3);
 }
 
+function archiveSearchUrl(title: string, mode: ArchiveMode = "guides") {
+  const guideQuery = `title:(\"${title}\") OR description:(\"${title}\")`;
+  const suffix = mode === "software"
+    ? " AND mediatype:software"
+    : mode === "covers"
+      ? " AND (cover OR box OR scan OR art)"
+      : " AND mediatype:texts AND (manual OR guide OR walkthrough OR strategy)";
+  return `https://archive.org/advancedsearch.php?q=${encodeURIComponent(`(${guideQuery})${suffix}`)}&fl[]=identifier&fl[]=title&fl[]=description&fl[]=year&fl[]=creator&rows=50&output=json`;
+}
+
+function archiveDetailsUrlFromGame(game: Game) {
+  const match = game.summary?.match(/https:\/\/archive\.org\/details\/[^\s)]+/i);
+  return match?.[0] ?? null;
+}
+
 
 function clampProgress(value: number, target: number) {
   if (!target) return 0;
@@ -276,6 +293,11 @@ export default function GameLogApp() {
   const [dragOffset, setDragOffset] = useState(0);
   const [rawgPage, setRawgPage] = useState(1);
   const [importingGames, setImportingGames] = useState(false);
+  const [sourceMode, setSourceMode] = useState<SourceMode>("archive");
+  const [archiveQuery, setArchiveQuery] = useState("zelda manual");
+  const [archiveMode, setArchiveMode] = useState<ArchiveMode>("guides");
+  const [archiveLimit, setArchiveLimit] = useState("25");
+  const [archiveImporting, setArchiveImporting] = useState(false);
   const [igdbQuery, setIgdbQuery] = useState("zelda");
   const [igdbLimit, setIgdbLimit] = useState("30");
   const [igdbOffset, setIgdbOffset] = useState(0);
@@ -1449,6 +1471,31 @@ export default function GameLogApp() {
     }
   }
 
+  async function importArchiveGames() {
+    const q = archiveQuery.trim();
+    if (!q) {
+      setMessage({ type: "info", text: "Search Internet Archive first. Try: zelda manual, doom strategy guide, mario box art, dos games." });
+      return;
+    }
+
+    setArchiveImporting(true);
+    setMessage(null);
+
+    try {
+      const limit = Math.max(5, Math.min(Number(archiveLimit) || 25, 75));
+      const response = await fetch(`/api/archive/search?q=${encodeURIComponent(q)}&mode=${archiveMode}&limit=${limit}`);
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error || `Internet Archive search failed with status ${response.status}.`);
+      const added = await importExternalGames(body.games ?? [], "Internet Archive");
+      if (added) setMessage({ type: "ok", text: `Imported ${added} Internet Archive records with thumbnails and source links. Use these as manuals, guide, scans, or preservation references — not as a ROM download library.` });
+      else setMessage({ type: "info", text: "No new Archive records imported. They may already be in your catalog or the search was too narrow." });
+    } catch (error) {
+      setMessage({ type: "error", text: error instanceof Error ? error.message : "Internet Archive import failed." });
+    } finally {
+      setArchiveImporting(false);
+    }
+  }
+
   async function importIgdbSearchGames() {
     const q = igdbQuery.trim();
     if (!q) {
@@ -1704,15 +1751,9 @@ export default function GameLogApp() {
               ["home", "Home"],
               ["discover", "Discover"],
               ["library", "Library"],
-              ["quests", "Quests"],
-              ["wrapped", "Wrapped"],
               ["games", "Games"],
-              ["log", "Log"],
-              ["feed", "Feed"],
-              ["lists", "Lists"],
-              ["people", "People"],
-              ["history", "History"],
-              ["sources", "Sources"],
+              ["feed", "Social"],
+              ["sources", "Import"],
               ["profile", "Profile"]
             ].map(([key, label]) => (
               <button key={key} className={`pill ${view === key ? "active" : ""}`} onClick={() => setView(key as View)}>
@@ -1736,15 +1777,14 @@ export default function GameLogApp() {
               <p className="eyebrow">Letterboxd energy, but for games</p>
               <h1>Track what you play. Review what hits. Attack the backlog.</h1>
               <p className="lede">
-                GameLog is now built around fast mobile discovery: swipe through cover-art cards, save what looks good, pass what does not, and turn the backlog into a social game diary.
+                GameLog is now built around three loops: Discover games fast, manage your library, and share your taste. Extra tools live behind Import/Profile so the app does not feel like a cockpit.
               </p>
               <div className="actions">
                 <button className="primary" onClick={() => setView("discover")}><Sparkles size={18} /> Start swiping</button>
                 <button className="secondary" onClick={() => setView("log")}><Gamepad2 size={18} /> Log a game</button>
                 <button className="secondary" onClick={() => setView("library")}><Layers3 size={18} /> My library</button>
-                <button className="secondary" onClick={() => setView("quests")}><Target size={18} /> Quest board</button>
-                <button className="secondary" onClick={() => setView("feed")}><Sparkles size={18} /> View feed</button>
-                <button className="secondary" onClick={() => setView("people")}><Users size={18} /> Find players</button>
+                <button className="secondary" onClick={() => setView("feed")}><Sparkles size={18} /> Social feed</button>
+                <button className="secondary" onClick={() => setView("sources")}><DownloadCloud size={18} /> Import games</button>
               </div>
             </div>
             <div className="side-panel card">
@@ -1831,7 +1871,7 @@ export default function GameLogApp() {
               <h2>Your profile</h2>
               <ProfileMini profile={profile} completedCount={completedCount} backlogCount={backlogCount} avgRating={avgRating} followerCount={followerCount} followingCount={followingCount} />
               <div className="divider" />
-              <p className="muted">v1.5 adds a shareable Wrapped hub with your taste, streaks, ratings, genres, platforms, and backlog story.</p>
+              <p className="muted">v1.6 adds Internet Archive imports while trimming navigation and consolidating import panels.</p>
               <div className="divider" />
               <h3>Top rated here</h3>
               <MiniTopGames games={topGames} />
@@ -2619,14 +2659,14 @@ export default function GameLogApp() {
       )}
 
       {view === "sources" && (
-        <section className="grid">
+        <section className="grid compact-import-page">
           <div className="col-8 card">
             <div className="review-top">
               <div>
-                <p className="eyebrow">Catalog sources</p>
-                <h2>Bring in real games and cover art</h2>
+                <p className="eyebrow">Import hub</p>
+                <h2>Grow the catalog without a wall of panels</h2>
                 <p className="muted" style={{ marginBottom: 0 }}>
-                  GameLog now has a rescue catalog, built-in Steam cover fallbacks, IGDB imports, Steam imports, RAWG, itch.io manual import, and bulk import. This is how the catalog grows instead of relying on one static seed file.
+                  One compact place for Archive manuals/guides, IGDB covers, Steam games, RAWG pages, itch.io, and bulk imports. Pick a source, run it, then get back to Discover.
                 </p>
               </div>
               <span className="tag">{coverCount}/{games.length} covers</span>
@@ -2634,176 +2674,139 @@ export default function GameLogApp() {
 
             <div className="stats compact-stats">
               <div className="stat"><strong>{games.length}</strong><span>Total games</span></div>
-              <div className="stat"><strong>{coverCount}</strong><span>With cover art</span></div>
+              <div className="stat"><strong>{coverCount}</strong><span>With art</span></div>
               <div className="stat"><strong>{games.length ? Math.round((coverCount / games.length) * 100) : 0}%</strong><span>Cover rate</span></div>
-              <div className="stat"><strong>{filteredGames.length}</strong><span>Searchable now</span></div>
+              <div className="stat"><strong>{filteredGames.length}</strong><span>Searchable</span></div>
             </div>
 
-            <div className="divider" />
-
             {(usingStarterFallback || remoteCatalogEmpty) && (
-              <section className="source-card rescue-source">
-                <div className="review-top">
-                  <div>
-                    <h3>Catalog rescue: your games did not disappear</h3>
-                    <p className="muted">Supabase is connected, but the games table is empty or not seeded in this project. GameLog is showing the built-in starter catalog so the app stays usable. Install it once to save these games into your database.</p>
-                  </div>
-                  <span className="tag">Rescue mode</span>
-                </div>
-                <div className="actions" style={{ marginTop: 12 }}>
-                  <button className="primary" onClick={installStarterCatalog} disabled={importingGames}>
-                    <DownloadCloud size={18} /> {importingGames ? "Installing..." : `Install ${starterGames.length}+ starter games`}
-                  </button>
-                  <button className="secondary" onClick={() => setView("discover")}>Test Discover now</button>
-                </div>
-              </section>
+              <div className="notice info" style={{ marginTop: 16 }}>
+                Supabase catalog looks empty. <button className="inline-button" onClick={installStarterCatalog} disabled={importingGames}>{importingGames ? "Installing..." : "Install starter catalog"}</button>
+              </div>
             )}
 
-            <section className="source-card featured-source">
-              <div className="review-top">
-                <div>
-                  <h3>IGDB cover-art import</h3>
-                  <p className="muted">IGDB is the best next source for true box art, platforms, genres, summaries, and cross-platform games. Add IGDB_CLIENT_ID and IGDB_CLIENT_SECRET to .env.local, then restart the server.</p>
-                </div>
-                <span className="tag">IGDB</span>
-              </div>
-              <div className="form-grid three">
-                <div className="field">
-                  <label><Search size={14} /> IGDB search</label>
-                  <input value={igdbQuery} onChange={(event) => setIgdbQuery(event.target.value)} placeholder="zelda, minecraft, one piece, horror..." />
-                </div>
-                <div className="field">
-                  <label>Limit</label>
-                  <select value={igdbLimit} onChange={(event) => setIgdbLimit(event.target.value)}>
-                    <option>10</option>
-                    <option>30</option>
-                    <option>50</option>
-                    <option>75</option>
-                  </select>
-                </div>
-                <button className="primary source-button" onClick={importIgdbSearchGames} disabled={igdbImporting}>
-                  <DownloadCloud size={18} /> {igdbImporting ? "Importing..." : "Import IGDB search"}
-                </button>
-              </div>
-              <div className="actions" style={{ marginTop: 12 }}>
-                <button className="secondary" onClick={importIgdbPopularGames} disabled={igdbImporting}>
-                  <DownloadCloud size={18} /> Import 75 popular games
-                </button>
-                <span className="tag">Popular offset {igdbOffset}</span>
-              </div>
-            </section>
+            <div className="source-tabs" role="tablist" aria-label="Catalog source picker">
+              {[
+                ["archive", "Archive"],
+                ["igdb", "IGDB"],
+                ["steam", "Steam"],
+                ["rawg", "RAWG"],
+                ["itch", "itch.io"],
+                ["bulk", "Bulk"]
+              ].map(([key, label]) => (
+                <button key={key} className={`pill ${sourceMode === key ? "active" : ""}`} onClick={() => setSourceMode(key as SourceMode)}>{label}</button>
+              ))}
+            </div>
 
-            <section className="source-card">
-              <div className="review-top">
-                <div>
-                  <h3>Steam search import</h3>
-                  <p className="muted">Search Steam by title/keyword and import matching apps with Steam capsule/cover image URLs. This is the fastest way to add PC games.</p>
-                </div>
-                <span className="tag">Steam</span>
-              </div>
-              <div className="form-grid three">
-                <div className="field">
-                  <label><Search size={14} /> Steam search</label>
-                  <input value={steamQuery} onChange={(event) => setSteamQuery(event.target.value)} placeholder="elden ring, souls, farming, shooter..." />
-                </div>
-                <div className="field">
-                  <label>Limit</label>
-                  <select value={steamImportLimit} onChange={(event) => setSteamImportLimit(event.target.value)}>
-                    <option>10</option>
-                    <option>30</option>
-                    <option>50</option>
-                    <option>75</option>
-                  </select>
-                </div>
-                <button className="primary source-button" onClick={importSteamSearchGames} disabled={steamImporting}>
-                  <DownloadCloud size={18} /> {steamImporting ? "Importing..." : "Import Steam games"}
-                </button>
-              </div>
-              <div className="divider" />
-              <div className="review-top">
-                <p className="muted" style={{ marginBottom: 0 }}>Need it to feel massive fast? This searches a preset pack of Steam categories like shooters, survival, horror, co-op, RPG, strategy, indie, anime, sports, racing, and city builders.</p>
-                <button className="secondary" onClick={importSteamMegaPack} disabled={steamMegaImporting}>
-                  <DownloadCloud size={18} /> {steamMegaImporting ? "Mega importing..." : "Steam mega import"}
-                </button>
-              </div>
-            </section>
+            <section className="source-card single-source-card">
+              {sourceMode === "archive" && (
+                <>
+                  <div className="review-top">
+                    <div>
+                      <h3>Internet Archive manuals, guides, scans, and software records</h3>
+                      <p className="muted">Search Archive metadata and import useful records with thumbnail art and source links. GameLog links to Archive pages instead of trying to rehost or directly download copyrighted games.</p>
+                    </div>
+                    <span className="tag">No API key</span>
+                  </div>
+                  <div className="form-grid three">
+                    <div className="field">
+                      <label><Search size={14} /> Archive search</label>
+                      <input value={archiveQuery} onChange={(event) => setArchiveQuery(event.target.value)} placeholder="zelda manual, doom guide, dos game, box art..." />
+                    </div>
+                    <div className="field">
+                      <label>Kind</label>
+                      <select value={archiveMode} onChange={(event) => setArchiveMode(event.target.value as ArchiveMode)}>
+                        <option value="guides">Manuals / guides</option>
+                        <option value="software">Software records</option>
+                        <option value="covers">Box art / scans</option>
+                      </select>
+                    </div>
+                    <div className="field">
+                      <label>Limit</label>
+                      <select value={archiveLimit} onChange={(event) => setArchiveLimit(event.target.value)}>
+                        <option>10</option>
+                        <option>25</option>
+                        <option>50</option>
+                        <option>75</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="actions" style={{ marginTop: 12 }}>
+                    <button className="primary source-button" onClick={importArchiveGames} disabled={archiveImporting}>
+                      <DownloadCloud size={18} /> {archiveImporting ? "Searching Archive..." : "Import Archive results"}
+                    </button>
+                    <a className="secondary inline-link" href={archiveSearchUrl(archiveQuery || "video game manual", archiveMode)} target="_blank" rel="noreferrer"><ExternalLink size={16} /> Open Archive search</a>
+                  </div>
+                </>
+              )}
 
-            <section className="source-card">
-              <div className="review-top">
-                <div>
-                  <h3>RAWG import</h3>
-                  <p className="muted">RAWG gives a huge general game database and image fields. Add NEXT_PUBLIC_RAWG_API_KEY to .env.local, then import pages of games.</p>
-                </div>
-                <span className="tag">RAWG page {rawgPage}</span>
-              </div>
-              <button className="secondary" onClick={importRawgTrendingGames} disabled={importingGames}>
-                <DownloadCloud size={18} /> {importingGames ? "Importing..." : rawgApiKey ? "Import next 40 RAWG games" : "RAWG key missing"}
-              </button>
-            </section>
+              {sourceMode === "igdb" && (
+                <>
+                  <div className="review-top"><div><h3>IGDB cover-art import</h3><p className="muted">Best for real game covers, platforms, genres, summaries, and cross-platform catalog quality. Requires IGDB_CLIENT_ID and IGDB_CLIENT_SECRET in .env.local.</p></div><span className="tag">Covers</span></div>
+                  <div className="form-grid three">
+                    <div className="field"><label><Search size={14} /> IGDB search</label><input value={igdbQuery} onChange={(event) => setIgdbQuery(event.target.value)} placeholder="zelda, minecraft, one piece, horror..." /></div>
+                    <div className="field"><label>Limit</label><select value={igdbLimit} onChange={(event) => setIgdbLimit(event.target.value)}><option>10</option><option>30</option><option>50</option><option>75</option></select></div>
+                    <button className="primary source-button" onClick={importIgdbSearchGames} disabled={igdbImporting}><DownloadCloud size={18} /> {igdbImporting ? "Importing..." : "Import IGDB search"}</button>
+                  </div>
+                  <div className="actions" style={{ marginTop: 12 }}><button className="secondary" onClick={importIgdbPopularGames} disabled={igdbImporting}><DownloadCloud size={18} /> Import 75 popular games</button><span className="tag">Offset {igdbOffset}</span></div>
+                </>
+              )}
 
-            <section className="source-card">
-              <div className="review-top">
-                <div>
-                  <h3>itch.io manual import</h3>
-                  <p className="muted">itch.io does not work like Steam’s public app list here, so v0.9 supports clean manual import: paste the game page and cover image URL.</p>
-                </div>
-                <span className="tag">itch.io</span>
-              </div>
-              <div className="form-grid two">
-                <div className="field">
-                  <label>Game title</label>
-                  <input value={itchTitle} onChange={(event) => setItchTitle(event.target.value)} placeholder="Indie game title" />
-                </div>
-                <div className="field">
-                  <label>itch.io page URL</label>
-                  <input value={itchUrl} onChange={(event) => setItchUrl(event.target.value)} placeholder="https://creator.itch.io/game" />
-                </div>
-                <div className="field">
-                  <label>Cover image URL</label>
-                  <input value={itchCoverUrl} onChange={(event) => setItchCoverUrl(event.target.value)} placeholder="https://img.itch.zone/..." />
-                </div>
-                <div className="field">
-                  <label>Genre</label>
-                  <input value={itchGenre} onChange={(event) => setItchGenre(event.target.value)} placeholder="Indie, Horror, Platformer..." />
-                </div>
-                <div className="field">
-                  <label>Platforms</label>
-                  <input value={itchPlatforms} onChange={(event) => setItchPlatforms(event.target.value)} placeholder="PC, Web, Mac, Linux" />
-                </div>
-                <button className="secondary source-button" onClick={addItchGame}><ListPlus size={18} /> Add itch game</button>
-              </div>
-            </section>
+              {sourceMode === "steam" && (
+                <>
+                  <div className="review-top"><div><h3>Steam search import</h3><p className="muted">Fast PC game imports with Steam capsule art. Use search for precise terms or mega import for a broad starter wave.</p></div><span className="tag">PC</span></div>
+                  <div className="form-grid three">
+                    <div className="field"><label><Search size={14} /> Steam search</label><input value={steamQuery} onChange={(event) => setSteamQuery(event.target.value)} placeholder="elden ring, souls, farming, shooter..." /></div>
+                    <div className="field"><label>Limit</label><select value={steamImportLimit} onChange={(event) => setSteamImportLimit(event.target.value)}><option>10</option><option>30</option><option>50</option><option>75</option></select></div>
+                    <button className="primary source-button" onClick={importSteamSearchGames} disabled={steamImporting}><DownloadCloud size={18} /> {steamImporting ? "Importing..." : "Import Steam"}</button>
+                  </div>
+                  <div className="actions" style={{ marginTop: 12 }}><button className="secondary" onClick={importSteamMegaPack} disabled={steamMegaImporting}><DownloadCloud size={18} /> {steamMegaImporting ? "Mega importing..." : "Steam mega import"}</button></div>
+                </>
+              )}
 
-            <section className="source-card">
-              <div className="review-top">
-                <div>
-                  <h3>Bulk import any source</h3>
-                  <p className="muted">Paste one game per line in this format: title | cover_url | source_url | genre | platforms comma-separated</p>
-                </div>
-                <span className="tag">Any site</span>
-              </div>
-              <div className="field">
-                <label>Bulk lines</label>
-                <textarea value={bulkImportText} onChange={(event) => setBulkImportText(event.target.value)} placeholder={"Example Game | https://example.com/cover.jpg | https://example.com/game | Horror | PC, Web"} />
-              </div>
-              <button className="secondary" onClick={importBulkGames}><ListPlus size={18} /> Bulk import</button>
+              {sourceMode === "rawg" && (
+                <>
+                  <div className="review-top"><div><h3>RAWG import</h3><p className="muted">Huge general game database and image fields. Add NEXT_PUBLIC_RAWG_API_KEY to .env.local to enable page imports.</p></div><span className="tag">Page {rawgPage}</span></div>
+                  <button className="primary" onClick={importRawgTrendingGames} disabled={importingGames}><DownloadCloud size={18} /> {importingGames ? "Importing..." : rawgApiKey ? "Import next 40 RAWG games" : "RAWG key missing"}</button>
+                </>
+              )}
+
+              {sourceMode === "itch" && (
+                <>
+                  <div className="review-top"><div><h3>itch.io manual import</h3><p className="muted">Add indie/web games manually by title, page URL, cover URL, genre, and platforms.</p></div><span className="tag">Indie</span></div>
+                  <div className="form-grid two">
+                    <div className="field"><label>Game title</label><input value={itchTitle} onChange={(event) => setItchTitle(event.target.value)} placeholder="Indie game title" /></div>
+                    <div className="field"><label>itch.io page URL</label><input value={itchUrl} onChange={(event) => setItchUrl(event.target.value)} placeholder="https://creator.itch.io/game" /></div>
+                    <div className="field"><label>Cover image URL</label><input value={itchCoverUrl} onChange={(event) => setItchCoverUrl(event.target.value)} placeholder="https://img.itch.zone/..." /></div>
+                    <div className="field"><label>Genre</label><input value={itchGenre} onChange={(event) => setItchGenre(event.target.value)} placeholder="Indie, Horror, Platformer..." /></div>
+                    <div className="field"><label>Platforms</label><input value={itchPlatforms} onChange={(event) => setItchPlatforms(event.target.value)} placeholder="PC, Web, Mac, Linux" /></div>
+                    <button className="secondary source-button" onClick={addItchGame}><ListPlus size={18} /> Add itch game</button>
+                  </div>
+                </>
+              )}
+
+              {sourceMode === "bulk" && (
+                <>
+                  <div className="review-top"><div><h3>Bulk import any source</h3><p className="muted">Paste one game per line: title | cover_url | source_url | genre | platforms comma-separated</p></div><span className="tag">Any site</span></div>
+                  <div className="field"><label>Bulk lines</label><textarea value={bulkImportText} onChange={(event) => setBulkImportText(event.target.value)} placeholder={"Example Game | https://example.com/cover.jpg | https://example.com/game | Horror | PC, Web"} /></div>
+                  <button className="secondary" onClick={importBulkGames}><ListPlus size={18} /> Bulk import</button>
+                </>
+              )}
             </section>
           </div>
 
           <aside className="col-4 card">
-            <h2>Where is the cover art?</h2>
-            <p className="muted">Games use real cover_url images when available. The starter catalog also has built-in Steam capsule fallbacks for many PC games, so cards should no longer look empty after a fresh setup.</p>
+            <h2>Less panels, more product</h2>
+            <p className="muted">v1.6 trims the top navigation and turns the old stack of import cards into one source picker.</p>
             <div className="divider" />
-            <h3>The real “all games” plan</h3>
             <div className="mini-list">
-              <div className="mini-row"><span>IGDB</span><strong>True covers now</strong></div>
-              <div className="mini-row"><span>Steam</span><strong>PC catalog now</strong></div>
-              <div className="mini-row"><span>RAWG</span><strong>Huge general DB</strong></div>
-              <div className="mini-row"><span>itch.io</span><strong>Manual/bulk now</strong></div>
+              <button className="mini-row button-row" onClick={() => setSourceMode("archive")}><span>Archive</span><strong>Manuals/guides</strong></button>
+              <button className="mini-row button-row" onClick={() => setSourceMode("igdb")}><span>IGDB</span><strong>Best covers</strong></button>
+              <button className="mini-row button-row" onClick={() => setSourceMode("steam")}><span>Steam</span><strong>PC catalog</strong></button>
+              <button className="mini-row button-row" onClick={() => setView("discover")}><span>Done importing?</span><strong>Swipe now</strong></button>
             </div>
             <div className="divider" />
-            <p className="muted">We should not ship one giant static file with every game on earth. The better product is a growing catalog that imports from sources, stores the clean records in Supabase, and feeds Discover forever.</p>
-            <button className="primary" onClick={() => setView("discover")}>Back to Discover</button>
+            <p className="muted">Archive records are for discovery, metadata, manuals, guides, scans, and source links. GameLog should not become a ROM-download app.</p>
           </aside>
         </section>
       )}
@@ -3220,6 +3223,8 @@ function GameDetailPanel({ game, logs, onClose, onLog }: { game: Game; logs: Gam
       <div className="actions">
         <button className="primary" onClick={onLog}><Star size={16} /> Log this game</button>
         {game.slug && <a className="secondary inline-link" href={`/g/${game.slug}`} target="_blank" rel="noreferrer"><ExternalLink size={16} /> Public game page</a>}
+        <a className="secondary inline-link" href={archiveSearchUrl(game.title, "guides")} target="_blank" rel="noreferrer"><ExternalLink size={16} /> Find manuals/guides</a>
+        {archiveDetailsUrlFromGame(game) && <a className="secondary inline-link" href={archiveDetailsUrlFromGame(game) ?? "#"} target="_blank" rel="noreferrer"><ExternalLink size={16} /> Open Archive item</a>}
       </div>
     </article>
   );

@@ -39,6 +39,15 @@ function stars(rating: number | null | undefined) {
   return `${"★".repeat(full)}${half}${"☆".repeat(Math.max(0, 5 - Math.ceil(rounded)))}`;
 }
 
+function archiveSearchUrl(title: string) {
+  const query = `(title:(\"${title}\") OR description:(\"${title}\")) AND mediatype:texts AND (manual OR guide OR walkthrough OR strategy)`;
+  return `https://archive.org/advancedsearch.php?q=${encodeURIComponent(query)}&fl[]=identifier&fl[]=title&fl[]=description&rows=50&output=json`;
+}
+
+function archiveDetailsUrl(summary?: string | null) {
+  return summary?.match(/https:\/\/archive\.org\/details\/[^\s)]+/i)?.[0] ?? null;
+}
+
 export default async function GamePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const supabase = await createClient();
@@ -106,7 +115,11 @@ export default async function GamePage({ params }: { params: Promise<{ slug: str
           <p className="muted">Developer: {game.developer || "Unknown"}</p>
           <p className="muted">Publisher: {game.publisher || "Unknown"}</p>
           <p className="muted">Release: {game.release_year || "TBA"}</p>
-          <Link className="primary inline-link" href="/">Log this in the app</Link>
+          <div className="actions" style={{ marginTop: 12 }}>
+            <Link className="primary inline-link" href="/">Log this in the app</Link>
+            <a className="secondary inline-link" href={archiveSearchUrl(game.title)} target="_blank" rel="noreferrer">Find manuals/guides</a>
+            {archiveDetailsUrl(game.summary) && <a className="secondary inline-link" href={archiveDetailsUrl(game.summary) ?? "#"} target="_blank" rel="noreferrer">Open Archive item</a>}
+          </div>
         </aside>
       </section>
 
