@@ -1,13 +1,13 @@
-GameLog v1.8 patch
+GameLog v1.9 — IGDB-first Catalog Engine patch
 
-Copy these files into your GitHub-cloned GameLog folder and replace existing files.
+Copy these files into your existing GameLog repo and replace when asked.
 
-Then in GitHub Desktop commit:
-Build GameLog v1.8 AI Taste Engine
+After copying:
+1. Commit in GitHub Desktop:
+   Build GameLog v1.9 IGDB-first catalog engine
+2. Push origin.
+3. Run update-gamelog.bat.
+4. Optional but recommended: run supabase/v1_9_catalog_engine.sql in Supabase SQL Editor.
+5. Test Games tab: search a missing game, then click Search + import from IGDB.
 
-Then run update-gamelog.bat.
-
-If AI fails locally, run setup-ai-gateway.bat or run:
-pnpm add ai
-vercel link
-vercel env pull .env.local
+Vercel note: package.json keeps ai pinned to 6.0.208 so the lockfile fix stays compatible with frozen installs.

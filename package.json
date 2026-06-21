@@ -1,6 +1,6 @@
 {
   "name": "gamelog-next",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -11,11 +11,11 @@
   "dependencies": {
     "@supabase/ssr": "latest",
     "@supabase/supabase-js": "latest",
-    "ai": "6.0.208",
     "lucide-react": "latest",
     "next": "latest",
     "react": "latest",
-    "react-dom": "latest"
+    "react-dom": "latest",
+    "ai": "6.0.208"
   },
   "devDependencies": {
     "@types/node": "latest",

@@ -9,6 +9,9 @@ export type Game = {
   platforms?: string[] | null;
   cover_url?: string | null;
   summary?: string | null;
+  igdb_id?: number | null;
+  source?: string | null;
+  source_url?: string | null;
   created_by?: string | null;
   is_community?: boolean | null;
 };

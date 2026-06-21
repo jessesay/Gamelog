@@ -108,6 +108,65 @@ function makeSlug(title: string) {
   return title.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
+function normalizeTitleKey(title?: string | null) {
+  return (title ?? "")
+    .toLowerCase()
+    .replace(/\b(game of the year|goty|remastered|remaster|definitive edition|complete edition|deluxe edition)\b/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function isUuid(value?: string | null) {
+  return Boolean(value && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value));
+}
+
+function gameSource(game: Partial<Game>) {
+  const text = [game.source, game.slug, game.developer, game.publisher, game.summary, game.source_url].filter(Boolean).join(" ").toLowerCase();
+  if (text.includes("igdb")) return "IGDB";
+  if (text.includes("steam")) return "Steam";
+  if (text.includes("archive.org") || text.includes("internet archive")) return "Archive";
+  if (text.includes("rawg")) return "RAWG";
+  if (text.includes("itch")) return "itch.io";
+  if (game.cover_url) return "Cover";
+  return "GameLog";
+}
+
+function mergeGameRecord(existing: Game, incoming: Partial<Game>): Game {
+  const incomingPlatforms = Array.isArray(incoming.platforms) ? incoming.platforms.filter(Boolean) : [];
+  const existingPlatforms = Array.isArray(existing.platforms) ? existing.platforms.filter(Boolean) : [];
+  const mergedPlatforms = Array.from(new Set([...existingPlatforms, ...incomingPlatforms])).slice(0, 10);
+  const incomingSummary = incoming.summary?.trim() ?? null;
+  const existingSummary = existing.summary?.trim() ?? null;
+
+  return {
+    ...existing,
+    title: existing.title || incoming.title || "Unknown Game",
+    slug: existing.slug ?? incoming.slug ?? makeSlug(existing.title || incoming.title || "game"),
+    developer: existing.developer && existing.developer !== "GameLog starter catalog" ? existing.developer : incoming.developer ?? existing.developer ?? null,
+    publisher: existing.publisher ?? incoming.publisher ?? null,
+    release_year: existing.release_year ?? incoming.release_year ?? null,
+    genre: existing.genre && existing.genre !== "Game" ? existing.genre : incoming.genre ?? existing.genre ?? "Game",
+    platforms: mergedPlatforms.length ? mergedPlatforms : ["Unknown"],
+    cover_url: existing.cover_url || incoming.cover_url || getKnownCoverUrl(existing),
+    summary: existingSummary && existingSummary.length >= (incomingSummary?.length ?? 0) ? existingSummary : incomingSummary ?? existingSummary,
+    igdb_id: existing.igdb_id ?? incoming.igdb_id ?? null,
+    source: existing.source ?? incoming.source ?? gameSource(incoming),
+    source_url: existing.source_url ?? incoming.source_url ?? null,
+    is_community: existing.is_community ?? incoming.is_community ?? true
+  };
+}
+
+function hasUsefulIncomingData(existing: Game, incoming: Partial<Game>) {
+  if (incoming.cover_url && !existing.cover_url) return true;
+  if (incoming.summary && (!existing.summary || incoming.summary.length > existing.summary.length + 40)) return true;
+  if (incoming.release_year && !existing.release_year) return true;
+  if (incoming.publisher && !existing.publisher) return true;
+  if ((incoming.platforms?.length ?? 0) > (existing.platforms?.length ?? 0)) return true;
+  if (incoming.developer && (!existing.developer || existing.developer === "GameLog starter catalog" || existing.developer.includes("import"))) return true;
+  return false;
+}
+
+
 function gameHue(game: Game) {
   const seed = (game.slug ?? game.title).split("").reduce((sum, char) => sum + char.charCodeAt(0), 0);
   return seed % 360;
@@ -303,6 +362,8 @@ export default function GameLogApp() {
   const [igdbLimit, setIgdbLimit] = useState("30");
   const [igdbOffset, setIgdbOffset] = useState(0);
   const [igdbImporting, setIgdbImporting] = useState(false);
+  const [catalogImporting, setCatalogImporting] = useState(false);
+  const [catalogEnriching, setCatalogEnriching] = useState(false);
   const [steamQuery, setSteamQuery] = useState("elden ring");
   const [steamImportLimit, setSteamImportLimit] = useState("30");
   const [steamImporting, setSteamImporting] = useState(false);
@@ -1381,6 +1442,9 @@ export default function GameLogApp() {
       platforms: Array.isArray(game.platforms) && game.platforms.length ? game.platforms : ["Unknown"],
       cover_url: game.cover_url?.trim() || getKnownCoverUrl({ title, slug }),
       summary: game.summary?.trim() || null,
+      igdb_id: game.igdb_id ?? null,
+      source: game.source ?? gameSource(game),
+      source_url: game.source_url ?? null,
       is_community: true
     };
   }
@@ -1388,49 +1452,100 @@ export default function GameLogApp() {
   async function importExternalGames(incomingGames: Partial<Game>[], sourceName: string, options: { ignoreVisibleDuplicates?: boolean } = {}) {
     if (connected && !requireSignIn(`import ${sourceName} games`)) return 0;
 
-    const existingSlugs = new Set(options.ignoreVisibleDuplicates ? [] : games.map((game) => game.slug ?? game.id));
-    const unique = incomingGames
-      .map(sanitizeImportedGame)
-      .filter((game): game is Partial<Game> => Boolean(game))
-      .filter((game) => {
-        const slug = game.slug ?? "";
-        if (existingSlugs.has(slug)) return false;
-        existingSlugs.add(slug);
-        return true;
-      });
+    const existingBySlug = new Map(games.map((game) => [game.slug ?? game.id, game]));
+    const existingByTitle = new Map(games.map((game) => [normalizeTitleKey(game.title), game]));
+    const seenNewSlugs = new Set<string>();
+    const inserts: Partial<Game>[] = [];
+    const enrichments: Array<{ existing: Game; next: Game }> = [];
 
-    if (!unique.length) {
+    for (const rawGame of incomingGames) {
+      const game = sanitizeImportedGame(rawGame);
+      if (!game) continue;
+      const slug = game.slug ?? "";
+      const titleKey = normalizeTitleKey(game.title);
+      const existing = options.ignoreVisibleDuplicates ? null : existingBySlug.get(slug) ?? existingByTitle.get(titleKey);
+
+      if (existing) {
+        if (connected && !isUuid(existing.id)) {
+          // Supabase fallback games have local demo IDs. Treat the IGDB record as insertable so the real remote catalog can be built.
+        } else {
+          if (hasUsefulIncomingData(existing, game)) {
+            enrichments.push({ existing, next: mergeGameRecord(existing, game) });
+          }
+          continue;
+        }
+      }
+
+      if (seenNewSlugs.has(slug)) continue;
+      if (!existing || !connected || isUuid(existing.id)) {
+        if (existingByTitle.has(titleKey)) continue;
+      }
+      seenNewSlugs.add(slug);
+      inserts.push(game);
+    }
+
+    if (!inserts.length && !enrichments.length) {
       setMessage({ type: "info", text: `No new ${sourceName} games to add. They may already be in your catalog.` });
       return 0;
     }
 
     if (connected && supabase) {
-      const records = unique.map((game) => ({
-        title: game.title,
-        slug: game.slug,
-        developer: game.developer,
-        publisher: game.publisher,
-        release_year: game.release_year,
-        genre: game.genre,
-        platforms: game.platforms,
-        cover_url: game.cover_url,
-        summary: game.summary,
-        created_by: userId,
-        is_community: true
-      }));
+      let changed = 0;
 
-      const { data, error } = await supabase.from("games").insert(records).select("*");
-      if (error) {
-        setMessage({ type: "error", text: error.message });
-        return 0;
+      for (const { existing, next } of enrichments) {
+        const updatePayload = {
+          title: next.title,
+          slug: next.slug,
+          developer: next.developer,
+          publisher: next.publisher,
+          release_year: next.release_year,
+          genre: next.genre,
+          platforms: next.platforms,
+          cover_url: next.cover_url,
+          summary: next.summary,
+          is_community: true
+        };
+        const { error } = await supabase.from("games").update(updatePayload).eq("id", existing.id);
+        if (!error) changed += 1;
       }
-      setGames((current) => [...current, ...((data as Game[]) ?? [])]);
-      return (data ?? []).length;
+
+      if (inserts.length) {
+        const records = inserts.map((game) => ({
+          title: game.title,
+          slug: game.slug,
+          developer: game.developer,
+          publisher: game.publisher,
+          release_year: game.release_year,
+          genre: game.genre,
+          platforms: game.platforms,
+          cover_url: game.cover_url,
+          summary: game.summary,
+          created_by: userId,
+          is_community: true
+        }));
+
+        const { data, error } = await supabase.from("games").insert(records).select("*");
+        if (error) {
+          setMessage({ type: "error", text: error.message });
+          return changed;
+        }
+        setGames((current) => [...current, ...((data as Game[]) ?? [])]);
+        changed += (data ?? []).length;
+      }
+
+      if (enrichments.length) {
+        setGames((current) => current.map((game) => enrichments.find((item) => item.existing.id === game.id)?.next ?? game));
+      }
+
+      return changed;
     }
 
-    const demoRecords = unique.map((game) => ({ ...game, id: crypto.randomUUID() })) as Game[];
-    setGames((current) => [...current, ...demoRecords]);
-    return demoRecords.length;
+    const demoRecords = inserts.map((game) => ({ ...game, id: crypto.randomUUID() })) as Game[];
+    setGames((current) => [
+      ...current.map((game) => enrichments.find((item) => item.existing.id === game.id)?.next ?? game),
+      ...demoRecords
+    ]);
+    return demoRecords.length + enrichments.length;
   }
 
 
@@ -1544,6 +1659,61 @@ export default function GameLogApp() {
       setMessage({ type: "error", text: error instanceof Error ? error.message : "IGDB popular import failed." });
     } finally {
       setIgdbImporting(false);
+    }
+  }
+
+  async function importCatalogSearchFromIgdb() {
+    const q = query.trim();
+    if (!q) {
+      setMessage({ type: "info", text: "Search for a missing game first, then GameLog can pull it from IGDB." });
+      return;
+    }
+
+    setCatalogImporting(true);
+    setMessage(null);
+
+    try {
+      const response = await fetch(`/api/igdb/search?q=${encodeURIComponent(q)}&limit=12`);
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error || `IGDB search failed with status ${response.status}.`);
+      const changed = await importExternalGames(body.games ?? [], "IGDB catalog search");
+      if (connected && supabase) await loadRemoteData(userId);
+      setGenre("All");
+      setMessage({ type: changed ? "ok" : "info", text: changed ? `IGDB added or improved ${changed} catalog records for "${q}".` : `IGDB did not find anything new for "${q}". Try a shorter title.` });
+    } catch (error) {
+      setMessage({ type: "error", text: error instanceof Error ? error.message : "IGDB catalog search failed." });
+    } finally {
+      setCatalogImporting(false);
+    }
+  }
+
+  async function enrichVisibleGamesFromIgdb() {
+    const candidates = filteredGames
+      .filter((game) => gameSource(game) !== "IGDB" || !game.cover_url || !game.summary)
+      .slice(0, 12);
+
+    if (!candidates.length) {
+      setMessage({ type: "info", text: "The visible catalog already looks enriched. Search another set of games or clear filters." });
+      return;
+    }
+
+    setCatalogEnriching(true);
+    setMessage({ type: "info", text: `Asking IGDB to improve ${candidates.length} visible games with covers, summaries, platforms, and release years.` });
+    let changed = 0;
+
+    try {
+      for (const game of candidates) {
+        const response = await fetch(`/api/igdb/search?q=${encodeURIComponent(game.title)}&limit=1`);
+        if (!response.ok) continue;
+        const body = await response.json();
+        changed += await importExternalGames(body.games ?? [], "IGDB enrichment");
+      }
+      if (connected && supabase) await loadRemoteData(userId);
+      setMessage({ type: changed ? "ok" : "info", text: changed ? `IGDB improved ${changed} visible game records.` : "IGDB did not find better metadata for this visible set." });
+    } catch (error) {
+      setMessage({ type: "error", text: error instanceof Error ? error.message : "IGDB enrichment failed." });
+    } finally {
+      setCatalogEnriching(false);
     }
   }
 
@@ -2589,7 +2759,13 @@ export default function GameLogApp() {
                 <p className="eyebrow">Catalog</p>
                 <h2>Find something to log</h2>
               </div>
-              <button className="secondary" onClick={() => setView("log")}>Log selected</button>
+              <div className="actions" style={{ marginTop: 0 }}>
+                <button className="secondary" onClick={enrichVisibleGamesFromIgdb} disabled={catalogEnriching}><Sparkles size={16} /> {catalogEnriching ? "Enriching..." : "Enrich visible"}</button>
+                <button className="secondary" onClick={() => setView("log")}>Log selected</button>
+              </div>
+            </div>
+            <div className="catalog-engine-note">
+              <BadgeCheck size={16} /> v1.9 makes IGDB the first stop for missing games, better covers, and cleaner duplicate handling. Search below, then import straight from IGDB if GameLog comes up empty.
             </div>
             <div className="form-grid two" style={{ marginBottom: 16 }}>
               <div className="field">
@@ -2608,6 +2784,13 @@ export default function GameLogApp() {
                 <GameCard key={game.id} game={game} onLog={() => { setLogGameId(game.id); setView("log"); }} onDetails={() => setSelectedGameId(game.id)} />
               ))}
             </div>
+            {!filteredGames.length && (
+              <div className="empty big-empty catalog-miss">
+                <h3>No local match for “{query || "that search"}”</h3>
+                <p className="muted">Pull it from IGDB now instead of manually adding it. GameLog will import cover art, platforms, genre, release year, and summary when IGDB has it.</p>
+                <button className="primary" onClick={importCatalogSearchFromIgdb} disabled={catalogImporting || !query.trim()}><DownloadCloud size={18} /> {catalogImporting ? "Searching IGDB..." : "Search + import from IGDB"}</button>
+              </div>
+            )}
             {selectedGame && (
               <GameDetailPanel
                 game={selectedGame}
@@ -2935,13 +3118,13 @@ export default function GameLogApp() {
 
               {sourceMode === "igdb" && (
                 <>
-                  <div className="review-top"><div><h3>IGDB cover-art import</h3><p className="muted">Best for real game covers, platforms, genres, summaries, and cross-platform catalog quality. Requires IGDB_CLIENT_ID and IGDB_CLIENT_SECRET in .env.local.</p></div><span className="tag">Covers</span></div>
+                  <div className="review-top"><div><h3>IGDB-first catalog engine</h3><p className="muted">Best for real game covers, platforms, genres, summaries, and cross-platform catalog quality. v1.9 also merges duplicates by title so imports enrich existing records instead of flooding the catalog.</p></div><span className="tag source-igdb">Primary source</span></div>
                   <div className="form-grid three">
                     <div className="field"><label><Search size={14} /> IGDB search</label><input value={igdbQuery} onChange={(event) => setIgdbQuery(event.target.value)} placeholder="zelda, minecraft, one piece, horror..." /></div>
                     <div className="field"><label>Limit</label><select value={igdbLimit} onChange={(event) => setIgdbLimit(event.target.value)}><option>10</option><option>30</option><option>50</option><option>75</option></select></div>
-                    <button className="primary source-button" onClick={importIgdbSearchGames} disabled={igdbImporting}><DownloadCloud size={18} /> {igdbImporting ? "Importing..." : "Import IGDB search"}</button>
+                    <button className="primary source-button" onClick={importIgdbSearchGames} disabled={igdbImporting}><DownloadCloud size={18} /> {igdbImporting ? "Importing..." : "Import / enrich IGDB search"}</button>
                   </div>
-                  <div className="actions" style={{ marginTop: 12 }}><button className="secondary" onClick={importIgdbPopularGames} disabled={igdbImporting}><DownloadCloud size={18} /> Import 75 popular games</button><span className="tag">Offset {igdbOffset}</span></div>
+                  <div className="actions" style={{ marginTop: 12 }}><button className="secondary" onClick={importIgdbPopularGames} disabled={igdbImporting}><DownloadCloud size={18} /> Import 75 popular games</button><button className="secondary" onClick={() => { setQuery(igdbQuery); setView("games"); }}><Search size={16} /> Test in catalog</button><span className="tag">Offset {igdbOffset}</span></div>
                 </>
               )}
 
@@ -2990,7 +3173,7 @@ export default function GameLogApp() {
 
           <aside className="col-4 card">
             <h2>Less panels, more product</h2>
-            <p className="muted">v1.6 trims the top navigation and turns the old stack of import cards into one source picker.</p>
+            <p className="muted">v1.9 keeps the import hub compact but makes IGDB the primary catalog engine: search, import, enrich, and de-duplicate.</p>
             <div className="divider" />
             <div className="mini-list">
               <button className="mini-row button-row" onClick={() => setSourceMode("archive")}><span>Archive</span><strong>Manuals/guides</strong></button>
@@ -3196,6 +3379,7 @@ function GameCard({ game, onLog, onDetails }: { game: Game; onLog: () => void; o
         </div>
         <p className="muted" style={{ minHeight: 58 }}>{game.summary ?? "No summary yet."}</p>
         <div className="tag-row">
+          <span className={`tag source-badge source-${gameSource(game).toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}>{gameSource(game)}</span>
           {(game.platforms ?? []).slice(0, 3).map((platform) => <span className="tag" key={platform}>{platform}</span>)}
         </div>
         <div className="card-actions">
@@ -3409,6 +3593,7 @@ function GameDetailPanel({ game, logs, onClose, onLog }: { game: Game; logs: Gam
       <p className="lede" style={{ fontSize: "1rem" }}>{game.summary ?? "No summary yet."}</p>
       <div className="tag-row">
         <span className="tag"><Trophy size={13} /> Avg {average}</span>
+        <span className={`tag source-badge source-${gameSource(game).toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}>{gameSource(game)}</span>
         <span className="tag">{logs.length} logs</span>
         {game.genre && <span className="tag">{game.genre}</span>}
         {(game.platforms ?? []).map((platform) => <span className="tag" key={platform}>{platform}</span>)}

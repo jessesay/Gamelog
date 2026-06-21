@@ -1,4 +1,5 @@
 export const IGDB_GAME_FIELDS = [
+  "id",
   "name",
   "slug",
   "summary",
@@ -12,7 +13,8 @@ export const IGDB_GAME_FIELDS = [
   "involved_companies.publisher",
   "involved_companies.company.name",
   "total_rating",
-  "total_rating_count"
+  "total_rating_count",
+  "url"
 ].join(",");
 
 type TwitchToken = {
@@ -89,9 +91,11 @@ export function mapIgdbGame(game: any) {
     summaryParts.push(`IGDB community score: ${totalRating}/100 from ${ratingCount.toLocaleString()} ratings.`);
   }
 
+  const igdbId = typeof game.id === "number" ? game.id : null;
+
   return {
     title,
-    slug: `igdb-${game.id}-${game.slug || makeSlug(title)}`,
+    slug: `igdb-${igdbId ?? "game"}-${game.slug || makeSlug(title)}`,
     developer: pickCompany(game, "developer") ?? "IGDB import",
     publisher: pickCompany(game, "publisher"),
     release_year: releaseYear,
@@ -99,6 +103,9 @@ export function mapIgdbGame(game: any) {
     platforms: platforms.length ? platforms : ["Unknown"],
     cover_url: coverImageUrl(game.cover),
     summary: summaryParts.filter(Boolean).join(" "),
+    igdb_id: igdbId,
+    source: "IGDB",
+    source_url: typeof game.url === "string" ? game.url : igdbId ? `https://www.igdb.com/games/${game.slug || makeSlug(title)}` : null,
     is_community: true
   };
 }

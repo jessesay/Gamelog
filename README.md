@@ -1,3 +1,30 @@
+# GameLog v1.9 — IGDB-first Catalog Engine
+
+This build makes IGDB the primary catalog growth path. Search a game in the Games tab; if GameLog does not have it, import it from IGDB right there. Existing games are enriched by title match instead of duplicated, so starter records can gain real cover art, summaries, platforms, and release years.
+
+## New in v1.9
+
+- IGDB-first missing-game search from the Games tab
+- One-click “Search + import from IGDB” when local search has no results
+- “Enrich visible” button to improve visible catalog cards with IGDB data
+- Smarter duplicate prevention by slug and normalized title
+- Existing records get improved instead of flooded with copies
+- Source badges on game cards and detail panels
+- Optional Supabase migration for explicit `igdb_id`, `source`, and `source_url` fields
+- Keeps AI Gateway / v1.8 Coach intact
+
+## Recommended Supabase step
+
+Run this file in Supabase SQL Editor when ready:
+
+```text
+supabase/v1_9_catalog_engine.sql
+```
+
+The app works without it, but the migration gives you cleaner source tracking long-term.
+
+---
+
 # GameLog v1.8
 
 GameLog is a Letterboxd-style social game diary with a fast mobile discovery loop: swipe/pass/save games, log reviews, build a backlog, follow people, and grow a real catalog with cover art.
