@@ -77,6 +77,19 @@
           "type": "image/svg+xml"
         }
       ]
+    },
+    {
+      "name": "Price Watch",
+      "short_name": "Prices",
+      "description": "Track game prices and deals.",
+      "url": "/?view=prices",
+      "icons": [
+        {
+          "src": "/icon.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
     }
   ]
 }

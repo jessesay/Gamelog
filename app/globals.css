@@ -3210,3 +3210,80 @@ textarea:focus {
     min-height: 300px;
   }
 }
+
+
+/* v2.3 Price Watch */
+.price-hero-v23 .hero-card {
+  background: radial-gradient(circle at top right, rgba(34, 197, 94, 0.22), transparent 36%), linear-gradient(135deg, rgba(12, 18, 31, 0.98), rgba(9, 13, 22, 0.96));
+}
+.price-toolbar-v23 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  margin: 14px 0 18px;
+}
+.price-deal-grid,
+.price-watch-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+.price-card-v23 {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.035);
+  border-radius: 18px;
+  padding: 14px;
+}
+.price-card-v23 strong {
+  display: block;
+  margin-bottom: 4px;
+}
+.price-line-v23 {
+  height: 120px;
+  width: 100%;
+  margin-top: 12px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+  overflow: hidden;
+}
+.price-line-v23 svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.price-deal-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 999px;
+  padding: 4px 9px;
+  background: rgba(34, 197, 94, 0.16);
+  border: 1px solid rgba(34, 197, 94, 0.26);
+  color: #bbf7d0;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+.price-big {
+  font-size: clamp(1.8rem, 6vw, 3.2rem);
+  line-height: 1;
+  margin: 8px 0;
+}
+.price-table {
+  display: grid;
+  gap: 8px;
+}
+.price-row {
+  display: grid;
+  grid-template-columns: 1.4fr 0.8fr 0.7fr 0.9fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.price-row:last-child { border-bottom: 0; }
+@media (max-width: 760px) {
+  .price-row { grid-template-columns: 1fr; }
+  .price-toolbar-v23 { align-items: stretch; }
+}

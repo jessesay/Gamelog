@@ -10,6 +10,7 @@ import {
   ChevronLeft,
   ChevronRight,
   DownloadCloud,
+  DollarSign,
   Edit3,
   ExternalLink,
   Flame,
@@ -45,7 +46,7 @@ import { demoProfile, loadDemoState, saveDemoState, starterGames } from "@/lib/d
 import { getEffectiveCoverUrl, getKnownCoverUrl, withKnownCover } from "@/lib/coverArt";
 import type { Follow, Game, GameList, GameLog, Profile, ReviewComment } from "@/lib/types";
 
-type View = "home" | "pulse" | "match" | "arena" | "discover" | "library" | "coach" | "charts" | "share" | "beta" | "quests" | "wrapped" | "games" | "log" | "feed" | "lists" | "people" | "history" | "sources" | "profile";
+type View = "home" | "pulse" | "match" | "arena" | "prices" | "discover" | "library" | "coach" | "charts" | "share" | "beta" | "quests" | "wrapped" | "games" | "log" | "feed" | "lists" | "people" | "history" | "sources" | "profile";
 type AuthMode = "signin" | "signup";
 type FeedFilter = "all" | "following" | "mine";
 type DiscoverMode = "forYou" | "fresh" | "all" | "backlog" | "passed";
@@ -57,6 +58,20 @@ type CoachMode = "next" | "weekend" | "review" | "taste";
 type MatchLength = "Quick" | "One night" | "Long haul";
 type MatchEnergy = "Any" | "Cozy" | "Challenge" | "Story" | "Social";
 type FeedbackKind = "Bug" | "Missing game" | "Duplicate game" | "Feature idea" | "UI polish" | "Other";
+type PriceSnapshot = {
+  id: string;
+  game_id: string;
+  game_title: string;
+  source: "Steam" | "Manual" | "Store";
+  source_app_id?: string | null;
+  store_url?: string | null;
+  current_price: number | null;
+  original_price: number | null;
+  discount_percent: number;
+  currency: string;
+  region: string;
+  checked_at: string;
+};
 type DiscoveryAction = { id: string; user_id: string; game_id: string; action: DiscoveryActionName; created_at: string; games?: Game | null };
 type UndoAction =
   | { kind: "pass"; action: DiscoveryAction }
@@ -375,6 +390,69 @@ function longestLogStreak(logs: GameLog[]) {
   return best;
 }
 
+
+function priceStorageKey(userId: string) {
+  return `gamelog_price_snapshots_${userId}`;
+}
+
+function priceWatchStorageKey(userId: string) {
+  return `gamelog_price_watchlist_${userId}`;
+}
+
+function deriveSteamAppId(game: Game) {
+  const haystack = [game.slug, game.source_url, game.summary].filter(Boolean).join(" ");
+  const match = haystack.match(/(?:steam-|app\/|AppID:\s*)(\d{3,8})/i) ?? haystack.match(/\b(\d{3,8})\b/);
+  return match?.[1] ?? null;
+}
+
+function formatGamePrice(value: number | null | undefined, currency = "USD") {
+  if (value === null || value === undefined) return "N/A";
+  if (value <= 0) return "Free";
+  try {
+    return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(value);
+  } catch {
+    return `$${value.toFixed(2)}`;
+  }
+}
+
+function latestSnapshotForGame(snapshots: PriceSnapshot[], gameId: string) {
+  return snapshots
+    .filter((snapshot) => snapshot.game_id === gameId)
+    .sort((a, b) => new Date(b.checked_at).getTime() - new Date(a.checked_at).getTime())[0] ?? null;
+}
+
+function lowSnapshotForGame(snapshots: PriceSnapshot[], gameId: string) {
+  return snapshots
+    .filter((snapshot) => snapshot.game_id === gameId && snapshot.current_price !== null)
+    .sort((a, b) => Number(a.current_price) - Number(b.current_price))[0] ?? null;
+}
+
+function samplePriceHistory(game: Game) {
+  const base = 59.99;
+  const appId = deriveSteamAppId(game);
+  const seed = normalizeTitleKey(game.title).split("").reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  const discounts = [0, 10, 25, 0, 40, 15, 50].map((discount, index) => (seed + index) % 3 === 0 ? Math.min(75, discount + 10) : discount);
+  return discounts.map((discount, index) => {
+    const date = new Date();
+    date.setMonth(date.getMonth() - (discounts.length - 1 - index));
+    const current = Number((base * (1 - discount / 100)).toFixed(2));
+    return {
+      id: crypto.randomUUID(),
+      game_id: game.id,
+      game_title: game.title,
+      source: "Manual" as const,
+      source_app_id: appId,
+      store_url: appId ? `https://store.steampowered.com/app/${appId}` : null,
+      current_price: current,
+      original_price: base,
+      discount_percent: discount,
+      currency: "USD",
+      region: "US",
+      checked_at: date.toISOString()
+    };
+  });
+}
+
 export default function GameLogApp() {
   const supabase = useMemo(() => getSupabaseBrowserClient(), []);
   const connected = Boolean(supabase && hasSupabaseEnv());
@@ -383,7 +461,7 @@ export default function GameLogApp() {
   const [view, setView] = useState<View>("home");
   useEffect(() => {
     const requestedView = new URLSearchParams(window.location.search).get("view") as View | null;
-    const allowedViews: View[] = ["home", "pulse", "match", "arena", "discover", "library", "coach", "charts", "share", "beta", "quests", "wrapped", "games", "log", "feed", "lists", "people", "history", "sources", "profile"];
+    const allowedViews: View[] = ["home", "pulse", "match", "arena", "prices", "discover", "library", "coach", "charts", "share", "beta", "quests", "wrapped", "games", "log", "feed", "lists", "people", "history", "sources", "profile"];
     if (requestedView && allowedViews.includes(requestedView)) setView(requestedView);
   }, []);
   const [feedFilter, setFeedFilter] = useState<FeedFilter>("all");
@@ -435,6 +513,11 @@ export default function GameLogApp() {
   const [feedbackContact, setFeedbackContact] = useState("");
   const [feedbackSending, setFeedbackSending] = useState(false);
   const [feedbackQueue, setFeedbackQueue] = useState<Array<{ kind: FeedbackKind; body: string; target?: string; contact?: string; created_at: string }>>([]);
+  const [priceSnapshots, setPriceSnapshots] = useState<PriceSnapshot[]>([]);
+  const [priceWatchIds, setPriceWatchIds] = useState<string[]>([]);
+  const [priceCheckingId, setPriceCheckingId] = useState<string | null>(null);
+  const [priceSearch, setPriceSearch] = useState("");
+  const [priceSelectedGameId, setPriceSelectedGameId] = useState<string | null>(null);
 
   const [userId, setUserId] = useState<string | null>(null);
   const [profile, setProfile] = useState<Profile>(demoProfile);
@@ -598,6 +681,27 @@ export default function GameLogApp() {
   }, [currentUserId, profiles]);
 
   const selectedGame = useMemo(() => games.find((game) => game.id === selectedGameId) ?? null, [games, selectedGameId]);
+  const priceSelectedGame = useMemo(() => catalogGames.find((game) => game.id === priceSelectedGameId) ?? null, [catalogGames, priceSelectedGameId]);
+  const watchedPriceGames = useMemo(() => priceWatchIds.map((id) => catalogGames.find((game) => game.id === id)).filter(Boolean) as Game[], [catalogGames, priceWatchIds]);
+  const salePriceRows = useMemo(() => {
+    return catalogGames
+      .map((game) => ({ game, latest: latestSnapshotForGame(priceSnapshots, game.id), low: lowSnapshotForGame(priceSnapshots, game.id) }))
+      .filter((row) => row.latest && Number(row.latest.discount_percent) > 0)
+      .sort((a, b) => Number(b.latest?.discount_percent ?? 0) - Number(a.latest?.discount_percent ?? 0) || Number(a.latest?.current_price ?? 9999) - Number(b.latest?.current_price ?? 9999))
+      .slice(0, 12);
+  }, [catalogGames, priceSnapshots]);
+  const priceSearchMatches = useMemo(() => {
+    const needle = priceSearch.toLowerCase().trim();
+    return catalogGames
+      .filter((game) => !needle || [game.title, game.genre, game.developer, ...(game.platforms ?? [])].filter(Boolean).join(" ").toLowerCase().includes(needle))
+      .slice(0, 24);
+  }, [catalogGames, priceSearch]);
+  const selectedPriceHistory = useMemo(() => {
+    if (!priceSelectedGame) return [];
+    return priceSnapshots
+      .filter((snapshot) => snapshot.game_id === priceSelectedGame.id)
+      .sort((a, b) => new Date(a.checked_at).getTime() - new Date(b.checked_at).getTime());
+  }, [priceSelectedGame, priceSnapshots]);
 
   const trendingLogs = useMemo(() => {
     return [...logs]
@@ -1071,7 +1175,7 @@ export default function GameLogApp() {
       const stored = window.localStorage.getItem("gamelog_beta_feedback_queue");
       if (stored) setFeedbackQueue(JSON.parse(stored));
       const requestedView = new URLSearchParams(window.location.search).get("view") as View | null;
-      if (requestedView && ["home", "pulse", "match", "arena", "discover", "library", "coach", "charts", "share", "beta", "games", "log", "feed", "sources", "profile"].includes(requestedView)) {
+      if (requestedView && ["home", "pulse", "match", "arena", "prices", "discover", "library", "coach", "charts", "share", "beta", "games", "log", "feed", "sources", "profile"].includes(requestedView)) {
         setView(requestedView);
       }
     } catch {
@@ -1079,6 +1183,36 @@ export default function GameLogApp() {
     }
   }, []);
 
+
+  useEffect(() => {
+    if (!currentUserId || loading) return;
+    try {
+      const storedSnapshots = window.localStorage.getItem(priceStorageKey(currentUserId));
+      if (storedSnapshots) setPriceSnapshots(JSON.parse(storedSnapshots));
+      const storedWatchIds = window.localStorage.getItem(priceWatchStorageKey(currentUserId));
+      if (storedWatchIds) setPriceWatchIds(JSON.parse(storedWatchIds));
+    } catch {
+      // Price Watch is optional local data.
+    }
+  }, [currentUserId, loading]);
+
+  useEffect(() => {
+    if (!currentUserId || loading) return;
+    try {
+      window.localStorage.setItem(priceStorageKey(currentUserId), JSON.stringify(priceSnapshots.slice(-500)));
+    } catch {
+      // Ignore local price storage failures.
+    }
+  }, [currentUserId, loading, priceSnapshots]);
+
+  useEffect(() => {
+    if (!currentUserId || loading) return;
+    try {
+      window.localStorage.setItem(priceWatchStorageKey(currentUserId), JSON.stringify(priceWatchIds.slice(0, 250)));
+    } catch {
+      // Ignore local watchlist storage failures.
+    }
+  }, [currentUserId, loading, priceWatchIds]);
 
   useEffect(() => {
     if (view !== "discover") return;
@@ -2395,6 +2529,86 @@ ${item.body}`;
     setArenaSeed((value) => value + 2);
   }
 
+  function watchPrice(game: Game) {
+    setPriceWatchIds((current) => current.includes(game.id) ? current : [game.id, ...current]);
+    setPriceSelectedGameId(game.id);
+    setView("prices");
+    setMessage({ type: "ok", text: `${game.title} added to Price Watch.` });
+  }
+
+  function unwatchPrice(gameId: string) {
+    setPriceWatchIds((current) => current.filter((id) => id !== gameId));
+    setMessage({ type: "info", text: "Removed from Price Watch." });
+  }
+
+  async function checkSteamPrice(game: Game) {
+    setPriceCheckingId(game.id);
+    setMessage(null);
+    try {
+      const appid = deriveSteamAppId(game);
+      const params = new URLSearchParams({ q: game.title, cc: "US" });
+      if (appid) params.set("appid", appid);
+      const response = await fetch(`/api/prices/steam?${params.toString()}`);
+      const body = await response.json().catch(() => null);
+      if (!response.ok || !body?.ok) throw new Error(body?.error || "Steam price lookup failed.");
+      const snapshot: PriceSnapshot = {
+        id: crypto.randomUUID(),
+        game_id: game.id,
+        game_title: game.title,
+        source: "Steam",
+        source_app_id: body.appid ? String(body.appid) : appid,
+        store_url: body.store_url ?? null,
+        current_price: body.current_price,
+        original_price: body.original_price,
+        discount_percent: Number(body.discount_percent ?? 0),
+        currency: body.currency ?? "USD",
+        region: "US",
+        checked_at: body.checked_at ?? new Date().toISOString()
+      };
+      setPriceSnapshots((current) => [...current.filter((item) => !(item.game_id === game.id && item.checked_at === snapshot.checked_at)), snapshot]);
+      setPriceWatchIds((current) => current.includes(game.id) ? current : [game.id, ...current]);
+      setPriceSelectedGameId(game.id);
+      setMessage({ type: "ok", text: `${game.title} price checked: ${formatGamePrice(snapshot.current_price, snapshot.currency)}${snapshot.discount_percent ? ` (${snapshot.discount_percent}% off)` : ""}.` });
+    } catch (error) {
+      setMessage({ type: "error", text: error instanceof Error ? error.message : "Price check failed." });
+    } finally {
+      setPriceCheckingId(null);
+    }
+  }
+
+  async function checkTrackedPrices() {
+    const targets = watchedPriceGames.slice(0, 8);
+    if (!targets.length) {
+      setMessage({ type: "info", text: "Add a few games to Price Watch first." });
+      return;
+    }
+    for (const game of targets) {
+      // Sequential checks are gentler on Steam and easier to debug.
+      // eslint-disable-next-line no-await-in-loop
+      await checkSteamPrice(game);
+    }
+    setMessage({ type: "ok", text: `Checked ${targets.length} tracked game${targets.length === 1 ? "" : "s"}.` });
+  }
+
+  function seedPriceHistory(game: Game) {
+    const samples = samplePriceHistory(game);
+    setPriceSnapshots((current) => [...current.filter((snapshot) => snapshot.game_id !== game.id || snapshot.source !== "Manual"), ...samples]);
+    setPriceWatchIds((current) => current.includes(game.id) ? current : [game.id, ...current]);
+    setPriceSelectedGameId(game.id);
+    setMessage({ type: "ok", text: `Added sample price history for ${game.title}.` });
+  }
+
+  function exportPriceHistory() {
+    const payload = JSON.stringify({ snapshots: priceSnapshots, watchlist: priceWatchIds, exported_at: new Date().toISOString() }, null, 2);
+    const blob = new Blob([payload], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "gamelog-price-history.json";
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
+
   function exportDemoData() {
     const payload = JSON.stringify({ profile, games, logs, lists }, null, 2);
     const blob = new Blob([payload], { type: "application/json" });
@@ -2431,6 +2645,7 @@ ${item.body}`;
               ["pulse", "Pulse"],
               ["match", "Match"],
               ["arena", "Arena"],
+              ["prices", "Prices"],
               ["discover", "Discover"],
               ["games", "Games"],
               ["charts", "Charts"],
@@ -2468,6 +2683,10 @@ ${item.body}`;
           <Trophy size={18} />
           <span>Arena</span>
         </button>
+        <button className={`mobile-nav-item ${view === "prices" ? "active" : ""}`} onClick={() => setView("prices")} aria-label="Prices">
+          <DollarSign size={18} />
+          <span>Prices</span>
+        </button>
         <button className={`mobile-nav-item ${view === "games" || view === "charts" ? "active" : ""}`} onClick={() => setView("games")} aria-label="Games">
           <Search size={18} />
           <span>Games</span>
@@ -2499,6 +2718,7 @@ ${item.body}`;
                 <button className="secondary" onClick={() => setView("match")}><Target size={18} /> Matchmaker</button>
                 <button className="secondary" onClick={() => setView("arena")}><Trophy size={18} /> Arena</button>
                 <button className="secondary" onClick={() => setView("charts")}><Trophy size={18} /> Charts</button>
+                <button className="secondary" onClick={() => setView("prices")}><DollarSign size={18} /> Price Watch</button>
                 <button className="secondary" onClick={() => setView("log")}><Gamepad2 size={18} /> Log a game</button>
                 <button className="secondary" onClick={() => setView("library")}><Layers3 size={18} /> My library</button>
                 <button className="secondary" onClick={() => openAiCoach("next")}><Sparkles size={18} /> GameLog Coach</button>
@@ -3639,6 +3859,132 @@ ${item.body}`;
         </section>
       )}
 
+
+      {view === "prices" && (
+        <>
+          <section className="hero price-hero-v23">
+            <div className="hero-card">
+              <p className="eyebrow">GameLog Price Watch</p>
+              <h1>Track deals, sale drops, and price history.</h1>
+              <p className="lede">GameLog can now watch prices for your backlog, build historical price snapshots, and surface games on sale so the next play is also the smart buy.</p>
+              <div className="actions">
+                <button className="primary" onClick={checkTrackedPrices} disabled={Boolean(priceCheckingId)}><DollarSign size={18} /> {priceCheckingId ? "Checking..." : "Check watchlist"}</button>
+                <button className="secondary" onClick={() => setView("games")}><Search size={18} /> Add games</button>
+                <button className="secondary" onClick={exportPriceHistory} disabled={!priceSnapshots.length}><DownloadCloud size={18} /> Export price data</button>
+              </div>
+            </div>
+            <div className="side-panel card">
+              <p className="eyebrow">Deal board</p>
+              <div className="stats compact-stats">
+                <div className="stat"><strong>{watchedPriceGames.length}</strong><span>Watched</span></div>
+                <div className="stat"><strong>{priceSnapshots.length}</strong><span>Snapshots</span></div>
+                <div className="stat"><strong>{salePriceRows.length}</strong><span>On sale</span></div>
+                <div className="stat"><strong>{priceSnapshots.filter((item) => item.discount_percent >= 50).length}</strong><span>Deep cuts</span></div>
+              </div>
+              <p className="muted">Steam checks work best for Steam imports or games Steam can match by title. Historical charts grow every time you check prices.</p>
+            </div>
+          </section>
+
+          <section className="grid">
+            <div className="col-8 card">
+              <div className="review-top">
+                <div>
+                  <p className="eyebrow">Games on sale</p>
+                  <h2>Price drops worth noticing</h2>
+                </div>
+                <span className="tag">US region</span>
+              </div>
+              {salePriceRows.length ? (
+                <div className="price-deal-grid">
+                  {salePriceRows.map(({ game, latest, low }) => latest && (
+                    <article className="price-card-v23" key={game.id}>
+                      <strong>{game.title}</strong>
+                      <span className="price-deal-badge">{latest.discount_percent}% off</span>
+                      <div className="price-big">{formatGamePrice(latest.current_price, latest.currency)}</div>
+                      <p className="muted">Was {formatGamePrice(latest.original_price, latest.currency)} · Low seen {formatGamePrice(low?.current_price, latest.currency)}</p>
+                      <div className="actions" style={{ marginTop: 10 }}>
+                        <button className="secondary" onClick={() => setPriceSelectedGameId(game.id)}>Chart</button>
+                        <button className="secondary" onClick={() => checkSteamPrice(game)} disabled={priceCheckingId === game.id}>{priceCheckingId === game.id ? "Checking..." : "Refresh"}</button>
+                        {latest.store_url && <a className="secondary inline-link" href={latest.store_url} target="_blank" rel="noreferrer"><ExternalLink size={14} /> Store</a>}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState title="No tracked sales yet" body="Add games to Price Watch, check Steam prices, or seed sample history while testing the feature." />
+              )}
+            </div>
+
+            <aside className="col-4 card">
+              <p className="eyebrow">Historical chart</p>
+              <h2>{priceSelectedGame?.title ?? "Pick a game"}</h2>
+              {priceSelectedGame ? (
+                <>
+                  <PriceHistoryChart snapshots={selectedPriceHistory} />
+                  <div className="stats compact-stats">
+                    <div className="stat"><strong>{selectedPriceHistory.length}</strong><span>Checks</span></div>
+                    <div className="stat"><strong>{formatGamePrice(latestSnapshotForGame(priceSnapshots, priceSelectedGame.id)?.current_price, latestSnapshotForGame(priceSnapshots, priceSelectedGame.id)?.currency)}</strong><span>Latest</span></div>
+                    <div className="stat"><strong>{formatGamePrice(lowSnapshotForGame(priceSnapshots, priceSelectedGame.id)?.current_price, lowSnapshotForGame(priceSnapshots, priceSelectedGame.id)?.currency)}</strong><span>Low</span></div>
+                  </div>
+                  <div className="actions" style={{ marginTop: 12 }}>
+                    <button className="primary" onClick={() => checkSteamPrice(priceSelectedGame)} disabled={priceCheckingId === priceSelectedGame.id}>{priceCheckingId === priceSelectedGame.id ? "Checking..." : "Check Steam"}</button>
+                    <button className="secondary" onClick={() => seedPriceHistory(priceSelectedGame)}>Seed sample history</button>
+                  </div>
+                </>
+              ) : <EmptyState title="Choose a watched game" body="Select a game below or add one from the catalog to see its price history." />}
+            </aside>
+
+            <div className="col-12 card">
+              <div className="review-top">
+                <div>
+                  <p className="eyebrow">Watchlist</p>
+                  <h2>Products to track</h2>
+                </div>
+                <div className="field" style={{ maxWidth: 340 }}>
+                  <input value={priceSearch} onChange={(event) => setPriceSearch(event.target.value)} placeholder="Search catalog to add..." />
+                </div>
+              </div>
+
+              <div className="price-watch-grid" style={{ marginBottom: 18 }}>
+                {watchedPriceGames.map((game) => {
+                  const latest = latestSnapshotForGame(priceSnapshots, game.id);
+                  return (
+                    <article className="price-card-v23" key={game.id}>
+                      <strong>{game.title}</strong>
+                      <p className="muted">{latest ? `${formatGamePrice(latest.current_price, latest.currency)} · ${latest.discount_percent}% off · ${new Date(latest.checked_at).toLocaleDateString()}` : "No price check yet"}</p>
+                      <div className="actions" style={{ marginTop: 10 }}>
+                        <button className="secondary" onClick={() => setPriceSelectedGameId(game.id)}>Chart</button>
+                        <button className="secondary" onClick={() => checkSteamPrice(game)} disabled={priceCheckingId === game.id}>{priceCheckingId === game.id ? "Checking..." : "Check"}</button>
+                        <button className="danger" onClick={() => unwatchPrice(game.id)}>Remove</button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+
+              <div className="price-table">
+                {priceSearchMatches.map((game) => {
+                  const latest = latestSnapshotForGame(priceSnapshots, game.id);
+                  const watched = priceWatchIds.includes(game.id);
+                  return (
+                    <div className="price-row" key={game.id}>
+                      <strong>{game.title}</strong>
+                      <span className="muted">{game.genre ?? "Game"}</span>
+                      <span>{latest ? formatGamePrice(latest.current_price, latest.currency) : "Not checked"}</span>
+                      <span>{latest?.discount_percent ? <span className="price-deal-badge">{latest.discount_percent}% off</span> : <span className="muted">No sale data</span>}</span>
+                      <div className="actions" style={{ marginTop: 0 }}>
+                        <button className="secondary" onClick={() => watchPrice(game)}>{watched ? "Watching" : "Watch"}</button>
+                        <button className="secondary" onClick={() => checkSteamPrice(game)} disabled={priceCheckingId === game.id}>{priceCheckingId === game.id ? "Checking..." : "Check"}</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+        </>
+      )}
+
       {view === "games" && (
         <section className="grid">
           <div className="col-12 card">
@@ -3676,7 +4022,7 @@ ${item.body}`;
             </div>
             <div className="game-grid">
               {displayedGames.map((game) => (
-                <GameCard key={game.id} game={game} onLog={() => { setLogGameId(game.id); setView("log"); }} onDetails={() => setSelectedGameId(game.id)} />
+                <GameCard key={game.id} game={game} onLog={() => { setLogGameId(game.id); setView("log"); }} onDetails={() => setSelectedGameId(game.id)} onTrackPrice={() => watchPrice(game)} />
               ))}
             </div>
             {remainingFilteredGames > 0 && (
@@ -4319,7 +4665,34 @@ function ChartColumn({ title, subtitle, rows, onPick }: { title: string; subtitl
   );
 }
 
-function GameCard({ game, onLog, onDetails }: { game: Game; onLog: () => void; onDetails: () => void }) {
+function PriceHistoryChart({ snapshots }: { snapshots: PriceSnapshot[] }) {
+  if (!snapshots.length) {
+    return <div className="price-line-v23"><div className="empty" style={{ margin: 0 }}>No chart data yet.</div></div>;
+  }
+  const values = snapshots.map((snapshot) => Number(snapshot.current_price ?? 0));
+  const max = Math.max(...values, 1);
+  const min = Math.min(...values, max);
+  const span = Math.max(1, max - min);
+  const points = snapshots.map((snapshot, index) => {
+    const x = snapshots.length === 1 ? 50 : (index / (snapshots.length - 1)) * 100;
+    const y = 88 - ((Number(snapshot.current_price ?? 0) - min) / span) * 68;
+    return `${x},${y}`;
+  }).join(" ");
+  const latest = snapshots[snapshots.length - 1];
+  return (
+    <div>
+      <div className="price-line-v23" aria-label="Price history chart">
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+          <polyline points={points} fill="none" stroke="currentColor" strokeWidth="3" vectorEffect="non-scaling-stroke" />
+          <line x1="0" x2="100" y1="88" y2="88" stroke="currentColor" strokeOpacity="0.18" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+        </svg>
+      </div>
+      <p className="muted" style={{ marginTop: 8 }}>Latest: {formatGamePrice(latest.current_price, latest.currency)} · {new Date(latest.checked_at).toLocaleDateString()}</p>
+    </div>
+  );
+}
+
+function GameCard({ game, onLog, onDetails, onTrackPrice }: { game: Game; onLog: () => void; onDetails: () => void; onTrackPrice?: () => void }) {
   return (
     <article className="game-card">
       <GameCover game={game} />
@@ -4338,6 +4711,7 @@ function GameCard({ game, onLog, onDetails }: { game: Game; onLog: () => void; o
         <div className="card-actions">
           <button className="secondary" onClick={onDetails}>Details</button>
           <button className="secondary" onClick={onLog}>Log this</button>
+          {onTrackPrice && <button className="secondary" onClick={onTrackPrice}>Price</button>}
         </div>
         {game.slug && <a className="tiny-link" href={`/g/${game.slug}`} target="_blank" rel="noreferrer">Open game page</a>}
       </div>
