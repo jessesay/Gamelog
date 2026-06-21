@@ -41,7 +41,7 @@ import { demoProfile, loadDemoState, saveDemoState, starterGames } from "@/lib/d
 import { getEffectiveCoverUrl, getKnownCoverUrl, withKnownCover } from "@/lib/coverArt";
 import type { Follow, Game, GameList, GameLog, Profile, ReviewComment } from "@/lib/types";
 
-type View = "home" | "discover" | "games" | "log" | "feed" | "lists" | "people" | "history" | "sources" | "profile";
+type View = "home" | "discover" | "library" | "games" | "log" | "feed" | "lists" | "people" | "history" | "sources" | "profile";
 type AuthMode = "signin" | "signup";
 type FeedFilter = "all" | "following" | "mine";
 type DiscoverMode = "forYou" | "fresh" | "all" | "backlog" | "passed";
@@ -447,6 +447,45 @@ export default function GameLogApp() {
 
   const profileNeedsSetup = signedIn && (profile.display_name === "New Player" || !profile.favorite_game || !profile.bio);
   const recentReviews = useMemo(() => logs.filter((log) => Boolean(log.review?.trim())).slice(0, 5), [logs]);
+  const currentYear = new Date().getFullYear();
+  const currentMonthKey = new Date().toISOString().slice(0, 7);
+  const yearlyLogs = useMemo(() => myLogs.filter((log) => (log.played_on ?? log.created_at ?? "").startsWith(String(currentYear))), [currentYear, myLogs]);
+  const monthlyLogs = useMemo(() => myLogs.filter((log) => (log.played_on ?? log.created_at ?? "").startsWith(currentMonthKey)), [currentMonthKey, myLogs]);
+  const reviewedCount = myLogs.filter((log) => Boolean(log.review?.trim())).length;
+  const completionRate = myLogs.length ? Math.round((completedCount / myLogs.length) * 100) : 0;
+  const unreviewedCompletions = useMemo(() => myLogs.filter((log) => ["Completed", "100% Completed"].includes(log.status) && !log.review?.trim()).slice(0, 6), [myLogs]);
+  const libraryShelves = useMemo(() => [
+    { title: "Playing now", subtitle: "Games you are actively in", logs: myLogs.filter((log) => log.status === "Currently Playing") },
+    { title: "Want / Backlog", subtitle: "Saved from Discover and future picks", logs: myLogs.filter((log) => ["Want to Play", "Backlog"].includes(log.status)) },
+    { title: "Completed", subtitle: "Finished games worth rating and reviewing", logs: myLogs.filter((log) => ["Completed", "100% Completed"].includes(log.status)) },
+    { title: "Dropped / Replaying", subtitle: "Games that need another chance or did not hit", logs: myLogs.filter((log) => ["Dropped", "Replaying"].includes(log.status)) }
+  ], [myLogs]);
+  const topLibraryGenre = useMemo(() => {
+    const counts = new Map<string, number>();
+    myLogs.forEach((log) => {
+      const key = log.games?.genre || "Game";
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    });
+    return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "Not enough data";
+  }, [myLogs]);
+  const topLibraryVibe = useMemo(() => {
+    const counts = new Map<string, number>();
+    myLogs.forEach((log) => {
+      if (!log.vibe) return;
+      counts.set(log.vibe, (counts.get(log.vibe) ?? 0) + 1);
+    });
+    return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "No vibe yet";
+  }, [myLogs]);
+  const backlogAttackPlan = useMemo(() => {
+    const backlog = myLogs.filter((log) => ["Want to Play", "Backlog"].includes(log.status) && log.games);
+    return [...backlog]
+      .sort((a, b) => {
+        const scoreA = gameTasteScore(a.games!, myLogs, tasteGenres, tasteMoods) + Number(Boolean(getEffectiveCoverUrl(a.games!)));
+        const scoreB = gameTasteScore(b.games!, myLogs, tasteGenres, tasteMoods) + Number(Boolean(getEffectiveCoverUrl(b.games!)));
+        return scoreB - scoreA || new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime();
+      })
+      .slice(0, 5);
+  }, [myLogs, tasteGenres, tasteMoods]);
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
@@ -1527,6 +1566,7 @@ export default function GameLogApp() {
             {[
               ["home", "Home"],
               ["discover", "Discover"],
+              ["library", "Library"],
               ["games", "Games"],
               ["log", "Log"],
               ["feed", "Feed"],
@@ -1562,6 +1602,7 @@ export default function GameLogApp() {
               <div className="actions">
                 <button className="primary" onClick={() => setView("discover")}><Sparkles size={18} /> Start swiping</button>
                 <button className="secondary" onClick={() => setView("log")}><Gamepad2 size={18} /> Log a game</button>
+                <button className="secondary" onClick={() => setView("library")}><Layers3 size={18} /> My library</button>
                 <button className="secondary" onClick={() => setView("feed")}><Sparkles size={18} /> View feed</button>
                 <button className="secondary" onClick={() => setView("people")}><Users size={18} /> Find players</button>
               </div>
@@ -1650,7 +1691,7 @@ export default function GameLogApp() {
               <h2>Your profile</h2>
               <ProfileMini profile={profile} completedCount={completedCount} backlogCount={backlogCount} avgRating={avgRating} followerCount={followerCount} followingCount={followingCount} />
               <div className="divider" />
-              <p className="muted">v1.2 adds the social layer: a cleaner homepage, trending games, favorite shelves, share links, polished review cards, and better onboarding.</p>
+              <p className="muted">v1.3 adds the real player library: shelves, monthly stats, backlog attack plan, and a quick path from saved games into actual reviews.</p>
               <div className="divider" />
               <h3>Top rated here</h3>
               <MiniTopGames games={topGames} />
@@ -1837,6 +1878,111 @@ export default function GameLogApp() {
             <div className="divider" />
             <button className="primary" onClick={() => setView("sources")}><DownloadCloud size={18} /> Import more games</button>
           </aside>
+        </section>
+      )}
+
+      {view === "library" && (
+        <section className="grid library-view">
+          <div className="col-12 hero-card library-hero">
+            <div>
+              <p className="eyebrow">Your player library</p>
+              <h1>Turn the backlog into an actual plan.</h1>
+              <p className="lede">v1.3 gives GameLog a real library hub: shelves, monthly progress, review prompts, and a smarter backlog attack plan.</p>
+              <div className="actions">
+                <button className="primary" onClick={() => setView("discover")}><Sparkles size={18} /> Find more games</button>
+                <button className="secondary" onClick={backlogRoulette}><Shuffle size={18} /> Backlog roulette</button>
+                <button className="secondary" onClick={() => setView("log")}><Star size={18} /> Write a review</button>
+              </div>
+            </div>
+            <div className="library-score-card">
+              <span className="score-ring">{completionRate}%</span>
+              <strong>Completion rate</strong>
+              <p className="muted">{completedCount} finished out of {myLogs.length || 0} logged games.</p>
+            </div>
+          </div>
+
+          <div className="col-8 card">
+            <div className="review-top">
+              <div>
+                <p className="eyebrow">Shelves</p>
+                <h2>Your games by status</h2>
+              </div>
+              <button className="pill" onClick={() => setView("games")}>Browse catalog</button>
+            </div>
+            <div className="library-shelves">
+              {libraryShelves.map((shelf) => (
+                <LibraryShelf
+                  key={shelf.title}
+                  title={shelf.title}
+                  subtitle={shelf.subtitle}
+                  logs={shelf.logs}
+                  onLog={(log) => startEditLog(log)}
+                />
+              ))}
+            </div>
+          </div>
+
+          <aside className="col-4 card library-stats-card">
+            <p className="eyebrow">Wrapped preview</p>
+            <h2>{currentYear} snapshot</h2>
+            <div className="stats library-stats-grid">
+              <div className="stat"><strong>{yearlyLogs.length}</strong><span>Logs this year</span></div>
+              <div className="stat"><strong>{monthlyLogs.length}</strong><span>This month</span></div>
+              <div className="stat"><strong>{reviewedCount}</strong><span>Reviews written</span></div>
+              <div className="stat"><strong>{backlogCount}</strong><span>Backlog</span></div>
+            </div>
+            <div className="divider" />
+            <div className="mini-list">
+              <div className="mini-row"><span>Top genre</span><strong>{topLibraryGenre}</strong></div>
+              <div className="mini-row"><span>Top vibe</span><strong>{topLibraryVibe}</strong></div>
+              <div className="mini-row"><span>Average rating</span><strong>{avgRating}</strong></div>
+            </div>
+          </aside>
+
+          <div className="col-7 card">
+            <div className="review-top">
+              <div>
+                <p className="eyebrow">Backlog attack plan</p>
+                <h2>Play these next</h2>
+              </div>
+              <button className="pill" onClick={() => setView("discover")}>Refill backlog</button>
+            </div>
+            {backlogAttackPlan.length ? (
+              <div className="attack-list">
+                {backlogAttackPlan.map((log, index) => log.games ? (
+                  <button className="attack-row" key={log.id} onClick={() => startEditLog(log)}>
+                    <span className="attack-rank">#{index + 1}</span>
+                    <GameCover game={log.games} />
+                    <span><strong>{log.games.title}</strong><em>{getDiscoveryReasons(log.games, myLogs).slice(0, 2).join(" · ") || log.games.genre || "Backlog pick"}</em></span>
+                  </button>
+                ) : null)}
+              </div>
+            ) : (
+              <EmptyState title="No backlog yet" body="Swipe a few games into Want or Backlog and this becomes your next-play plan." />
+            )}
+          </div>
+
+          <div className="col-5 card">
+            <div className="review-top">
+              <div>
+                <p className="eyebrow">Review prompts</p>
+                <h2>Finish the thought</h2>
+              </div>
+              <span className="tag">{unreviewedCompletions.length} waiting</span>
+            </div>
+            {unreviewedCompletions.length ? (
+              <div className="mini-list">
+                {unreviewedCompletions.map((log) => (
+                  <button className="mini-row button-row" key={log.id} onClick={() => startEditLog(log)}>
+                    <span>{log.games?.title ?? "Unknown game"}</span>
+                    <strong>Review</strong>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <EmptyState title="Reviews caught up" body="Completed games with no review will show here, so you can turn logs into social posts." />
+            )}
+          </div>
         </section>
       )}
 
@@ -2598,6 +2744,34 @@ function Feed({
   );
 }
 
+
+
+function LibraryShelf({ title, subtitle, logs, onLog }: { title: string; subtitle: string; logs: GameLog[]; onLog: (log: GameLog) => void }) {
+  return (
+    <section className="library-shelf">
+      <div className="review-top shelf-heading">
+        <div>
+          <h3>{title}</h3>
+          <p className="muted" style={{ marginBottom: 0 }}>{subtitle}</p>
+        </div>
+        <span className="tag">{logs.length}</span>
+      </div>
+      {logs.length ? (
+        <div className="library-row">
+          {logs.slice(0, 8).map((log) => log.games ? (
+            <button className="library-game" key={log.id} onClick={() => onLog(log)} title={`Open ${log.games?.title ?? "game"} log`}>
+              <GameCover game={log.games} />
+              <strong>{log.games.title}</strong>
+              <span>{log.rating ? stars(log.rating) : log.status}</span>
+            </button>
+          ) : null)}
+        </div>
+      ) : (
+        <p className="muted shelf-empty">Nothing here yet.</p>
+      )}
+    </section>
+  );
+}
 
 function GameDetailPanel({ game, logs, onClose, onLog }: { game: Game; logs: GameLog[]; onClose: () => void; onLog: () => void }) {
   const rated = logs.filter((log) => log.rating !== null && log.rating !== undefined);
