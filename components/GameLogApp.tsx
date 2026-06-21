@@ -45,7 +45,7 @@ import { demoProfile, loadDemoState, saveDemoState, starterGames } from "@/lib/d
 import { getEffectiveCoverUrl, getKnownCoverUrl, withKnownCover } from "@/lib/coverArt";
 import type { Follow, Game, GameList, GameLog, Profile, ReviewComment } from "@/lib/types";
 
-type View = "home" | "pulse" | "match" | "discover" | "library" | "coach" | "charts" | "share" | "beta" | "quests" | "wrapped" | "games" | "log" | "feed" | "lists" | "people" | "history" | "sources" | "profile";
+type View = "home" | "pulse" | "match" | "arena" | "discover" | "library" | "coach" | "charts" | "share" | "beta" | "quests" | "wrapped" | "games" | "log" | "feed" | "lists" | "people" | "history" | "sources" | "profile";
 type AuthMode = "signin" | "signup";
 type FeedFilter = "all" | "following" | "mine";
 type DiscoverMode = "forYou" | "fresh" | "all" | "backlog" | "passed";
@@ -383,7 +383,7 @@ export default function GameLogApp() {
   const [view, setView] = useState<View>("home");
   useEffect(() => {
     const requestedView = new URLSearchParams(window.location.search).get("view") as View | null;
-    const allowedViews: View[] = ["home", "pulse", "match", "discover", "library", "coach", "charts", "share", "beta", "quests", "wrapped", "games", "log", "feed", "lists", "people", "history", "sources", "profile"];
+    const allowedViews: View[] = ["home", "pulse", "match", "arena", "discover", "library", "coach", "charts", "share", "beta", "quests", "wrapped", "games", "log", "feed", "lists", "people", "history", "sources", "profile"];
     if (requestedView && allowedViews.includes(requestedView)) setView(requestedView);
   }, []);
   const [feedFilter, setFeedFilter] = useState<FeedFilter>("all");
@@ -476,6 +476,7 @@ export default function GameLogApp() {
   const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
   const [matchLength, setMatchLength] = useState<MatchLength>("One night");
   const [matchEnergy, setMatchEnergy] = useState<MatchEnergy>("Any");
+  const [arenaSeed, setArenaSeed] = useState(0);
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
@@ -773,6 +774,28 @@ export default function GameLogApp() {
       .slice(0, 12);
   }, [catalogGames, matchEnergy, matchLength, myLogs, passedGameIds, tasteGenres, tasteMoods]);
 
+  const arenaPicks = useMemo(() => {
+    const ordered = [
+      ...matchmakerPicks.map((item) => item.game),
+      ...signalGames.map((item) => item.game),
+      ...catalogGames
+        .filter((game) => !loggedGameIds.has(game.id))
+        .sort((a, b) => gameTasteScore(b, myLogs, tasteGenres, tasteMoods) - gameTasteScore(a, myLogs, tasteGenres, tasteMoods))
+    ];
+    const seen = new Set<string>();
+    return ordered.filter((game) => {
+      const key = normalizeTitleKey(game.title);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).slice(0, 24);
+  }, [catalogGames, loggedGameIds, matchmakerPicks, myLogs, signalGames, tasteGenres, tasteMoods]);
+  const arenaLeft = arenaPicks.length ? arenaPicks[arenaSeed % arenaPicks.length] : null;
+  const arenaRight = arenaPicks.length > 1 ? arenaPicks[(arenaSeed + 1) % arenaPicks.length] : null;
+  const arenaWinnerTrail = useMemo(() => {
+    return backlogAttackPlan.slice(0, 4).map((log) => log.games).filter(Boolean) as Game[];
+  }, [backlogAttackPlan]);
+
   const mostLoggedChart = useMemo(() => {
     return catalogGames
       .map((game) => {
@@ -1048,7 +1071,7 @@ export default function GameLogApp() {
       const stored = window.localStorage.getItem("gamelog_beta_feedback_queue");
       if (stored) setFeedbackQueue(JSON.parse(stored));
       const requestedView = new URLSearchParams(window.location.search).get("view") as View | null;
-      if (requestedView && ["home", "pulse", "match", "discover", "library", "coach", "charts", "share", "beta", "games", "log", "feed", "sources", "profile"].includes(requestedView)) {
+      if (requestedView && ["home", "pulse", "match", "arena", "discover", "library", "coach", "charts", "share", "beta", "games", "log", "feed", "sources", "profile"].includes(requestedView)) {
         setView(requestedView);
       }
     } catch {
@@ -2362,6 +2385,16 @@ ${item.body}`;
     void runAiCoach(mode);
   }
 
+  function chooseArenaGame(game: Game) {
+    void quickLogGame(game, "Backlog");
+    setArenaSeed((value) => value + 2);
+    setMessage({ type: "ok", text: `${game.title} won the duel and was saved to your backlog.` });
+  }
+
+  function skipArenaDuel() {
+    setArenaSeed((value) => value + 2);
+  }
+
   function exportDemoData() {
     const payload = JSON.stringify({ profile, games, logs, lists }, null, 2);
     const blob = new Blob([payload], { type: "application/json" });
@@ -2397,6 +2430,7 @@ ${item.body}`;
               ["home", "Home"],
               ["pulse", "Pulse"],
               ["match", "Match"],
+              ["arena", "Arena"],
               ["discover", "Discover"],
               ["games", "Games"],
               ["charts", "Charts"],
@@ -2430,6 +2464,10 @@ ${item.body}`;
           <Target size={18} />
           <span>Match</span>
         </button>
+        <button className={`mobile-nav-item ${view === "arena" ? "active" : ""}`} onClick={() => setView("arena")} aria-label="Arena">
+          <Trophy size={18} />
+          <span>Arena</span>
+        </button>
         <button className={`mobile-nav-item ${view === "games" || view === "charts" ? "active" : ""}`} onClick={() => setView("games")} aria-label="Games">
           <Search size={18} />
           <span>Games</span>
@@ -2459,6 +2497,7 @@ ${item.body}`;
                 <button className="primary" onClick={() => setView("pulse")}><Flame size={18} /> Open Pulse</button>
                 <button className="secondary" onClick={() => setView("discover")}><Sparkles size={18} /> Start swiping</button>
                 <button className="secondary" onClick={() => setView("match")}><Target size={18} /> Matchmaker</button>
+                <button className="secondary" onClick={() => setView("arena")}><Trophy size={18} /> Arena</button>
                 <button className="secondary" onClick={() => setView("charts")}><Trophy size={18} /> Charts</button>
                 <button className="secondary" onClick={() => setView("log")}><Gamepad2 size={18} /> Log a game</button>
                 <button className="secondary" onClick={() => setView("library")}><Layers3 size={18} /> My library</button>
@@ -2501,6 +2540,7 @@ ${item.body}`;
             <div className="launch-actions">
               <button className="primary" onClick={() => setView("pulse")}><Flame size={18} /> Open Pulse</button>
               <button className="secondary" onClick={() => setView("match")}><Target size={18} /> Matchmaker</button>
+              <button className="secondary" onClick={() => setView("arena")}><Trophy size={18} /> Open Arena</button>
               <button className="secondary" onClick={() => setView("charts")}><Trophy size={18} /> Open Charts</button>
               <button className="secondary" onClick={() => setView("share")}><Share2 size={18} /> Share Studio</button>
               <button className="secondary" onClick={copyBetaInvite}><Share2 size={18} /> Copy beta invite</button>
@@ -2522,6 +2562,11 @@ ${item.body}`;
               <span className="eyebrow">Matchmaker</span>
               <strong>Pick the right game fast</strong>
               <p>Choose the session length and vibe, then let GameLog rank what to play next.</p>
+            </button>
+            <button className="command-card card" onClick={() => setView("arena")}>
+              <span className="eyebrow">Arena</span>
+              <strong>Choose between two games</strong>
+              <p>Run quick head-to-head duels and turn indecision into a backlog pick.</p>
             </button>
             <button className="command-card card" onClick={() => openAiCoach("next")}>
               <span className="eyebrow">Coach</span>
@@ -2786,6 +2831,86 @@ ${item.body}`;
                 </div>
               </article>
             ))}
+          </section>
+        </>
+      )}
+
+      {view === "arena" && (
+        <>
+          <section className="hero arena-hero-v22">
+            <div className="hero-card">
+              <p className="eyebrow">GameLog Arena</p>
+              <h1>Pick one. Skip the paralysis.</h1>
+              <p className="lede">Two games enter. One goes to your backlog. Arena is built for the moment where you have too many choices and just need GameLog to make the decision feel fun.</p>
+              <div className="actions">
+                <button className="primary" onClick={skipArenaDuel}><Shuffle size={18} /> New duel</button>
+                <button className="secondary" onClick={() => setView("match")}><Target size={18} /> Tune Matchmaker</button>
+                <button className="secondary" onClick={() => setView("discover")}><Sparkles size={18} /> Train taste</button>
+              </div>
+            </div>
+            <div className="card arena-scoreboard-v22">
+              <p className="eyebrow">Decision streak</p>
+              <h2>{Math.floor(arenaSeed / 2)} duels served</h2>
+              <p className="muted">Every duel uses your library, backlog, taste setup, and catalog quality signals. Save the winner, skip the matchup, or open details.</p>
+              <div className="tag-row">
+                <span className="tag">{arenaPicks.length} contenders</span>
+                <span className="tag">{backlogCount} backlog</span>
+                <span className="tag">{topLibraryGenre}</span>
+              </div>
+            </div>
+          </section>
+
+          <section className="arena-stage-v22">
+            {arenaLeft && arenaRight ? [arenaLeft, arenaRight].map((game, index) => {
+              const percent = matchPercent(game, myLogs, tasteGenres, tasteMoods);
+              const reasons = getDiscoveryReasons(game, myLogs).slice(0, 3);
+              return (
+                <article className="card arena-card-v22" key={`${game.id}-${index}`}>
+                  <div className="arena-card-top-v22">
+                    <span className="match-score-badge-v21">{percent}%</span>
+                    <span className="tag">{gameSource(game)}</span>
+                  </div>
+                  <GameCover game={game} variant="hero" />
+                  <div>
+                    <p className="eyebrow">Choice {index + 1}</p>
+                    <h2>{game.title}</h2>
+                    <p className="muted">{game.release_year ?? "TBA"} · {game.genre ?? "Game"}</p>
+                    <p>{game.summary?.slice(0, 190) ?? "No summary yet. Import or enrich it later."}{game.summary && game.summary.length > 190 ? "..." : ""}</p>
+                  </div>
+                  <div className="tag-row">
+                    {(reasons.length ? reasons : ["Fresh contender", "Good library fit"]).map((reason) => <span className="tag" key={reason}>{reason}</span>)}
+                  </div>
+                  <div className="actions">
+                    <button className="primary" onClick={() => chooseArenaGame(game)}><Trophy size={16} /> Pick this</button>
+                    <button className="secondary" onClick={() => { setSelectedGameId(game.id); setView("games"); }}><Search size={16} /> Details</button>
+                  </div>
+                </article>
+              );
+            }) : (
+              <div className="card">
+                <EmptyState title="Arena needs contenders" body="Import games, swipe a few cards, or add backlog picks to unlock head-to-head duels." />
+              </div>
+            )}
+          </section>
+
+          <section className="card arena-trail-v22">
+            <div className="review-top">
+              <div>
+                <p className="eyebrow">Champion shelf</p>
+                <h2>Strong saved picks</h2>
+                <p className="muted">Use this row when you want a quick reminder of the games already worth attacking.</p>
+              </div>
+              <button className="secondary" onClick={backlogRoulette}><Shuffle size={16} /> Backlog roulette</button>
+            </div>
+            <div className="cover-rail">
+              {arenaWinnerTrail.length ? arenaWinnerTrail.map((game) => (
+                <button className="cover-card" key={game.id} onClick={() => { setSelectedGameId(game.id); setView("games"); }}>
+                  <GameCover game={game} />
+                  <strong>{game.title}</strong>
+                  <span>{game.genre ?? "Game"}</span>
+                </button>
+              )) : <EmptyState title="No champions yet" body="Save winners from Arena or build your backlog first." />}
+            </div>
           </section>
         </>
       )}

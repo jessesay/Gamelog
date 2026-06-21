@@ -3144,3 +3144,69 @@ textarea:focus {
     padding-inline: 2px;
   }
 }
+
+/* v2.2 Arena */
+.arena-hero-v22 {
+  grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.7fr);
+}
+
+.arena-scoreboard-v22 {
+  display: grid;
+  gap: 14px;
+  align-content: center;
+}
+
+.arena-stage-v22 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.arena-card-v22 {
+  position: relative;
+  display: grid;
+  gap: 14px;
+  overflow: hidden;
+  border-color: rgba(255,255,255,0.14);
+}
+
+.arena-card-v22::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 0%, rgba(34, 211, 238, 0.16), transparent 42%);
+}
+
+.arena-card-top-v22 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  position: relative;
+  z-index: 1;
+}
+
+.arena-card-v22 > * {
+  position: relative;
+  z-index: 1;
+}
+
+.arena-card-v22 .cover.hero {
+  min-height: 380px;
+}
+
+.arena-trail-v22 {
+  margin-top: 18px;
+}
+
+@media (max-width: 900px) {
+  .arena-hero-v22,
+  .arena-stage-v22 {
+    grid-template-columns: 1fr;
+  }
+  .arena-card-v22 .cover.hero {
+    min-height: 300px;
+  }
+}

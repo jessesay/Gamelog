@@ -1,3 +1,45 @@
+# GameLog v2.2 — Arena Layer
+
+GameLog now includes Arena: a head-to-head game picker that turns backlog indecision into a fast choice.
+
+## New in v2.2
+
+- GameLog Arena view
+- Two-game head-to-head duels
+- Pick winner saves it to backlog
+- New duel / skip button
+- Champion shelf from strong backlog picks
+- Arena added to top nav and mobile bottom nav
+- Keeps Pulse, Matchmaker, Charts, IGDB imports, sharing, beta feedback, and GameLog Coach
+
+## Install patch
+
+Copy the v2.2 patch files into the root of your GameLog folder and replace files.
+
+Commit:
+
+```text
+Build GameLog v2.2 Arena layer
+```
+
+Then push and run:
+
+```cmd
+update-gamelog.bat
+```
+
+## Test
+
+- Home → Arena
+- Top nav → Arena
+- Mobile nav → Arena
+- Pick this
+- New duel
+- Details
+
+
+---
+
 # GameLog v2.1 — Matchmaker Layer
 
 GameLog v2.1 adds **GameLog Matchmaker**, a new play-next picker that ranks games by session length, mood, backlog status, current library, covers, and taste signals. It is designed to make GameLog feel more useful than a passive tracker: open it, pick the vibe, and know what to play.
