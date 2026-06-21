@@ -2,8 +2,8 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "GameLog — Track, rate, review, and discover games",
-  description: "A mobile-first social game diary with swipe discovery, IGDB-powered catalog imports, public profiles, shareable lists, and a smart GameLog coach.",
+  title: "GameLog — Your daily gaming home",
+  description: "A mobile-first social game diary with Pulse, charts, swipe discovery, IGDB-powered catalog imports, public profiles, shareable lists, and GameLog Coach.",
   manifest: "/manifest.webmanifest",
   icons: {
     icon: "/favicon.svg",
@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "GameLog",
-    description: "Track what you play. Review what hits. Share your taste. Attack the backlog.",
+    description: "Track what you play. Review what hits. Open Pulse. Share your taste. Attack the backlog.",
     type: "website"
   }
 };

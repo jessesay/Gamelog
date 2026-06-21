@@ -45,7 +45,7 @@ import { demoProfile, loadDemoState, saveDemoState, starterGames } from "@/lib/d
 import { getEffectiveCoverUrl, getKnownCoverUrl, withKnownCover } from "@/lib/coverArt";
 import type { Follow, Game, GameList, GameLog, Profile, ReviewComment } from "@/lib/types";
 
-type View = "home" | "discover" | "library" | "coach" | "share" | "beta" | "quests" | "wrapped" | "games" | "log" | "feed" | "lists" | "people" | "history" | "sources" | "profile";
+type View = "home" | "pulse" | "discover" | "library" | "coach" | "charts" | "share" | "beta" | "quests" | "wrapped" | "games" | "log" | "feed" | "lists" | "people" | "history" | "sources" | "profile";
 type AuthMode = "signin" | "signup";
 type FeedFilter = "all" | "following" | "mine";
 type DiscoverMode = "forYou" | "fresh" | "all" | "backlog" | "passed";
@@ -379,7 +379,7 @@ export default function GameLogApp() {
   const [view, setView] = useState<View>("home");
   useEffect(() => {
     const requestedView = new URLSearchParams(window.location.search).get("view") as View | null;
-    const allowedViews: View[] = ["home", "discover", "library", "coach", "share", "beta", "quests", "wrapped", "games", "log", "feed", "lists", "people", "history", "sources", "profile"];
+    const allowedViews: View[] = ["home", "pulse", "discover", "library", "coach", "charts", "share", "beta", "quests", "wrapped", "games", "log", "feed", "lists", "people", "history", "sources", "profile"];
     if (requestedView && allowedViews.includes(requestedView)) setView(requestedView);
   }, []);
   const [feedFilter, setFeedFilter] = useState<FeedFilter>("all");
@@ -654,33 +654,7 @@ export default function GameLogApp() {
     return [...mine]
       .sort((a, b) => (b.list_items?.length ?? 0) - (a.list_items?.length ?? 0) || new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime())[0] ?? null;
   }, [currentUserId, lists]);
-  const publicProfilePath = `/u/${profile.username || "player"}`;
-  const shareKitText = [
-    `${profile.display_name || "GameLog Player"} on GameLog`,
-    `@${profile.username || "player"}`,
-    profile.bio ? `Bio: ${profile.bio}` : null,
-    profile.favorite_game ? `Favorite game: ${profile.favorite_game}` : null,
-    `${myLogs.length} logs · ${completedCount} completed · ${backlogCount} backlog · ${reviewedCount} reviews`,
-    `Average rating: ${avgRating}`,
-    `Top genre: ${topLibraryGenre}`,
-    `Top vibe: ${topLibraryVibe}`,
-    `Profile: ${typeof window !== "undefined" ? window.location.origin : ""}${publicProfilePath}`
-  ].filter(Boolean).join("
-");
-  const recentReviews = useMemo(() => logs.filter((log) => Boolean(log.review?.trim())).slice(0, 5), [logs]);
-  const currentYear = new Date().getFullYear();
-  const currentMonthKey = new Date().toISOString().slice(0, 7);
-  const yearlyLogs = useMemo(() => myLogs.filter((log) => (log.played_on ?? log.created_at ?? "").startsWith(String(currentYear))), [currentYear, myLogs]);
-  const monthlyLogs = useMemo(() => myLogs.filter((log) => (log.played_on ?? log.created_at ?? "").startsWith(currentMonthKey)), [currentMonthKey, myLogs]);
   const reviewedCount = myLogs.filter((log) => Boolean(log.review?.trim())).length;
-  const completionRate = myLogs.length ? Math.round((completedCount / myLogs.length) * 100) : 0;
-  const unreviewedCompletions = useMemo(() => myLogs.filter((log) => ["Completed", "100% Completed"].includes(log.status) && !log.review?.trim()).slice(0, 6), [myLogs]);
-  const libraryShelves = useMemo(() => [
-    { title: "Playing now", subtitle: "Games you are actively in", logs: myLogs.filter((log) => log.status === "Currently Playing") },
-    { title: "Want / Backlog", subtitle: "Saved from Discover and future picks", logs: myLogs.filter((log) => ["Want to Play", "Backlog"].includes(log.status)) },
-    { title: "Completed", subtitle: "Finished games worth rating and reviewing", logs: myLogs.filter((log) => ["Completed", "100% Completed"].includes(log.status)) },
-    { title: "Dropped / Replaying", subtitle: "Games that need another chance or did not hit", logs: myLogs.filter((log) => ["Dropped", "Replaying"].includes(log.status)) }
-  ], [myLogs]);
   const topLibraryGenre = useMemo(() => {
     const counts = new Map<string, number>();
     myLogs.forEach((log) => {
@@ -697,6 +671,31 @@ export default function GameLogApp() {
     });
     return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "No vibe yet";
   }, [myLogs]);
+  const publicProfilePath = `/u/${profile.username || "player"}`;
+  const shareKitText = [
+    `${profile.display_name || "GameLog Player"} on GameLog`,
+    `@${profile.username || "player"}`,
+    profile.bio ? `Bio: ${profile.bio}` : null,
+    profile.favorite_game ? `Favorite game: ${profile.favorite_game}` : null,
+    `${myLogs.length} logs · ${completedCount} completed · ${backlogCount} backlog · ${reviewedCount} reviews`,
+    `Average rating: ${avgRating}`,
+    `Top genre: ${topLibraryGenre}`,
+    `Top vibe: ${topLibraryVibe}`,
+    `Profile: ${typeof window !== "undefined" ? window.location.origin : ""}${publicProfilePath}`
+  ].filter(Boolean).join("\n");
+  const recentReviews = useMemo(() => logs.filter((log) => Boolean(log.review?.trim())).slice(0, 5), [logs]);
+  const currentYear = new Date().getFullYear();
+  const currentMonthKey = new Date().toISOString().slice(0, 7);
+  const yearlyLogs = useMemo(() => myLogs.filter((log) => (log.played_on ?? log.created_at ?? "").startsWith(String(currentYear))), [currentYear, myLogs]);
+  const monthlyLogs = useMemo(() => myLogs.filter((log) => (log.played_on ?? log.created_at ?? "").startsWith(currentMonthKey)), [currentMonthKey, myLogs]);
+  const completionRate = myLogs.length ? Math.round((completedCount / myLogs.length) * 100) : 0;
+  const unreviewedCompletions = useMemo(() => myLogs.filter((log) => ["Completed", "100% Completed"].includes(log.status) && !log.review?.trim()).slice(0, 6), [myLogs]);
+  const libraryShelves = useMemo(() => [
+    { title: "Playing now", subtitle: "Games you are actively in", logs: myLogs.filter((log) => log.status === "Currently Playing") },
+    { title: "Want / Backlog", subtitle: "Saved from Discover and future picks", logs: myLogs.filter((log) => ["Want to Play", "Backlog"].includes(log.status)) },
+    { title: "Completed", subtitle: "Finished games worth rating and reviewing", logs: myLogs.filter((log) => ["Completed", "100% Completed"].includes(log.status)) },
+    { title: "Dropped / Replaying", subtitle: "Games that need another chance or did not hit", logs: myLogs.filter((log) => ["Dropped", "Replaying"].includes(log.status)) }
+  ], [myLogs]);
   const backlogAttackPlan = useMemo(() => {
     const backlog = myLogs.filter((log) => ["Want to Play", "Backlog"].includes(log.status) && log.games);
     return [...backlog]
@@ -707,6 +706,86 @@ export default function GameLogApp() {
       })
       .slice(0, 5);
   }, [myLogs, tasteGenres, tasteMoods]);
+
+  const nowPlayingLogs = useMemo(() => myLogs.filter((log) => log.status === "Currently Playing" && log.games).slice(0, 6), [myLogs]);
+  const signalGames = useMemo(() => {
+    return catalogGames
+      .filter((game) => !loggedGameIds.has(game.id) && !passedGameIds.has(game.id))
+      .map((game) => ({
+        game,
+        score: gameTasteScore(game, myLogs, tasteGenres, tasteMoods) + Number(Boolean(getEffectiveCoverUrl(game))) * 4 + (game.summary ? 2 : 0),
+        note: game.genre === topLibraryGenre ? `Shares your ${topLibraryGenre} streak` : game.summary ? "Strong match from your taste signals" : "Fresh catalog pick"
+      }))
+      .sort((a, b) => b.score - a.score || a.game.title.localeCompare(b.game.title))
+      .slice(0, 12);
+  }, [catalogGames, loggedGameIds, myLogs, passedGameIds, tasteGenres, tasteMoods, topLibraryGenre]);
+
+  const mostLoggedChart = useMemo(() => {
+    return catalogGames
+      .map((game) => {
+        const gameLogs = logs.filter((log) => log.game_id === game.id || log.games?.id === game.id || normalizeTitleKey(log.games?.title) === normalizeTitleKey(game.title));
+        const rated = gameLogs.filter((log) => log.rating !== null && log.rating !== undefined);
+        const average = rated.length ? rated.reduce((sum, log) => sum + Number(log.rating), 0) / rated.length : 0;
+        return { game, count: gameLogs.length, average };
+      })
+      .filter((item) => item.count > 0)
+      .sort((a, b) => b.count - a.count || b.average - a.average || a.game.title.localeCompare(b.game.title))
+      .slice(0, 10)
+      .map((item) => ({ game: item.game, score: `${item.count} logs`, note: item.average ? `${item.average.toFixed(1)} avg rating` : "Logged by players" }));
+  }, [catalogGames, logs]);
+
+  const topRatedChartRows = useMemo(() => {
+    return catalogGames
+      .map((game) => {
+        const gameLogs = logs.filter((log) => (log.game_id === game.id || log.games?.id === game.id || normalizeTitleKey(log.games?.title) === normalizeTitleKey(game.title)) && log.rating !== null && log.rating !== undefined);
+        const average = gameLogs.length ? gameLogs.reduce((sum, log) => sum + Number(log.rating), 0) / gameLogs.length : 0;
+        return { game, count: gameLogs.length, average };
+      })
+      .filter((item) => item.count > 0)
+      .sort((a, b) => b.average - a.average || b.count - a.count || a.game.title.localeCompare(b.game.title))
+      .slice(0, 10)
+      .map((item) => ({ game: item.game, score: `${item.average.toFixed(1)} ★`, note: `${item.count} rating${item.count === 1 ? "" : "s"}` }));
+  }, [catalogGames, logs]);
+
+  const hiddenGemChartRows = useMemo(() => {
+    const ratedGems = catalogGames
+      .map((game) => {
+        const gameLogs = logs.filter((log) => (log.game_id === game.id || log.games?.id === game.id || normalizeTitleKey(log.games?.title) === normalizeTitleKey(game.title)) && log.rating !== null && log.rating !== undefined);
+        const average = gameLogs.length ? gameLogs.reduce((sum, log) => sum + Number(log.rating), 0) / gameLogs.length : 0;
+        return { game, count: gameLogs.length, average };
+      })
+      .filter((item) => item.average >= 4 && item.count <= 3)
+      .sort((a, b) => b.average - a.average || a.count - b.count)
+      .slice(0, 10)
+      .map((item) => ({ game: item.game, score: `${item.average.toFixed(1)} ★`, note: `${item.count} early log${item.count === 1 ? "" : "s"}` }));
+
+    if (ratedGems.length) return ratedGems;
+    return signalGames.slice(0, 10).map((item) => ({ game: item.game, score: "For you", note: item.note }));
+  }, [catalogGames, logs, signalGames]);
+
+  const backlogHeatRows = useMemo(() => {
+    const rows = backlogAttackPlan
+      .filter((log) => log.games)
+      .map((log) => ({
+        game: log.games!,
+        score: log.status,
+        note: log.vibe || "Backlog pick"
+      }));
+    if (rows.length) return rows;
+    return signalGames.slice(0, 8).map((item) => ({ game: item.game, score: "Add", note: item.note }));
+  }, [backlogAttackPlan, signalGames]);
+
+  const pulseNextPick = backlogAttackPlan[0]?.games ?? nowPlayingLogs[0]?.games ?? signalGames[0]?.game ?? homeTrendingGames[0] ?? catalogGames[0];
+  const pulseContinuePick = nowPlayingLogs[0]?.games ?? null;
+  const socialSparkLine = trendingLogs[0]?.games?.title ? `${trendingLogs[0].games?.title} is getting reactions` : topGames[0]?.game.title ? `${topGames[0].game.title} leads your chart` : "Start the first big take";
+  const catalogTrustScore = Math.min(100, Math.round(((coverCount / Math.max(1, catalogGames.length)) * 55) + (Math.min(catalogGames.length, 700) / 700) * 30 + (connected ? 15 : 0)));
+  const betaLaunchScore = Math.min(100, Math.round((signedIn ? 16 : 0) + Math.min(28, myLogs.length * 3) + Math.min(18, discoveryActions.length) + Math.min(16, lists.length * 4) + (connected ? 22 : 0)));
+  const nextLevelMissions = [
+    { title: "Build the first public shelf", body: "Make one list that sells your taste in 5 games.", action: () => setView("lists" as View), cta: "Open lists", done: Boolean(topShareList) },
+    { title: "Train the For You stream", body: "Swipe 20 games so GameLog knows your lane.", action: () => setView("discover" as View), cta: "Swipe now", done: discoveryActions.length >= 20 },
+    { title: "Make your profile shareable", body: "Add bio, favorite game, and at least one review.", action: () => setView("share" as View), cta: "Open Share Studio", done: !profileNeedsSetup && reviewedCount > 0 },
+    { title: "Pressure-test the catalog", body: "Search one missing game and import it from IGDB.", action: () => setView("games" as View), cta: "Search games", done: catalogGames.some((game) => gameSource(game) === "IGDB") }
+  ];
 
   const todayKey = today();
   const todayDiscoveryActions = useMemo(() => discoveryActions.filter((action) => dateKey(action.created_at) === todayKey), [discoveryActions, todayKey]);
@@ -916,7 +995,7 @@ export default function GameLogApp() {
       const stored = window.localStorage.getItem("gamelog_beta_feedback_queue");
       if (stored) setFeedbackQueue(JSON.parse(stored));
       const requestedView = new URLSearchParams(window.location.search).get("view") as View | null;
-      if (requestedView && ["home", "discover", "library", "coach", "beta", "games", "log", "feed", "sources", "profile"].includes(requestedView)) {
+      if (requestedView && ["home", "pulse", "discover", "library", "coach", "charts", "share", "beta", "games", "log", "feed", "sources", "profile"].includes(requestedView)) {
         setView(requestedView);
       }
     } catch {
@@ -2072,7 +2151,7 @@ export default function GameLogApp() {
           target: item.target,
           contact: item.contact,
           page: window.location.href,
-          app_version: "1.12.0"
+          app_version: "2.0.0"
         });
         if (error) throw error;
         setMessage({ type: "ok", text: "Feedback sent to the beta board." });
@@ -2263,13 +2342,13 @@ ${item.body}`;
           <nav className="nav-pills" aria-label="Main navigation">
             {[
               ["home", "Home"],
+              ["pulse", "Pulse"],
               ["discover", "Discover"],
-              ["library", "Library"],
               ["games", "Games"],
+              ["charts", "Charts"],
+              ["library", "Library"],
               ["feed", "Social"],
               ["share", "Share"],
-              ["sources", "Import"],
-              ["profile", "Profile"],
               ["beta", "Beta"]
             ].map(([key, label]) => (
               <button key={key} className={`pill ${view === key ? "active" : ""}`} onClick={() => setView(key as View)}>
@@ -2289,17 +2368,17 @@ ${item.body}`;
           <Sparkles size={18} />
           <span>Swipe</span>
         </button>
-        <button className={`mobile-nav-item ${view === "games" ? "active" : ""}`} onClick={() => setView("games")} aria-label="Games">
+        <button className={`mobile-nav-item ${view === "pulse" ? "active" : ""}`} onClick={() => setView("pulse")} aria-label="Pulse">
+          <Flame size={18} />
+          <span>Pulse</span>
+        </button>
+        <button className={`mobile-nav-item ${view === "games" || view === "charts" ? "active" : ""}`} onClick={() => setView("games")} aria-label="Games">
           <Search size={18} />
           <span>Games</span>
         </button>
         <button className={`mobile-nav-item ${view === "library" ? "active" : ""}`} onClick={() => setView("library")} aria-label="Library">
           <Layers3 size={18} />
           <span>Library</span>
-        </button>
-        <button className={`mobile-nav-item ${view === "coach" ? "active" : ""}`} onClick={() => openAiCoach("next")} aria-label="GameLog Coach">
-          <Zap size={18} />
-          <span>Coach</span>
         </button>
       </nav>
 
@@ -2319,7 +2398,9 @@ ${item.body}`;
                 GameLog is now built around three loops: Discover games fast, manage your library, and share your taste. Extra tools live behind Import/Profile so the app does not feel like a cockpit.
               </p>
               <div className="actions">
-                <button className="primary" onClick={() => setView("discover")}><Sparkles size={18} /> Start swiping</button>
+                <button className="primary" onClick={() => setView("pulse")}><Flame size={18} /> Open Pulse</button>
+                <button className="secondary" onClick={() => setView("discover")}><Sparkles size={18} /> Start swiping</button>
+                <button className="secondary" onClick={() => setView("charts")}><Trophy size={18} /> Charts</button>
                 <button className="secondary" onClick={() => setView("log")}><Gamepad2 size={18} /> Log a game</button>
                 <button className="secondary" onClick={() => setView("library")}><Layers3 size={18} /> My library</button>
                 <button className="secondary" onClick={() => openAiCoach("next")}><Sparkles size={18} /> GameLog Coach</button>
@@ -2352,18 +2433,36 @@ ${item.body}`;
             </div>
           </section>
 
-          <section className="launch-strip card">
+          <section className="launch-strip card launch-strip-v20">
             <div>
-              <p className="eyebrow">v1.13 public share layer</p>
-              <h2>Turn your profile into something worth sending.</h2>
-              <p className="muted">The app now has cleaner public profiles, review pages, public list pages, and a Share Studio so testers can send links that feel like a real social product.</p>
+              <p className="eyebrow">v2.0 next-level layer</p>
+              <h2>GameLog is becoming a daily gaming home, not just a tracker.</h2>
+              <p className="muted">Pulse gives players a reason to open the app every day. Charts makes the catalog feel alive. Coach stays part of the product without shouting about the tech behind it.</p>
             </div>
             <div className="launch-actions">
-              <button className="primary" onClick={() => setView("discover")}><Sparkles size={18} /> Open swipe deck</button>
-              <button className="secondary" onClick={() => setView("share")}><Share2 size={18} /> Open Share Studio</button>
+              <button className="primary" onClick={() => setView("pulse")}><Flame size={18} /> Open Pulse</button>
+              <button className="secondary" onClick={() => setView("charts")}><Trophy size={18} /> Open Charts</button>
+              <button className="secondary" onClick={() => setView("share")}><Share2 size={18} /> Share Studio</button>
               <button className="secondary" onClick={copyBetaInvite}><Share2 size={18} /> Copy beta invite</button>
-              <button className="secondary" onClick={() => setView("beta")}><MessageCircle size={18} /> Give feedback</button>
             </div>
+          </section>
+
+          <section className="grid command-grid-v20">
+            <button className="command-card card" onClick={() => setView("pulse")}>
+              <span className="eyebrow">Daily</span>
+              <strong>Open Pulse</strong>
+              <p>Play next, continue, social heat, launch readiness, and missions in one screen.</p>
+            </button>
+            <button className="command-card card" onClick={() => setView("charts")}>
+              <span className="eyebrow">Charts</span>
+              <strong>See what matters</strong>
+              <p>Top rated, most logged, hidden gems, For You, and backlog heat.</p>
+            </button>
+            <button className="command-card card" onClick={() => openAiCoach("next")}>
+              <span className="eyebrow">Coach</span>
+              <strong>Pick tonight&apos;s game</strong>
+              <p>GameLog turns your backlog and taste into a clean play plan.</p>
+            </button>
           </section>
 
           {profileNeedsSetup && (
@@ -2432,6 +2531,126 @@ ${item.body}`;
               <h3>Top rated here</h3>
               <MiniTopGames games={topGames} />
             </div>
+          </section>
+        </>
+      )}
+
+      {view === "pulse" && (
+        <>
+          <section className="hero pulse-hero-v20">
+            <div className="hero-card pulse-main-v20">
+              <p className="eyebrow">GameLog Pulse</p>
+              <h1>Your daily play command center.</h1>
+              <p className="lede">Pulse pulls together the next game, the social heat, your launch score, and the moves that make the product feel alive every day.</p>
+              <div className="actions">
+                <button className="primary" onClick={() => setView("discover")}><Sparkles size={18} /> Swipe more</button>
+                <button className="secondary" onClick={() => openAiCoach("next")}><Zap size={18} /> GameLog Coach</button>
+                <button className="secondary" onClick={() => setView("charts")}><Trophy size={18} /> Open Charts</button>
+              </div>
+              <div className="pulse-score-grid">
+                <div className="pulse-score"><strong>{betaLaunchScore}%</strong><span>Beta readiness</span></div>
+                <div className="pulse-score"><strong>{catalogTrustScore}%</strong><span>Catalog trust</span></div>
+                <div className="pulse-score"><strong>{longestStreak}</strong><span>Best streak</span></div>
+              </div>
+            </div>
+            <div className="card pulse-pick-card">
+              <p className="eyebrow">Tonight&apos;s pick</p>
+              {pulseNextPick ? (
+                <>
+                  <GameCover game={pulseNextPick} />
+                  <h2>{pulseNextPick.title}</h2>
+                  <p className="muted">{pulseContinuePick?.id === pulseNextPick.id ? "Continue this run before it turns into backlog dust." : "Best current fit from your library, swipes, and taste signals."}</p>
+                  <div className="actions">
+                    <button className="primary" onClick={() => { setLogGameId(pulseNextPick.id); setView("log"); }}><Star size={16} /> Log it</button>
+                    <button className="secondary" onClick={() => { setSelectedGameId(pulseNextPick.id); setView("games"); }}><Search size={16} /> Details</button>
+                  </div>
+                </>
+              ) : (
+                <EmptyState title="No pick yet" body="Import games or swipe a few cards and Pulse will start making calls." />
+              )}
+            </div>
+          </section>
+
+          <section className="grid">
+            <div className="col-7 card">
+              <div className="review-top">
+                <div>
+                  <p className="eyebrow">For you</p>
+                  <h2>Games GameLog would surface next</h2>
+                </div>
+                <button className="pill" onClick={() => setView("discover")}>Swipe deck</button>
+              </div>
+              <SignalStrip items={signalGames.slice(0, 6)} onPick={(game) => { setSelectedGameId(game.id); setView("games"); }} />
+            </div>
+            <div className="col-5 card">
+              <p className="eyebrow">Social heat</p>
+              <h2>{socialSparkLine}</h2>
+              <p className="muted">A daily game app needs a pulse: reactions, lists, profiles, and reasons to come back after the log.</p>
+              <div className="mini-list">
+                {trendingLogs.length ? trendingLogs.map((log) => (
+                  <button className="mini-row button-row" key={log.id} onClick={() => copyShareLink(`/r/${log.id}`, "Review")}>
+                    <span>{log.games?.title ?? "Review"}</span>
+                    <strong>{log.review_likes?.length ?? 0} ❤ · {log.comments?.length ?? 0} replies</strong>
+                  </button>
+                )) : <button className="mini-row button-row" onClick={() => setView("log")}><span>Write the first take</span><strong>Start</strong></button>}
+              </div>
+            </div>
+          </section>
+
+          <section className="grid">
+            <div className="col-6 card">
+              <p className="eyebrow">Next-level missions</p>
+              <h2>Build toward public beta</h2>
+              <div className="mini-list mission-list-v20">
+                {nextLevelMissions.map((mission) => (
+                  <button className={`mini-row button-row ${mission.done ? "mission-done" : ""}`} key={mission.title} onClick={mission.action}>
+                    <span>{mission.title}<small>{mission.body}</small></span>
+                    <strong>{mission.done ? "Done" : mission.cta}</strong>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="col-6 card">
+              <p className="eyebrow">Continue playing</p>
+              <h2>Do not let active games rot</h2>
+              {nowPlayingLogs.length ? (
+                <div className="library-row compact-row-v20">
+                  {nowPlayingLogs.map((log) => log.games ? (
+                    <button className="library-game" key={log.id} onClick={() => { setLogGameId(log.games!.id); startEditLog(log); }} title={log.games.title}>
+                      <GameCover game={log.games} />
+                      <strong>{log.games.title}</strong>
+                      <span>{log.vibe || log.status}</span>
+                    </button>
+                  ) : null)}
+                </div>
+              ) : (
+                <EmptyState title="No current games" body="Mark one game as Currently Playing so Pulse can keep you moving." />
+              )}
+            </div>
+          </section>
+        </>
+      )}
+
+      {view === "charts" && (
+        <>
+          <section className="hero single-hero charts-hero-v20">
+            <div className="hero-card">
+              <p className="eyebrow">GameLog Charts</p>
+              <h1>Make the catalog feel alive.</h1>
+              <p className="lede">Charts turn GameLog from a tracker into a place to browse taste: top rated, most logged, hidden gems, backlog heat, and personal For You picks.</p>
+              <div className="actions">
+                <button className="primary" onClick={() => setView("games")}><Search size={18} /> Search catalog</button>
+                <button className="secondary" onClick={() => setView("pulse")}><Flame size={18} /> Open Pulse</button>
+                <button className="secondary" onClick={() => setView("lists")}><ListPlus size={18} /> Make a list</button>
+              </div>
+            </div>
+          </section>
+          <section className="charts-grid-v20">
+            <ChartColumn title="For You" subtitle="Taste-driven picks without the marketing fluff." rows={signalGames.slice(0, 10).map((item) => ({ game: item.game, score: "For you", note: item.note }))} onPick={(game) => { setSelectedGameId(game.id); setView("games"); }} />
+            <ChartColumn title="Top rated" subtitle="Highest-rated games in your current GameLog world." rows={topRatedChartRows} onPick={(game) => { setSelectedGameId(game.id); setView("games"); }} />
+            <ChartColumn title="Most logged" subtitle="What players have actually been touching." rows={mostLoggedChart} onPick={(game) => { setSelectedGameId(game.id); setView("games"); }} />
+            <ChartColumn title="Hidden gems" subtitle="Small signal, high upside." rows={hiddenGemChartRows} onPick={(game) => { setSelectedGameId(game.id); setView("games"); }} />
+            <ChartColumn title="Backlog heat" subtitle="Your best saved games to attack next." rows={backlogHeatRows} onPick={(game) => { setSelectedGameId(game.id); setView("games"); }} />
           </section>
         </>
       )}
@@ -3790,6 +4009,53 @@ function GameCover({ game, variant = "card" }: { game: Game; variant?: "card" | 
       )}
       <div className="poster-glow" />
     </div>
+  );
+}
+
+function SignalStrip({ items, onPick }: { items: Array<{ game: Game; note: string; score?: number }>; onPick: (game: Game) => void }) {
+  if (!items.length) return <EmptyState title="No signals yet" body="Swipe, log, or import games and GameLog will start building this row." />;
+  return (
+    <div className="signal-strip-v20">
+      {items.map(({ game, note }) => (
+        <button className="signal-card-v20" key={game.id} onClick={() => onPick(game)}>
+          <GameCover game={game} />
+          <strong>{game.title}</strong>
+          <span>{note}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ChartColumn({ title, subtitle, rows, onPick }: { title: string; subtitle: string; rows: Array<{ game: Game; score: string; note: string }>; onPick: (game: Game) => void }) {
+  return (
+    <section className="chart-column-v20 card">
+      <div className="review-top">
+        <div>
+          <p className="eyebrow">{title}</p>
+          <h2>{title}</h2>
+          <p className="muted" style={{ marginBottom: 0 }}>{subtitle}</p>
+        </div>
+        <span className="tag">{rows.length}</span>
+      </div>
+      {rows.length ? (
+        <div className="chart-list-v20">
+          {rows.map((row, index) => (
+            <button className="chart-row-v20" key={`${row.game.id}-${index}`} onClick={() => onPick(row.game)}>
+              <span className="rank-v20">#{index + 1}</span>
+              <div className="chart-cover-v20"><GameCover game={row.game} /></div>
+              <div className="chart-copy-v20">
+                <strong>{row.game.title}</strong>
+                <span>{row.note}</span>
+              </div>
+              <em>{row.score}</em>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <EmptyState title="No chart yet" body="Charts fill in as people log, rate, and import games." />
+      )}
+    </section>
   );
 }
 

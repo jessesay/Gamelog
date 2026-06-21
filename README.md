@@ -1,15 +1,15 @@
-# GameLog v1.14 — Taste Recommendations Polish
+# GameLog v2.0 — Pulse + Charts Launch Layer
 
-GameLog is a mobile-first social game diary: swipe discovery, IGDB-powered catalog imports, library tracking, reviews, lists, beta feedback, and a smart GameLog Coach powered behind the scenes by Vercel AI Gateway.
+GameLog is a mobile-first social game diary: swipe discovery, IGDB-powered catalog imports, library tracking, reviews, public profiles, shareable lists, beta feedback, and GameLog Coach powered behind the scenes by Vercel AI Gateway.
 
-## v1.14 highlights
+## v2.0 highlights
 
-- Product copy now says **GameLog Coach** / **Taste Engine** instead of labeling recommendations as AI.
-- The coach still uses the same smart backend, but the app experience feels native to GameLog.
-- Removed AI review-writing language: **Log prompts** now gives reflection angles instead of writing reviews for the user.
-- Recommendation language shifted toward **For You**, **play plan**, **backlog picks**, and **taste signals**.
-- Beta/share copy now talks about a smart backlog coach, not an AI gimmick.
-- Keeps v1.13 public sharing, v1.12 beta feedback, v1.11 mobile/PWA polish, v1.10 catalog cleanup, v1.9 IGDB-first imports, and the Vercel AI Gateway backend.
+- **GameLog Pulse**: a daily command center with tonight's pick, continue-playing prompts, social heat, launch readiness, and next-level missions.
+- **GameLog Charts**: For You, Top Rated, Most Logged, Hidden Gems, and Backlog Heat charts.
+- Better home command center so the app feels like a daily product, not just a tracker.
+- Better mobile bottom nav: Home, Swipe, Pulse, Games, Library.
+- Recommendation language stays inside the GameLog product: For You, Pulse, Charts, Coach, and Taste signals. No user-facing "AI recommendation" label.
+- Keeps v1.14 product copy polish, v1.13 public sharing, v1.12 beta feedback, v1.11 PWA/mobile polish, v1.10 duplicate cleanup, and v1.9 IGDB-first catalog imports.
 - Keeps `ai` pinned to `6.0.208` for Vercel lockfile safety.
 
 ## Local setup
@@ -49,18 +49,6 @@ Required for local Vercel AI Gateway tests:
 vercel env pull .env.local
 ```
 
-## AI Gateway smoke test
-
-```cmd
-node --env-file=.env.local index.mjs
-```
-
-Or double-click:
-
-```text
-run-ai-gateway-test.bat
-```
-
 ## Supabase setup
 
 Run the SQL files in Supabase SQL Editor as needed:
@@ -73,35 +61,12 @@ supabase/v1_9_catalog_engine.sql
 supabase/v1_12_beta_feedback.sql
 ```
 
-## v1.14 test checklist
+## v2.0 test checklist
 
-- Home → GameLog Coach.
-- Coach → Next game / Weekend plan / Log prompts / Taste profile.
-- Confirm no user-facing copy says “AI recommendation.”
-- Home → Share profile.
-- Share → Copy profile link.
-- Share → Copy share card.
-- Share → Copy latest review link.
-- Share → Copy list link.
-- Profile → Open public profile.
-- Feed → Open review.
-- Lists → Open list.
-- Public routes:
-  - `/u/[username]`
-  - `/r/[id]`
-  - `/l/[id]`
-
-## Deploy on Vercel
-
-Use the existing GitHub repo. Vercel should detect Next.js and pnpm.
-
-Make sure Vercel has these environment variables:
-
-```env
-NEXT_PUBLIC_SUPABASE_URL=...
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
-IGDB_CLIENT_ID=...
-IGDB_CLIENT_SECRET=...
-```
-
-Then redeploy from the latest commit.
+- Home → Open Pulse.
+- Pulse → tonight's pick, social heat, missions, continue-playing row.
+- Charts → For You, Top Rated, Most Logged, Hidden Gems, Backlog Heat.
+- Games → IGDB search/import, duplicate cleanup, Show More.
+- Library → GameLog Coach / backlog picks.
+- Share Studio → profile/review/list links.
+- Mobile viewport → bottom nav shows Home, Swipe, Pulse, Games, Library.

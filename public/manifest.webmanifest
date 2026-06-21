@@ -1,7 +1,7 @@
 {
   "name": "GameLog",
   "short_name": "GameLog",
-  "description": "Track, rate, review, discover, attack your backlog, and help shape the GameLog beta.",
+  "description": "A mobile-first gaming home with Pulse, charts, swipe discovery, library tracking, public profiles, and GameLog Coach.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -24,10 +24,22 @@
   ],
   "shortcuts": [
     {
+      "name": "Pulse",
+      "short_name": "Pulse",
+      "description": "Open your daily GameLog command center",
+      "url": "/?view=pulse"
+    },
+    {
       "name": "Discover",
       "short_name": "Discover",
       "description": "Swipe through games",
       "url": "/?view=discover"
+    },
+    {
+      "name": "Charts",
+      "short_name": "Charts",
+      "description": "Browse GameLog charts and taste picks",
+      "url": "/?view=charts"
     },
     {
       "name": "Library",
@@ -40,6 +52,19 @@
       "short_name": "Feedback",
       "description": "Send GameLog beta feedback",
       "url": "/?view=beta"
+    },
+    {
+      "name": "Share Studio",
+      "short_name": "Share",
+      "description": "Copy GameLog profile, review, and list links.",
+      "url": "/?view=share",
+      "icons": [
+        {
+          "src": "/icon.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
     }
   ]
 }
