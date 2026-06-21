@@ -1,0 +1,78 @@
+import { streamText } from "ai";
+
+export const runtime = "nodejs";
+
+type CoachPayload = {
+  mode?: "next" | "weekend" | "review" | "taste";
+  profile?: { display_name?: string; username?: string; favorite_game?: string | null; bio?: string | null };
+  stats?: Record<string, unknown>;
+  taste?: { genres?: string[]; moods?: string[] };
+  backlog?: Array<{ title: string; genre?: string | null; platforms?: string[] | null; status?: string; summary?: string | null }>;
+  completed?: Array<{ title: string; genre?: string | null; rating?: number | null; vibe?: string | null; review?: string | null }>;
+  highRated?: Array<{ title: string; genre?: string | null; rating?: number | null; vibe?: string | null }>;
+  recentLogs?: Array<{ title: string; status?: string; rating?: number | null; vibe?: string | null }>;
+  unreviewed?: Array<{ title: string; genre?: string | null; rating?: number | null; vibe?: string | null }>;
+};
+
+function clean(value: unknown) {
+  return JSON.stringify(value ?? null, null, 2).slice(0, 12000);
+}
+
+function modeInstruction(mode: CoachPayload["mode"]) {
+  switch (mode) {
+    case "weekend":
+      return "Make a 3-game weekend plan: one short game, one main game, and one comfort/backlog option. Include why each pick fits.";
+    case "review":
+      return "Help the user write reviews. Pick completed games with no review and give 3 short review-starter angles in their voice.";
+    case "taste":
+      return "Summarize the user's gaming taste like a fun Letterboxd-style profile blurb, then give 5 discovery directions.";
+    case "next":
+    default:
+      return "Pick what the user should play next from their backlog. Give 3 options: best overall, short/low-commitment, and wild-card.";
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const payload = (await request.json()) as CoachPayload;
+    const mode = payload.mode ?? "next";
+
+    const result = streamText({
+      model: "openai/gpt-5.5",
+      system: [
+        "You are GameLog's AI Backlog Coach.",
+        "Be useful, opinionated, and concise. Sound like a smart gaming friend, not a corporate assistant.",
+        "Use only the user's provided GameLog data. If the data is thin, say what to log/import next.",
+        "Never encourage piracy or copyrighted downloads. Internet Archive links should be framed as manuals, guides, metadata, scans, or preservation references.",
+        "Avoid spoilers. Do not invent ratings or play history.",
+        "Return clean markdown with short sections and bold game titles. No tables."
+      ].join("\n"),
+      prompt: [
+        modeInstruction(mode),
+        "\nUser/profile data:",
+        clean(payload.profile),
+        "\nStats:",
+        clean(payload.stats),
+        "\nTaste preferences:",
+        clean(payload.taste),
+        "\nBacklog / want-to-play games:",
+        clean(payload.backlog),
+        "\nCompleted games:",
+        clean(payload.completed),
+        "\nHigh-rated games:",
+        clean(payload.highRated),
+        "\nRecent logs:",
+        clean(payload.recentLogs),
+        "\nCompleted games needing reviews:",
+        clean(payload.unreviewed)
+      ].join("\n")
+    });
+
+    return result.toTextStreamResponse();
+  } catch (error) {
+    return Response.json(
+      { error: error instanceof Error ? error.message : "AI Backlog Coach failed." },
+      { status: 500 }
+    );
+  }
+}

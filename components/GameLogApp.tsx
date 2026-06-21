@@ -45,7 +45,7 @@ import { demoProfile, loadDemoState, saveDemoState, starterGames } from "@/lib/d
 import { getEffectiveCoverUrl, getKnownCoverUrl, withKnownCover } from "@/lib/coverArt";
 import type { Follow, Game, GameList, GameLog, Profile, ReviewComment } from "@/lib/types";
 
-type View = "home" | "discover" | "library" | "quests" | "wrapped" | "games" | "log" | "feed" | "lists" | "people" | "history" | "sources" | "profile";
+type View = "home" | "discover" | "library" | "coach" | "quests" | "wrapped" | "games" | "log" | "feed" | "lists" | "people" | "history" | "sources" | "profile";
 type AuthMode = "signin" | "signup";
 type FeedFilter = "all" | "following" | "mine";
 type DiscoverMode = "forYou" | "fresh" | "all" | "backlog" | "passed";
@@ -53,6 +53,7 @@ type DiscoveryActionName = "Pass" | "Want to Play" | "Backlog" | "Currently Play
 type DiscoveryMood = "All" | "Cozy" | "Hardcore" | "Multiplayer" | "Story" | "Short" | "Open World" | "Shooter" | "Strategy" | "Indie";
 type SourceMode = "archive" | "igdb" | "steam" | "rawg" | "itch" | "bulk";
 type ArchiveMode = "guides" | "software" | "covers";
+type CoachMode = "next" | "weekend" | "review" | "taste";
 type DiscoveryAction = { id: string; user_id: string; game_id: string; action: DiscoveryActionName; created_at: string; games?: Game | null };
 type UndoAction =
   | { kind: "pass"; action: DiscoveryAction }
@@ -316,6 +317,9 @@ export default function GameLogApp() {
   const [bulkImportText, setBulkImportText] = useState("");
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<Message>(null);
+  const [aiCoachMode, setAiCoachMode] = useState<CoachMode>("next");
+  const [aiCoachText, setAiCoachText] = useState("");
+  const [aiCoachLoading, setAiCoachLoading] = useState(false);
 
   const [userId, setUserId] = useState<string | null>(null);
   const [profile, setProfile] = useState<Profile>(demoProfile);
@@ -1721,6 +1725,131 @@ export default function GameLogApp() {
     }
   }
 
+  function buildAiCoachPayload(mode: CoachMode) {
+    const backlog = myLogs
+      .filter((log) => ["Backlog", "Want to Play", "Currently Playing"].includes(log.status) && log.games)
+      .slice(0, 40)
+      .map((log) => ({
+        title: log.games?.title ?? "Unknown game",
+        genre: log.games?.genre,
+        platforms: log.games?.platforms,
+        status: log.status,
+        summary: log.games?.summary
+      }));
+
+    const completed = myLogs
+      .filter((log) => ["Completed", "100% Completed"].includes(log.status) && log.games)
+      .slice(0, 35)
+      .map((log) => ({
+        title: log.games?.title ?? "Unknown game",
+        genre: log.games?.genre,
+        rating: log.rating,
+        vibe: log.vibe,
+        review: log.review
+      }));
+
+    const highRated = myLogs
+      .filter((log) => Number(log.rating ?? 0) >= 4 && log.games)
+      .slice(0, 25)
+      .map((log) => ({
+        title: log.games?.title ?? "Unknown game",
+        genre: log.games?.genre,
+        rating: log.rating,
+        vibe: log.vibe
+      }));
+
+    const recentLogs = [...myLogs]
+      .sort(sortByNewest)
+      .slice(0, 20)
+      .map((log) => ({
+        title: log.games?.title ?? "Unknown game",
+        status: log.status,
+        rating: log.rating,
+        vibe: log.vibe
+      }));
+
+    const unreviewed = unreviewedCompletions.slice(0, 20).map((log) => ({
+      title: log.games?.title ?? "Unknown game",
+      genre: log.games?.genre,
+      rating: log.rating,
+      vibe: log.vibe
+    }));
+
+    return {
+      mode,
+      profile: {
+        display_name: profile.display_name,
+        username: profile.username,
+        favorite_game: profile.favorite_game,
+        bio: profile.bio
+      },
+      stats: {
+        total_logs: myLogs.length,
+        completed: completedCount,
+        backlog: backlogCount,
+        average_rating: avgRating,
+        top_genre: topLibraryGenre,
+        top_vibe: topLibraryVibe,
+        longest_log_streak: longestLogStreak(myLogs),
+        discovery_swipes: discoveryActions.length,
+        catalog_games: games.length
+      },
+      taste: { genres: tasteGenres, moods: tasteMoods },
+      backlog,
+      completed,
+      highRated,
+      recentLogs,
+      unreviewed
+    };
+  }
+
+  async function runAiCoach(mode: CoachMode = aiCoachMode) {
+    setAiCoachMode(mode);
+    setAiCoachLoading(true);
+    setAiCoachText("");
+    setMessage(null);
+
+    try {
+      const response = await fetch("/api/ai/backlog-coach", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildAiCoachPayload(mode))
+      });
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        throw new Error(body?.error || `AI Coach failed with status ${response.status}.`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        setAiCoachText(await response.text());
+        return;
+      }
+
+      const decoder = new TextDecoder();
+      let nextText = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        nextText += decoder.decode(value, { stream: true });
+        setAiCoachText(nextText);
+      }
+      nextText += decoder.decode();
+      setAiCoachText(nextText);
+    } catch (error) {
+      const text = error instanceof Error ? error.message : "AI Coach failed.";
+      setMessage({ type: "error", text });
+    } finally {
+      setAiCoachLoading(false);
+    }
+  }
+
+  function openAiCoach(mode: CoachMode = "next") {
+    setView("coach");
+    void runAiCoach(mode);
+  }
+
   function exportDemoData() {
     const payload = JSON.stringify({ profile, games, logs, lists }, null, 2);
     const blob = new Blob([payload], { type: "application/json" });
@@ -1788,6 +1917,7 @@ export default function GameLogApp() {
                 <button className="primary" onClick={() => setView("discover")}><Sparkles size={18} /> Start swiping</button>
                 <button className="secondary" onClick={() => setView("log")}><Gamepad2 size={18} /> Log a game</button>
                 <button className="secondary" onClick={() => setView("library")}><Layers3 size={18} /> My library</button>
+                <button className="secondary" onClick={() => openAiCoach("next")}><Sparkles size={18} /> AI Coach</button>
                 <button className="secondary" onClick={() => setView("feed")}><Sparkles size={18} /> Social feed</button>
                 <button className="secondary" onClick={() => setView("sources")}><DownloadCloud size={18} /> Import games</button>
               </div>
@@ -1876,7 +2006,7 @@ export default function GameLogApp() {
               <h2>Your profile</h2>
               <ProfileMini profile={profile} completedCount={completedCount} backlogCount={backlogCount} avgRating={avgRating} followerCount={followerCount} followingCount={followingCount} />
               <div className="divider" />
-              <p className="muted">v1.6 adds Internet Archive imports while trimming navigation and consolidating import panels.</p>
+              <p className="muted">v1.8 adds the AI Backlog Coach while keeping the main navigation compact.</p>
               <div className="divider" />
               <h3>Top rated here</h3>
               <MiniTopGames games={topGames} />
@@ -2077,6 +2207,7 @@ export default function GameLogApp() {
                 <button className="primary" onClick={() => setView("discover")}><Sparkles size={18} /> Find more games</button>
                 <button className="secondary" onClick={backlogRoulette}><Shuffle size={18} /> Backlog roulette</button>
                 <button className="secondary" onClick={() => setView("log")}><Star size={18} /> Write a review</button>
+                <button className="secondary" onClick={() => openAiCoach("next")}><Sparkles size={18} /> AI Coach</button>
               </div>
             </div>
             <div className="library-score-card">
@@ -2168,6 +2299,63 @@ export default function GameLogApp() {
               <EmptyState title="Reviews caught up" body="Completed games with no review will show here, so you can turn logs into social posts." />
             )}
           </div>
+        </section>
+      )}
+
+      {view === "coach" && (
+        <section className="grid ai-coach-view">
+          <div className="col-8 card ai-coach-card">
+            <div className="review-top">
+              <div>
+                <p className="eyebrow">GameLog v1.8 · AI Taste Engine</p>
+                <h2>AI Backlog Coach</h2>
+                <p className="muted" style={{ marginBottom: 0 }}>GameLog sends a compact snapshot of your backlog, ratings, vibes, and taste setup to AI Gateway, then streams back a play plan.</p>
+              </div>
+              <span className="match-pill"><Sparkles size={14} /> AI Gateway</span>
+            </div>
+
+            <div className="actions coach-actions">
+              <button className={`pill ${aiCoachMode === "next" ? "active" : ""}`} onClick={() => runAiCoach("next")} disabled={aiCoachLoading}>Next game</button>
+              <button className={`pill ${aiCoachMode === "weekend" ? "active" : ""}`} onClick={() => runAiCoach("weekend")} disabled={aiCoachLoading}>Weekend plan</button>
+              <button className={`pill ${aiCoachMode === "review" ? "active" : ""}`} onClick={() => runAiCoach("review")} disabled={aiCoachLoading}>Review help</button>
+              <button className={`pill ${aiCoachMode === "taste" ? "active" : ""}`} onClick={() => runAiCoach("taste")} disabled={aiCoachLoading}>Taste profile</button>
+            </div>
+
+            <div className="ai-response-box">
+              {aiCoachLoading && !aiCoachText ? (
+                <div className="empty-state"><Sparkles size={24} /><h3>Thinking through your library...</h3><p>Checking backlog pressure, favorite genres, ratings, and completed games.</p></div>
+              ) : aiCoachText ? (
+                <pre>{aiCoachText}</pre>
+              ) : (
+                <div className="empty-state"><Target size={24} /><h3>Ask the coach what to play next</h3><p>Use the buttons above to generate a backlog plan, weekend lineup, review starters, or a shareable taste summary.</p></div>
+              )}
+            </div>
+          </div>
+
+          <aside className="col-4 card ai-context-card">
+            <p className="eyebrow">Context sent</p>
+            <h2>Your current signal</h2>
+            <div className="mini-list">
+              <div className="mini-row"><span>Backlog</span><strong>{backlogCount}</strong></div>
+              <div className="mini-row"><span>Completed</span><strong>{completedCount}</strong></div>
+              <div className="mini-row"><span>Average rating</span><strong>{avgRating}</strong></div>
+              <div className="mini-row"><span>Top genre</span><strong>{topLibraryGenre}</strong></div>
+              <div className="mini-row"><span>Top vibe</span><strong>{topLibraryVibe}</strong></div>
+            </div>
+            <div className="divider" />
+            <h3>Quick backlog picks</h3>
+            <div className="mini-list">
+              {backlogAttackPlan.slice(0, 4).map((log) => (
+                <button key={log.id} className="mini-row button-row" onClick={() => log.games && setSelectedGameId(log.games.id)}>
+                  <span>{log.games?.title ?? "Unknown game"}</span>
+                  <strong>{log.games?.genre ?? log.status}</strong>
+                </button>
+              ))}
+              {!backlogAttackPlan.length && <p className="muted">Add games to your backlog and the coach will have better fuel.</p>}
+            </div>
+            <div className="divider" />
+            <button className="secondary" onClick={() => setView("library")}><Layers3 size={16} /> Back to library</button>
+          </aside>
         </section>
       )}
 

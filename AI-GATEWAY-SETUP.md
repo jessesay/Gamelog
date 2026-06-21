@@ -1,30 +1,8 @@
 # GameLog AI Gateway Setup
 
-This patch adds:
+GameLog v1.8 uses Vercel AI Gateway through the Vercel AI SDK.
 
-- `index.mjs` — a simple AI Gateway smoke test using the Vercel AI SDK.
-- `setup-ai-gateway.bat` — installs `ai`, links the folder to Vercel, pulls env vars, and runs the test.
-- `run-ai-gateway-test.bat` — refreshes env vars and reruns the test.
-
-## Use
-
-Copy these files into the root of your GameLog repo, next to `package.json`.
-
-Then double-click:
-
-```text
-setup-ai-gateway.bat
-```
-
-After setup, rerun the smoke test any time with:
-
-```text
-run-ai-gateway-test.bat
-```
-
-## Manual commands
-
-Since GameLog uses pnpm:
+## Local setup
 
 ```cmd
 pnpm add ai
@@ -33,14 +11,30 @@ vercel env pull .env.local
 node --env-file=.env.local index.mjs
 ```
 
-If `vercel` is not installed:
+Or double-click:
 
-```cmd
-npm install -g vercel
+```text
+setup-ai-gateway.bat
 ```
+
+After setup, rerun the smoke test with:
+
+```text
+run-ai-gateway-test.bat
+```
+
+## In-app feature
+
+Open GameLog and use **AI Coach** from Home or Library. It calls:
+
+```text
+/api/ai/backlog-coach
+```
+
+That endpoint streams an AI Backlog Coach response using your GameLog data.
 
 ## Notes
 
-- The Vercel OIDC token is temporary, so `vercel env pull .env.local` may need to be rerun during local development.
 - Do not commit `.env.local`.
-- Commit `index.mjs`, `setup-ai-gateway.bat`, `run-ai-gateway-test.bat`, and this markdown file if you want the setup helper in GitHub.
+- `VERCEL_OIDC_TOKEN` is temporary, so rerun `vercel env pull .env.local` when local AI Gateway auth expires.
+- For production, add the required Vercel/Supabase env vars in the Vercel project settings.

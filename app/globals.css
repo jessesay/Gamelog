@@ -2270,3 +2270,55 @@ textarea:focus {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* v1.8 AI Backlog Coach */
+.ai-coach-view {
+  align-items: start;
+}
+
+.ai-coach-card {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at top right, rgba(168, 85, 247, 0.16), transparent 36%),
+    radial-gradient(circle at bottom left, rgba(34, 211, 238, 0.10), transparent 34%),
+    rgba(255, 255, 255, 0.045);
+}
+
+.coach-actions {
+  margin: 18px 0;
+  flex-wrap: wrap;
+}
+
+.ai-response-box {
+  min-height: 380px;
+  border-radius: 26px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(2, 6, 23, 0.44);
+  padding: 20px;
+  overflow: auto;
+}
+
+.ai-response-box pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font: inherit;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.90);
+}
+
+.ai-context-card .mini-row strong {
+  text-align: right;
+  max-width: 55%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .ai-response-box {
+    min-height: 300px;
+  }
+}

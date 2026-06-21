@@ -1,6 +1,6 @@
 {
   "name": "gamelog-next",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -14,7 +14,8 @@
     "lucide-react": "latest",
     "next": "latest",
     "react": "latest",
-    "react-dom": "latest"
+    "react-dom": "latest",
+    "ai": "latest"
   },
   "devDependencies": {
     "@types/node": "latest",

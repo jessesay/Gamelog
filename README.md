@@ -1,4 +1,4 @@
-# GameLog v1.0
+# GameLog v1.8
 
 GameLog is a Letterboxd-style social game diary with a fast mobile discovery loop: swipe/pass/save games, log reviews, build a backlog, follow people, and grow a real catalog with cover art.
 
@@ -109,3 +109,30 @@ Starter catalog
 ## v1.7 Mega Catalog
 
 GameLog now includes a built-in mega catalog expansion: **677 extra lightweight game records** on top of the existing starter catalog. Use **Import > Install / repair built-in games** to push the full built-in catalog into Supabase, or run `supabase/mega_seed.sql` after `seed.sql`. The Steam mega import search terms were also expanded for larger real-cover-art imports.
+
+
+## v1.8 AI Taste Engine
+
+GameLog now includes an AI Backlog Coach powered by Vercel AI Gateway.
+
+New files/features:
+
+- `app/api/ai/backlog-coach/route.ts` streams AI Coach responses through the Vercel AI SDK.
+- `AI Coach` buttons on Home and Library open a compact coach view.
+- Coach modes: next game, weekend plan, review help, and taste profile.
+- The app sends a compact snapshot of logs, backlog, completed games, ratings, vibes, and taste settings.
+- `ai` is now listed as a dependency in `package.json`.
+
+Local AI Gateway setup:
+
+```cmd
+setup-ai-gateway.bat
+```
+
+Smoke test:
+
+```cmd
+run-ai-gateway-test.bat
+```
+
+Do not commit `.env.local`.
