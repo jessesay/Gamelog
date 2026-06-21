@@ -3801,3 +3801,163 @@ textarea:focus {
     justify-content: flex-start;
   }
 }
+
+
+/* GameLog v2.9 public beta website pages */
+.wide-page {
+  width: min(1120px, calc(100% - 32px));
+}
+
+.compact-nav {
+  margin-bottom: 24px;
+}
+
+.page-hero-card {
+  margin-bottom: 18px;
+}
+
+.page-hero-card p {
+  max-width: 760px;
+}
+
+.website-grid {
+  display: grid;
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.website-grid.two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.website-grid.three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.website-card {
+  border: 1px solid var(--line);
+  background: linear-gradient(145deg, rgba(255,255,255,.105), rgba(255,255,255,.045));
+  border-radius: 28px;
+  padding: 20px;
+  box-shadow: 0 18px 54px rgba(0,0,0,.22);
+}
+
+.website-card h2,
+.website-card h3 {
+  margin: 0 0 10px;
+  letter-spacing: -0.045em;
+}
+
+.website-card p,
+.website-card li {
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.clean-list,
+.number-list {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.clean-list li,
+.number-list li {
+  margin: 8px 0;
+}
+
+.step-number,
+.version-pill,
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,.075);
+  color: white;
+  font-weight: 950;
+}
+
+.step-number {
+  width: 38px;
+  height: 38px;
+  margin-bottom: 14px;
+  background: linear-gradient(135deg, rgba(139,92,246,.95), rgba(34,211,238,.7));
+}
+
+.launch-actions-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: stretch;
+  flex: 0 0 auto;
+}
+
+.timeline-list {
+  display: grid;
+  gap: 14px;
+}
+
+.timeline-card {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.version-pill {
+  padding: 9px 12px;
+  color: var(--brand-2);
+  justify-self: start;
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.status-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.status-badge {
+  padding: 8px 10px;
+  font-size: 0.76rem;
+  white-space: nowrap;
+}
+
+.status-badge.online {
+  color: var(--success);
+  border-color: rgba(52,211,153,.35);
+}
+
+.status-badge.beta {
+  color: var(--warning);
+  border-color: rgba(251,191,36,.35);
+}
+
+.status-badge.config-needed {
+  color: var(--brand-2);
+  border-color: rgba(34,211,238,.35);
+}
+
+.beta-copy-card {
+  margin-top: 18px;
+}
+
+@media (max-width: 880px) {
+  .website-grid.two,
+  .website-grid.three,
+  .status-grid,
+  .timeline-card {
+    grid-template-columns: 1fr;
+  }
+
+  .launch-actions-stack {
+    width: 100%;
+  }
+}

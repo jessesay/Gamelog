@@ -1,48 +1,53 @@
+# GameLog v2.9
 
-## GameLog v2.8 — Launch Website Layer
+GameLog is a gaming command center: track your library, decide what to play, watch prices, follow releases, group DLC/add-ons, build collections, and share your gaming taste.
 
-GameLog now has a real website shell in front of the app. The public home page explains the product, while the full app now lives at `/app`.
+## v2.9 update — Public beta website readiness
 
-New public routes:
+This version makes GameLog feel more like a real public app/website, not just a project folder.
 
-- `/` — marketing landing page
-- `/app` — full GameLog app
-- `/about` — product story
-- `/roadmap` — public roadmap
-- `/press` — press kit / launch copy
-- `/privacy` — beta privacy page
-- `/terms` — beta terms page
-- `/launch` — beta launch checklist
-- `/robots.txt` and `/sitemap.xml` — SEO basics
+New website routes:
 
-Also updated PWA shortcuts to open `/app?view=...`, refreshed metadata, and added launch-ready footer links.
+- `/features` — product feature map
+- `/beta` — beta tester guide and invite copy
+- `/faq` — first-time visitor questions
+- `/changelog` — public release history
+- `/status` — beta status and configuration notes
+- `not-found.tsx` — branded 404 page
 
-# GameLog v2.6 — Release Radar Layer
+Updated:
 
-GameLog is now a gaming command center: Pulse, Matchmaker, Arena, Deal Radar, Price Watch, and Release Radar.
+- Landing page navigation and beta funnel
+- Sitemap includes new public routes
+- PWA shortcuts include Beta Guide and Feature Map
+- Metadata updated for public beta positioning
 
-## New in v2.6
+## Local setup
 
-Release Radar adds a launch board for games and product families:
+```bash
+pnpm install
+pnpm dev
+```
 
-- Upcoming / this year / recent / evergreen labels
-- Radar score based on taste, backlog, watchlist, sale, release year, and DLC family signals
-- DLC and smaller products stay nested under the base game
-- Save to backlog from Radar
-- Watch price from Radar
-- Details from Radar
-- PWA shortcut for Release Radar
+Open:
 
-## Install
+```text
+http://localhost:3000
+```
 
-Copy the patch files into your repo, replace existing files, commit, push, and redeploy.
+The public website starts at `/` and the full app opens at `/app`.
 
-Recommended commit message:
+## Environment variables
 
-`Build GameLog v2.6 Release Radar layer`
+Keep secrets out of GitHub. Use `.env.local` locally and Vercel Environment Variables for production.
 
-## GameLog v2.7 - Collections Layer
+```text
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
+IGDB_CLIENT_ID=
+IGDB_CLIENT_SECRET=
+```
 
-GameLog now includes a Collections hub for shareable shelves and playlists. It turns Matchmaker, Deal Radar, Release Radar, DLC families, and the user's backlog into ready-made collections such as Tonight's Shortlist, Hidden Gems Under $10, Backlog Battle Plan, DLC and Add-on Watch, Upcoming Watchlist, Rainy Weekend Games, and Couch Co-op/Social Picks. Collections can be saved locally, copied as share text, or published into normal public GameLog lists.
+## Version
 
-Test path: Home -> Collections, top nav -> Collections, mobile nav -> Collect.
+Current build: `2.9.0`

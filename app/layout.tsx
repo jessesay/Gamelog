@@ -7,7 +7,7 @@ export const metadata: Metadata = {
     default: "GameLog — Your gaming command center",
     template: "%s | GameLog"
   },
-  description: "Track your library, decide what to play, watch prices, follow releases, build collections, and share your gaming taste.",
+  description: "Track your library, decide what to play, watch prices, follow releases, build collections, and share your gaming taste. Now with public beta, feature, changelog, and status pages.",
   manifest: "/manifest.webmanifest",
   icons: {
     icon: "/favicon.svg",
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "GameLog",
-    description: "Decide what to play. Track what you love. Watch prices. Share your taste.",
+    description: "Decide what to play. Track what you love. Watch prices. Share your taste. Join the GameLog beta.",
     type: "website"
   },
   twitter: {

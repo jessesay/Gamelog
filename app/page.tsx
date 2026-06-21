@@ -32,6 +32,14 @@ const productPillars = [
 
 const featureRail = ["Pulse", "Matchmaker", "Arena", "Charts", "Collections", "Release Radar", "Deal Radar", "Price Watch"];
 
+const launchSteps = [
+  "Open the app and create a profile",
+  "Import or seed a starter catalog",
+  "Save three games to your backlog",
+  "Try Matchmaker, Arena, Deals, and Collections",
+  "Share a public profile or list link"
+];
+
 export default function MarketingHomePage() {
   return (
     <main className="marketing-site">
@@ -41,9 +49,10 @@ export default function MarketingHomePage() {
           <span>GameLog</span>
         </Link>
         <nav className="marketing-links" aria-label="Website navigation">
-          <Link href="/about">About</Link>
+          <Link href="/features">Features</Link>
+          <Link href="/beta">Beta</Link>
           <Link href="/roadmap">Roadmap</Link>
-          <Link href="/press">Press</Link>
+          <Link href="/status">Status</Link>
           <Link href="/app" className="marketing-nav-cta">Open app</Link>
         </nav>
       </header>
@@ -59,7 +68,8 @@ export default function MarketingHomePage() {
             <Link className="primary xl" href="/app">
               Launch GameLog <ArrowRight size={18} />
             </Link>
-            <Link className="secondary xl" href="/roadmap">See roadmap</Link>
+            <Link className="secondary xl" href="/beta">Join the beta</Link>
+            <Link className="secondary xl" href="/features">Explore features</Link>
           </div>
           <div className="trust-strip" aria-label="GameLog highlights">
             <span>No spreadsheet needed</span>
@@ -128,17 +138,41 @@ export default function MarketingHomePage() {
         </div>
       </section>
 
+      <section className="marketing-section">
+        <div className="section-heading">
+          <p className="eyebrow">Beta launch funnel</p>
+          <h2>Built to move visitors into the app.</h2>
+          <p>v2.9 adds real website pages for features, beta onboarding, changelog, status, and FAQ so GameLog feels ready to send to testers.</p>
+        </div>
+        <div className="website-grid three">
+          {launchSteps.map((step, index) => (
+            <article className="website-card" key={step}>
+              <span className="step-number">{index + 1}</span>
+              <h3>{step}</h3>
+              <p>Designed as a clear next action for first-time players and beta testers.</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
       <section className="launch-panel">
         <div>
           <p className="eyebrow">Ready for beta</p>
-          <h2>Open the app, import games, and start shaping the public beta.</h2>
-          <p>GameLog now has the product shell, app routes, policy pages, press page, sitemap, robots file, PWA shortcuts, and launch checklist needed to feel like a real website.</p>
+          <h2>Send people to a real website first, then into the app.</h2>
+          <p>GameLog now has product pages, beta instructions, status messaging, press copy, roadmap, policy pages, sitemap, PWA shortcuts, and a launch checklist.</p>
         </div>
-        <Link className="primary xl" href="/app">Open GameLog</Link>
+        <div className="launch-actions-stack">
+          <Link className="primary xl" href="/app">Open GameLog</Link>
+          <Link className="secondary xl" href="/beta">Beta guide</Link>
+        </div>
       </section>
 
       <footer className="marketing-footer">
         <span>© {new Date().getFullYear()} GameLog</span>
+        <Link href="/features">Features</Link>
+        <Link href="/beta">Beta</Link>
+        <Link href="/changelog">Changelog</Link>
+        <Link href="/status">Status</Link>
         <Link href="/privacy">Privacy</Link>
         <Link href="/terms">Terms</Link>
         <Link href="/press">Press</Link>
