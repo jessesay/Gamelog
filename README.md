@@ -1,8 +1,44 @@
-# GameLog v1.1
+# GameLog v1.2
+
+Letterboxd for video games — now with a stronger social home page, polished review cards, favorite shelves, share links, onboarding prompts, and the mobile-first Discover loop from v1.1.
+
+## What is new in v1.2
+
+- Cleaner social home page
+- Trending games cover rail
+- Favorite games/profile shelf
+- Better onboarding prompt after signup
+- Review cards with cover art thumbnails
+- Copy review/profile share links
+- Better feed empty states
+- Mobile-friendly horizontal cover rails
+
+## Run on Windows
+
+Double-click:
+
+```text
+start-gamelog.bat
+```
+
+For updates after pulling from GitHub:
+
+```text
+update-gamelog.bat
+```
+
+## Environment
+
+Keep `.env.local` local. Do not commit it. Use `.env.example` as the template.
+
+
+---
+
+# GameLog v1.0
 
 GameLog is a Letterboxd-style social game diary with a fast mobile discovery loop: swipe/pass/save games, log reviews, build a backlog, follow people, and grow a real catalog with cover art.
 
-## What v1.1 fixes
+## What v1.0 fixes
 
 - Games no longer vanish when Supabase is connected but the `games` table is empty.
 - GameLog now falls back to a built-in starter catalog so Discover still works.
@@ -65,7 +101,7 @@ supabase/cover_updates.sql
 
 That usually means you moved to a new Supabase project/table state or opened a fresh repo version without rerunning the seed.
 
-GameLog v1.1 handles it better:
+GameLog v1.0 handles it better:
 
 1. It shows the built-in starter catalog locally instead of an empty app.
 2. Go to **Sources**.
@@ -104,13 +140,3 @@ Starter catalog
 - Steam cover fallbacks are visual fallbacks in the app. They make the starter catalog look good even when the database cover field is blank.
 - IGDB is still the best long-term source for cross-platform box art, platforms, genres, summaries, developers, and release years.
 - itch.io does not behave like a simple public “all games” catalog in this version, so GameLog supports manual and bulk import for itch.io titles.
-
-## v1.1 update
-
-- Mobile-first Discover redesign
-- For You mode based on local taste setup
-- Bigger swipe cards and deck preview
-- Swipe badges, keyboard shortcuts, and smoother touch drag state
-- Edit Taste flow for genre/mood preferences
-- Better recommendation sidebar and Up Next preview
-

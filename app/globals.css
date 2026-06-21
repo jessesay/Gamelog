@@ -1430,3 +1430,251 @@ textarea:focus {
     overflow: hidden;
   }
 }
+
+/* v1.2 social polish */
+.onboarding-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 22px;
+  border-color: rgba(34, 211, 238, 0.30);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(34, 211, 238, 0.16), transparent 34%),
+    linear-gradient(135deg, rgba(139, 92, 246, 0.13), rgba(255,255,255,0.045));
+}
+
+.onboarding-strip h2,
+.social-home-card h2 {
+  margin-bottom: 6px;
+}
+
+.onboarding-strip .muted {
+  margin-bottom: 0;
+}
+
+.onboarding-actions {
+  margin-top: 0;
+  justify-content: flex-end;
+  min-width: fit-content;
+}
+
+.home-rails {
+  margin-bottom: 18px;
+}
+
+.cover-rail {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.rail-game {
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.045);
+  color: white;
+  border-radius: 18px;
+  padding: 8px;
+  text-align: left;
+  min-width: 0;
+}
+
+.rail-game:hover,
+.shelf-cover:hover {
+  transform: translateY(-2px);
+  border-color: rgba(34, 211, 238, 0.42);
+  background: rgba(34, 211, 238, 0.075);
+}
+
+.rail-game .cover,
+.shelf-cover .cover {
+  min-height: 160px;
+  border-radius: 14px;
+  padding: 10px;
+  margin-bottom: 8px;
+}
+
+.rail-game .cover-title,
+.shelf-cover .cover-title {
+  font-size: 1rem;
+}
+
+.rail-game .poster-kicker,
+.rail-game .poster-platforms,
+.shelf-cover .poster-kicker,
+.shelf-cover .poster-platforms {
+  display: none;
+}
+
+.rail-game strong,
+.rail-game span,
+.shelf-cover span {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rail-game strong {
+  font-size: 0.92rem;
+}
+
+.rail-game span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.favorite-shelf {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.shelf-cover {
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.045);
+  border-radius: 18px;
+  padding: 8px;
+  min-width: 0;
+  transition: 0.2s ease;
+}
+
+.shelf-cover span {
+  color: white;
+  font-weight: 850;
+  font-size: 0.82rem;
+}
+
+.profile-shelf-card {
+  overflow: hidden;
+}
+
+.empty-state-v12 {
+  display: grid;
+  place-items: center;
+  gap: 8px;
+}
+
+.empty-state-v12 h3,
+.empty-state-v12 p {
+  margin: 0;
+}
+
+.empty-state-v12 p {
+  max-width: 460px;
+  line-height: 1.55;
+}
+
+.review-card-v12 {
+  overflow: hidden;
+}
+
+.review-card-layout {
+  display: grid;
+  grid-template-columns: 118px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.review-cover-cell .cover {
+  min-height: 166px;
+  border-radius: 18px;
+  padding: 10px;
+}
+
+.review-cover-cell .cover-title {
+  font-size: 1.05rem;
+}
+
+.review-cover-cell .poster-kicker,
+.review-cover-cell .poster-platforms {
+  display: none;
+}
+
+.review-userline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.mini-avatar {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  color: white;
+  font-size: 0.78rem;
+  font-weight: 950;
+  background: linear-gradient(135deg, var(--brand), var(--brand-2));
+}
+
+.review-copy {
+  margin: 13px 0 8px;
+  line-height: 1.65;
+  font-size: 1.02rem;
+}
+
+@media (max-width: 980px) {
+  .cover-rail {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .onboarding-strip {
+    display: grid;
+  }
+
+  .onboarding-actions {
+    justify-content: flex-start;
+  }
+
+  .cover-rail,
+  .favorite-shelf {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scroll-snap-type: x mandatory;
+  }
+
+  .rail-game,
+  .shelf-cover {
+    flex: 0 0 142px;
+    scroll-snap-align: start;
+  }
+
+  .rail-game .cover,
+  .shelf-cover .cover {
+    min-height: 178px;
+  }
+
+  .review-card-layout {
+    grid-template-columns: 92px minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .review-cover-cell .cover {
+    min-height: 132px;
+  }
+
+  .review-card-v12 .review-top {
+    display: grid;
+  }
+}
+
+@media (max-width: 480px) {
+  .review-card-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .review-cover-cell .cover {
+    min-height: 210px;
+  }
+}

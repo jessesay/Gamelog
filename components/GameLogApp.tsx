@@ -416,6 +416,38 @@ export default function GameLogApp() {
       .slice(0, 4);
   }, [games, logs]);
 
+  const homeTrendingGames = useMemo(() => {
+    if (topGames.length) return topGames.map((item) => item.game).slice(0, 6);
+    return [...games]
+      .sort((a, b) => Number(Boolean(getEffectiveCoverUrl(b))) - Number(Boolean(getEffectiveCoverUrl(a))) || (b.release_year ?? 0) - (a.release_year ?? 0) || a.title.localeCompare(b.title))
+      .slice(0, 6);
+  }, [games, topGames]);
+
+  const favoriteShelfGames = useMemo(() => {
+    const picks: Game[] = [];
+    const addPick = (game?: Game | null) => {
+      if (!game || picks.some((item) => item.id === game.id)) return;
+      picks.push(game);
+    };
+
+    if (profile.favorite_game) {
+      const favoriteNeedle = profile.favorite_game.toLowerCase();
+      addPick(games.find((game) => game.title.toLowerCase() === favoriteNeedle));
+      addPick(games.find((game) => game.title.toLowerCase().includes(favoriteNeedle) || favoriteNeedle.includes(game.title.toLowerCase())));
+    }
+
+    [...myLogs]
+      .filter((log) => log.games && (Number(log.rating ?? 0) >= 4.5 || ["Completed", "100% Completed"].includes(log.status)))
+      .sort((a, b) => Number(b.rating ?? 0) - Number(a.rating ?? 0) || new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime())
+      .forEach((log) => addPick(log.games));
+
+    homeTrendingGames.forEach(addPick);
+    return picks.slice(0, 5);
+  }, [games, homeTrendingGames, myLogs, profile.favorite_game]);
+
+  const profileNeedsSetup = signedIn && (profile.display_name === "New Player" || !profile.favorite_game || !profile.bio);
+  const recentReviews = useMemo(() => logs.filter((log) => Boolean(log.review?.trim())).slice(0, 5), [logs]);
+
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
 
@@ -1451,6 +1483,16 @@ export default function GameLogApp() {
     setMessage({ type: "ok", text: `Tonight's pick: ${pick.games.title}. No more scrolling the backlog.` });
   }
 
+  async function copyShareLink(path: string, label: string) {
+    const url = `${window.location.origin}${path}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setMessage({ type: "ok", text: `${label} link copied.` });
+    } catch {
+      setMessage({ type: "info", text: url });
+    }
+  }
+
   function exportDemoData() {
     const payload = JSON.stringify({ profile, games, logs, lists }, null, 2);
     const blob = new Blob([payload], { type: "application/json" });
@@ -1547,6 +1589,43 @@ export default function GameLogApp() {
             </div>
           </section>
 
+          {profileNeedsSetup && (
+            <section className="onboarding-strip card">
+              <div>
+                <p className="eyebrow">Finish your public profile</p>
+                <h2>Make GameLog feel like yours</h2>
+                <p className="muted">Add a username vibe, favorite game, and a quick bio so reviews, follows, and share links look real.</p>
+              </div>
+              <div className="actions onboarding-actions">
+                <button className="primary" onClick={() => setView("profile")}><UserRound size={18} /> Edit profile</button>
+                <button className="secondary" onClick={() => setView("discover")}><Sparkles size={18} /> Build taste first</button>
+              </div>
+            </section>
+          )}
+
+          <section className="home-rails grid">
+            <div className="col-8 card social-home-card">
+              <div className="review-top">
+                <div>
+                  <p className="eyebrow">Trending now</p>
+                  <h2>Games people should be logging</h2>
+                </div>
+                <button className="pill" onClick={() => setView("discover")}>Swipe these</button>
+              </div>
+              <CoverRail games={homeTrendingGames} onPick={(game) => { setSelectedGameId(game.id); setView("discover"); }} />
+            </div>
+            <div className="col-4 card social-home-card">
+              <div className="review-top">
+                <div>
+                  <p className="eyebrow">Your shelf</p>
+                  <h2>Favorites row</h2>
+                </div>
+                <button className="pill" onClick={() => setView("profile")}>Edit</button>
+              </div>
+              <FavoriteShelf games={favoriteShelfGames} />
+            </div>
+          </section>
+
           <section className="grid">
             <div className="col-8 card">
               <div className="review-top">
@@ -1564,13 +1643,14 @@ export default function GameLogApp() {
                 onLike={toggleLike}
                 onComment={addComment}
                 onDeleteComment={deleteComment}
+                onShare={(log) => copyShareLink(`/r/${log.id}`, "Review")}
               />
             </div>
             <div className="col-4 card">
               <h2>Your profile</h2>
               <ProfileMini profile={profile} completedCount={completedCount} backlogCount={backlogCount} avgRating={avgRating} followerCount={followerCount} followingCount={followingCount} />
               <div className="divider" />
-              <p className="muted">v1.1 makes Discover the main loop: a mobile-first stream with taste setup, swipe memory, cover cards, and smarter recommendations.</p>
+              <p className="muted">v1.2 adds the social layer: a cleaner homepage, trending games, favorite shelves, share links, polished review cards, and better onboarding.</p>
               <div className="divider" />
               <h3>Top rated here</h3>
               <MiniTopGames games={topGames} />
@@ -1899,11 +1979,12 @@ export default function GameLogApp() {
               onLike={toggleLike}
               onComment={addComment}
               onDeleteComment={deleteComment}
+              onShare={(log) => copyShareLink(`/r/${log.id}`, "Review")}
             />
           </div>
           <div className="col-4 card">
             <h2>Trending reviews</h2>
-            <p className="muted">The feed now surfaces reviews with likes, comments, and fresh activity.</p>
+            <p className="muted">v1.2 makes reviews feel more public: cover cards, share links, likes, comments, and cleaner empty states.</p>
             <MiniReviewList logs={trendingLogs} />
             <div className="divider" />
             <button className="secondary" onClick={() => setView("people")}><Users size={18} /> Find people to follow</button>
@@ -2281,9 +2362,60 @@ export default function GameLogApp() {
               <button className="primary" onClick={saveProfile}><UserRound size={18} /> Save profile</button>
             </div>
           </div>
+
+          <div className="col-12 card profile-shelf-card">
+            <div className="review-top">
+              <div>
+                <p className="eyebrow">Profile shelf</p>
+                <h2>Favorite games row</h2>
+                <p className="muted" style={{ marginBottom: 0 }}>This row is built from your favorite game, high ratings, completions, and trending picks until you log more.</p>
+              </div>
+              <button className="secondary" onClick={() => copyShareLink(`/u/${profile.username}`, "Profile")}><Share2 size={16} /> Copy profile link</button>
+            </div>
+            <CoverRail games={favoriteShelfGames} onPick={(game) => setSelectedGameId(game.id)} />
+          </div>
         </section>
       )}
     </main>
+  );
+}
+
+function EmptyState({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="empty empty-state-v12">
+      <Sparkles size={22} />
+      <h3>{title}</h3>
+      <p>{body}</p>
+    </div>
+  );
+}
+
+function FavoriteShelf({ games }: { games: Game[] }) {
+  if (!games.length) return <EmptyState title="No shelf yet" body="Log and rate a few games to build your profile shelf." />;
+  return (
+    <div className="favorite-shelf">
+      {games.slice(0, 5).map((game) => (
+        <a className="shelf-cover" key={game.id} href={game.slug ? `/g/${game.slug}` : "#"} target="_blank" rel="noreferrer" title={game.title}>
+          <GameCover game={game} />
+          <span>{game.title}</span>
+        </a>
+      ))}
+    </div>
+  );
+}
+
+function CoverRail({ games, onPick }: { games: Game[]; onPick: (game: Game) => void }) {
+  if (!games.length) return <EmptyState title="Nothing trending yet" body="Import games or write a few reviews to populate this rail." />;
+  return (
+    <div className="cover-rail">
+      {games.map((game) => (
+        <button className="rail-game" key={game.id} onClick={() => onPick(game)} title={game.title}>
+          <GameCover game={game} />
+          <strong>{game.title}</strong>
+          <span>{game.genre ?? "Game"}</span>
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -2366,7 +2498,8 @@ function Feed({
   onEdit,
   onLike,
   onComment,
-  onDeleteComment
+  onDeleteComment,
+  onShare
 }: {
   logs: GameLog[];
   currentUserId: string;
@@ -2378,8 +2511,9 @@ function Feed({
   onLike: (logId: string) => void;
   onComment: (logId: string) => void;
   onDeleteComment: (commentId: string) => void;
+  onShare: (log: GameLog) => void;
 }) {
-  if (!logs.length) return <div className="empty">No activity yet. Log your first game.</div>;
+  if (!logs.length) return <EmptyState title="No reviews yet" body="Log a game, add a rating, and write one quick reaction to start the feed." />;
 
   return (
     <div className="feed">
@@ -2389,63 +2523,74 @@ function Feed({
         const comments = log.comments ?? [];
 
         return (
-          <article className="review-card" key={log.id}>
-            <div className="review-top">
-              <div>
-                <strong>{log.profiles?.display_name ?? "Player"}</strong>
-                <p className="muted" style={{ margin: "4px 0 0" }}>
-                  logged <strong style={{ color: "white" }}>{log.games?.title ?? "Unknown Game"}</strong> as {log.status}
-                </p>
+          <article className="review-card review-card-v12" key={log.id}>
+            <div className="review-card-layout">
+              <div className="review-cover-cell">
+                {log.games ? <GameCover game={log.games} /> : <div className="cover poster-cover"><div className="poster-fallback"><div className="cover-title">Game</div></div></div>}
               </div>
-              <div className="stars">{stars(log.rating)}</div>
-            </div>
-            {log.review && <p style={{ margin: "13px 0 8px", lineHeight: 1.6 }}>{log.review}</p>}
-            <div className="tag-row">
-              {log.vibe && <span className="tag">{log.vibe}</span>}
-              {log.played_on && <span className="tag"><CalendarDays size={13} /> {log.played_on}</span>}
-              <button className={`tag action-tag ${likedByMe ? "liked" : ""}`} onClick={() => onLike(log.id)}>
-                <Heart size={13} fill={likedByMe ? "currentColor" : "none"} /> {likeCount}
-              </button>
-              <span className="tag"><MessageCircle size={13} /> {comments.length}</span>
-              <a className="tag action-tag" href={`/r/${log.id}`} target="_blank" rel="noreferrer"><Share2 size={13} /> Share</a>
-              {log.games?.slug && <a className="tag action-tag" href={`/g/${log.games.slug}`} target="_blank" rel="noreferrer">Game page</a>}
-            </div>
-
-            {!!comments.length && (
-              <div className="comments">
-                {comments.map((comment) => (
-                  <div className="comment" key={comment.id}>
+              <div className="review-content-cell">
+                <div className="review-top">
+                  <div className="review-userline">
+                    <div className="mini-avatar">{initials(log.profiles?.display_name ?? "Player")}</div>
                     <div>
-                      <strong>{comment.profiles?.display_name ?? "Player"}</strong>
-                      <p>{comment.body}</p>
+                      <strong>{log.profiles?.display_name ?? "Player"}</strong>
+                      <p className="muted" style={{ margin: "4px 0 0" }}>
+                        logged <strong style={{ color: "white" }}>{log.games?.title ?? "Unknown Game"}</strong> as {log.status}
+                      </p>
                     </div>
-                    {comment.user_id === currentUserId && (
-                      <button className="icon-button" onClick={() => onDeleteComment(comment.id)} aria-label="Delete comment"><Trash2 size={14} /></button>
-                    )}
                   </div>
-                ))}
-              </div>
-            )}
+                  <div className="stars">{stars(log.rating)}</div>
+                </div>
+                {log.review ? <p className="review-copy">{log.review}</p> : <p className="review-copy muted">No written review yet — just the log.</p>}
+                <div className="tag-row">
+                  {log.vibe && <span className="tag">{log.vibe}</span>}
+                  {log.played_on && <span className="tag"><CalendarDays size={13} /> {log.played_on}</span>}
+                  <button className={`tag action-tag ${likedByMe ? "liked" : ""}`} onClick={() => onLike(log.id)}>
+                    <Heart size={13} fill={likedByMe ? "currentColor" : "none"} /> {likeCount}
+                  </button>
+                  <span className="tag"><MessageCircle size={13} /> {comments.length}</span>
+                  <button className="tag action-tag" onClick={() => onShare(log)}><Share2 size={13} /> Copy link</button>
+                  <a className="tag action-tag" href={`/r/${log.id}`} target="_blank" rel="noreferrer">Open review</a>
+                  {log.games?.slug && <a className="tag action-tag" href={`/g/${log.games.slug}`} target="_blank" rel="noreferrer">Game page</a>}
+                </div>
 
-            <div className="comment-compose">
-              <input
-                value={commentDrafts[log.id] ?? ""}
-                onChange={(event) => setCommentDrafts((current) => ({ ...current, [log.id]: event.target.value }))}
-                placeholder={signedIn ? "Write a quick reply..." : "Sign in to comment"}
-                disabled={!signedIn}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") onComment(log.id);
-                }}
-              />
-              <button className="secondary" onClick={() => onComment(log.id)} disabled={!signedIn || !commentDrafts[log.id]?.trim()}><Send size={15} /></button>
+                {!!comments.length && (
+                  <div className="comments">
+                    {comments.map((comment) => (
+                      <div className="comment" key={comment.id}>
+                        <div>
+                          <strong>{comment.profiles?.display_name ?? "Player"}</strong>
+                          <p>{comment.body}</p>
+                        </div>
+                        {comment.user_id === currentUserId && (
+                          <button className="icon-button" onClick={() => onDeleteComment(comment.id)} aria-label="Delete comment"><Trash2 size={14} /></button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="comment-compose">
+                  <input
+                    value={commentDrafts[log.id] ?? ""}
+                    onChange={(event) => setCommentDrafts((current) => ({ ...current, [log.id]: event.target.value }))}
+                    placeholder={signedIn ? "Write a quick reply..." : "Sign in to comment"}
+                    disabled={!signedIn}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") onComment(log.id);
+                    }}
+                  />
+                  <button className="secondary" onClick={() => onComment(log.id)} disabled={!signedIn || !commentDrafts[log.id]?.trim()}><Send size={15} /></button>
+                </div>
+
+                {log.user_id === currentUserId && (
+                  <div className="actions" style={{ marginTop: 12 }}>
+                    <button className="secondary" onClick={() => onEdit(log)}><Edit3 size={15} /> Edit</button>
+                    <button className="danger" onClick={() => onDelete(log.id)}>Delete log</button>
+                  </div>
+                )}
+              </div>
             </div>
-
-            {log.user_id === currentUserId && (
-              <div className="actions" style={{ marginTop: 12 }}>
-                <button className="secondary" onClick={() => onEdit(log)}><Edit3 size={15} /> Edit</button>
-                <button className="danger" onClick={() => onDelete(log.id)}>Delete log</button>
-              </div>
-            )}
           </article>
         );
       })}
