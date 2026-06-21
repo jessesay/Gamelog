@@ -24,7 +24,7 @@ export default function BetaPage() {
         <nav className="marketing-links" aria-label="Website navigation">
           <Link href="/features">Features</Link>
           <Link href="/status">Status</Link>
-          <Link href="/app" className="marketing-nav-cta">Open app</Link>
+          <Link href="/join">Join</Link><Link href="/app" className="marketing-nav-cta">Open app</Link>
         </nav>
       </header>
 
@@ -32,7 +32,7 @@ export default function BetaPage() {
         <p className="eyebrow">Public beta</p>
         <h1>Help shape the gaming command center.</h1>
         <p>GameLog beta testers help prove the core loop: find what to play, track it, watch prices, and share useful collections.</p>
-        <div className="hero-actions"><Link className="primary xl" href="/app">Start testing</Link><Link className="secondary xl" href="/launch">Launch checklist</Link></div>
+        <div className="hero-actions"><Link className="primary xl" href="/join">Join beta</Link><Link className="secondary xl" href="/start">Start guide</Link><Link className="secondary xl" href="/launch">Launch checklist</Link></div>
       </section>
 
       <section className="website-grid two">
@@ -56,7 +56,7 @@ export default function BetaPage() {
           <h2>Beta invite</h2>
           <p>I'm testing GameLog — a gaming command center for deciding what to play, tracking your library, watching deals, following releases, and sharing collections. Try it and tell me what feels useful or confusing.</p>
         </div>
-        <Link className="primary xl" href="/app?view=beta">Open feedback board</Link>
+        <Link className="primary xl" href="/feedback">Open feedback board</Link>
       </section>
     </main>
   );

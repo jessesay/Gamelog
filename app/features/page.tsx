@@ -21,7 +21,7 @@ const groups = [
   },
   {
     title: "Launch-ready website",
-    items: ["Landing page", "Beta guide", "Status page", "Changelog, FAQ, press, privacy, and terms"]
+    items: ["Landing page", "Beta signup", "First-run checklist", "Feedback voting", "Status page", "Changelog, FAQ, press, privacy, and terms"]
   }
 ];
 
@@ -31,7 +31,7 @@ export default function FeaturesPage() {
       <header className="marketing-nav compact-nav">
         <Link className="marketing-brand" href="/"><span className="logo">GL</span><span>GameLog</span></Link>
         <nav className="marketing-links" aria-label="Website navigation">
-          <Link href="/beta">Beta</Link>
+          <Link href="/join">Join beta</Link>
           <Link href="/roadmap">Roadmap</Link>
           <Link href="/app" className="marketing-nav-cta">Open app</Link>
         </nav>
@@ -41,7 +41,7 @@ export default function FeaturesPage() {
         <p className="eyebrow">Feature map</p>
         <h1>Everything GameLog does now.</h1>
         <p>GameLog is becoming a full gaming command center: decide what to play, log what happened, watch prices, follow releases, and share your taste.</p>
-        <div className="hero-actions"><Link className="primary xl" href="/app">Open app</Link><Link className="secondary xl" href="/beta">Beta guide</Link></div>
+        <div className="hero-actions"><Link className="primary xl" href="/app">Open app</Link><Link className="secondary xl" href="/join">Join beta</Link><Link className="secondary xl" href="/start">Start guide</Link></div>
       </section>
 
       <section className="website-grid two">

@@ -1,28 +1,18 @@
-# GameLog v2.9
+# GameLog v3.0 — Beta Launch System
 
-GameLog is a gaming command center: track your library, decide what to play, watch prices, follow releases, group DLC/add-ons, build collections, and share your gaming taste.
+GameLog is a mobile-first gaming command center for tracking your library, deciding what to play, watching prices, following releases, building collections, and sharing your taste.
 
-## v2.9 update — Public beta website readiness
+## v3.0 adds
 
-This version makes GameLog feel more like a real public app/website, not just a project folder.
+- Beta signup / waitlist page at `/join`
+- First-run tester checklist at `/start`
+- Feedback inbox and voting board at `/feedback`
+- What's new page at `/updates`
+- Updated landing page funnel
+- Updated beta, features, changelog, sitemap, PWA shortcuts, and metadata
+- Optional Supabase beta launch schema at `supabase/v3_0_beta_launch.sql`
 
-New website routes:
-
-- `/features` — product feature map
-- `/beta` — beta tester guide and invite copy
-- `/faq` — first-time visitor questions
-- `/changelog` — public release history
-- `/status` — beta status and configuration notes
-- `not-found.tsx` — branded 404 page
-
-Updated:
-
-- Landing page navigation and beta funnel
-- Sitemap includes new public routes
-- PWA shortcuts include Beta Guide and Feature Map
-- Metadata updated for public beta positioning
-
-## Local setup
+## Run locally
 
 ```bash
 pnpm install
@@ -35,19 +25,17 @@ Open:
 http://localhost:3000
 ```
 
-The public website starts at `/` and the full app opens at `/app`.
-
-## Environment variables
-
-Keep secrets out of GitHub. Use `.env.local` locally and Vercel Environment Variables for production.
+## Test v3.0
 
 ```text
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
-IGDB_CLIENT_ID=
-IGDB_CLIENT_SECRET=
+/           landing page
+/join       beta signup
+/start      first-run checklist
+/feedback   feedback and voting
+/updates    what's new
+/app        full GameLog app
 ```
 
-## Version
+## Optional Supabase
 
-Current build: `2.9.0`
+Run `supabase/v3_0_beta_launch.sql` when you want beta waitlist, feedback, and onboarding progress stored in Supabase instead of local browser storage.

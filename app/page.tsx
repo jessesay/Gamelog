@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, BadgeDollarSign, BarChart3, Gamepad2, Layers3, Radio, Sparkles, Trophy } from "lucide-react";
+import { ArrowRight, BadgeDollarSign, BarChart3, CheckCircle2, Gamepad2, Layers3, MessageSquare, Radio, Sparkles, Trophy, UserPlus } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "GameLog — Your gaming command center",
-  description: "Track your games, find what to play tonight, watch deals, follow releases, build collections, and share your gaming taste."
+  description: "Track your games, find what to play tonight, watch deals, follow releases, build collections, join the beta, and share your gaming taste."
 };
 
 const productPillars = [
@@ -30,14 +30,21 @@ const productPillars = [
   }
 ];
 
-const featureRail = ["Pulse", "Matchmaker", "Arena", "Charts", "Collections", "Release Radar", "Deal Radar", "Price Watch"];
+const featureRail = ["Pulse", "Matchmaker", "Arena", "Charts", "Collections", "Release Radar", "Deal Radar", "Price Watch", "Beta Launch"];
 
 const launchSteps = [
-  "Open the app and create a profile",
+  "Join the beta list",
+  "Use the first-run checklist",
   "Import or seed a starter catalog",
   "Save three games to your backlog",
   "Try Matchmaker, Arena, Deals, and Collections",
-  "Share a public profile or list link"
+  "Share feedback or vote on the next feature"
+];
+
+const betaActions = [
+  { title: "Join beta", text: "Capture tester info and copy a clean invite message.", href: "/join", icon: UserPlus },
+  { title: "Start guide", text: "Walk new users through the first 60 seconds of GameLog.", href: "/start", icon: CheckCircle2 },
+  { title: "Feedback board", text: "Turn bug reports and feature ideas into the next build.", href: "/feedback", icon: MessageSquare }
 ];
 
 export default function MarketingHomePage() {
@@ -50,7 +57,7 @@ export default function MarketingHomePage() {
         </Link>
         <nav className="marketing-links" aria-label="Website navigation">
           <Link href="/features">Features</Link>
-          <Link href="/beta">Beta</Link>
+          <Link href="/join">Join beta</Link>
           <Link href="/roadmap">Roadmap</Link>
           <Link href="/status">Status</Link>
           <Link href="/app" className="marketing-nav-cta">Open app</Link>
@@ -68,7 +75,7 @@ export default function MarketingHomePage() {
             <Link className="primary xl" href="/app">
               Launch GameLog <ArrowRight size={18} />
             </Link>
-            <Link className="secondary xl" href="/beta">Join the beta</Link>
+            <Link className="secondary xl" href="/join">Join the beta</Link>
             <Link className="secondary xl" href="/features">Explore features</Link>
           </div>
           <div className="trust-strip" aria-label="GameLog highlights">
@@ -142,7 +149,7 @@ export default function MarketingHomePage() {
         <div className="section-heading">
           <p className="eyebrow">Beta launch funnel</p>
           <h2>Built to move visitors into the app.</h2>
-          <p>v2.9 adds real website pages for features, beta onboarding, changelog, status, and FAQ so GameLog feels ready to send to testers.</p>
+          <p>v3.0 adds beta signup, a first-run checklist, a feedback inbox, and voting so GameLog is easier to test and improve.</p>
         </div>
         <div className="website-grid three">
           {launchSteps.map((step, index) => (
@@ -155,22 +162,39 @@ export default function MarketingHomePage() {
         </div>
       </section>
 
+      <section className="marketing-section">
+        <div className="section-heading">
+          <p className="eyebrow">Beta launch system</p>
+          <h2>From visitor to tester in one clear path.</h2>
+          <p>The website now gives people somewhere to join, somewhere to start, and somewhere to send feedback.</p>
+        </div>
+        <div className="website-grid three">
+          {betaActions.map(({ title, text, href, icon: Icon }) => (
+            <Link className="website-card action-link-card" href={href} key={title}>
+              <Icon size={24} />
+              <h3>{title}</h3>
+              <p>{text}</p>
+            </Link>
+          ))}
+        </div>
+      </section>
+
       <section className="launch-panel">
         <div>
           <p className="eyebrow">Ready for beta</p>
           <h2>Send people to a real website first, then into the app.</h2>
-          <p>GameLog now has product pages, beta instructions, status messaging, press copy, roadmap, policy pages, sitemap, PWA shortcuts, and a launch checklist.</p>
+          <p>GameLog now has product pages, beta signup, tester onboarding, feedback voting, status messaging, press copy, roadmap, policy pages, sitemap, PWA shortcuts, and a launch checklist.</p>
         </div>
         <div className="launch-actions-stack">
           <Link className="primary xl" href="/app">Open GameLog</Link>
-          <Link className="secondary xl" href="/beta">Beta guide</Link>
+          <Link className="secondary xl" href="/start">Start guide</Link>
         </div>
       </section>
 
       <footer className="marketing-footer">
         <span>© {new Date().getFullYear()} GameLog</span>
         <Link href="/features">Features</Link>
-        <Link href="/beta">Beta</Link>
+        <Link href="/join">Join beta</Link>
         <Link href="/changelog">Changelog</Link>
         <Link href="/status">Status</Link>
         <Link href="/privacy">Privacy</Link>

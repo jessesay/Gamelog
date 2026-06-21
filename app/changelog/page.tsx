@@ -7,6 +7,7 @@ export const metadata: Metadata = {
 };
 
 const releases = [
+  { version: "v3.0", title: "Beta launch system", notes: ["Beta signup", "First-run onboarding checklist", "Feedback inbox", "Feature voting", "What's new page", "Optional Supabase beta launch schema"] },
   { version: "v2.9", title: "Website readiness", notes: ["Features page", "Beta access guide", "Changelog", "Status page", "FAQ", "Updated sitemap and website navigation"] },
   { version: "v2.8", title: "Real website shell", notes: ["Landing page", "About, roadmap, press, privacy, terms, launch pages", "PWA start URL moved to /app"] },
   { version: "v2.7", title: "Collections", notes: ["Shareable collection shelves", "Publish as list", "Backlog and deal-driven playlists"] },
