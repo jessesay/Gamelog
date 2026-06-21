@@ -15,6 +15,7 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const q = (url.searchParams.get("q") ?? "").trim().toLowerCase();
   const limit = Math.max(5, Math.min(Number(url.searchParams.get("limit") ?? "30") || 30, 75));
+  const includeAddOns = ["1", "true", "yes"].includes((url.searchParams.get("include_addons") ?? "").toLowerCase());
 
   if (!q) {
     return NextResponse.json({ games: [], error: "Missing q search term." }, { status: 400 });
@@ -36,24 +37,26 @@ export async function GET(request: Request) {
     .filter((app: any) => typeof app?.name === "string" && app.name.trim() && typeof app?.appid === "number")
     .filter((app: any) => {
       const name = app.name.toLowerCase();
-      if (looksLikeNonGame(name)) return false;
+      if (!includeAddOns && looksLikeNonGame(name)) return false;
       return words.every((word) => name.includes(word));
     })
     .slice(0, limit)
     .map((app: any) => {
       const title = app.name.trim();
       const appid = app.appid;
+      const addOn = looksLikeNonGame(title);
       return {
         title,
         slug: `steam-${appid}-${makeSlug(title)}`,
-        developer: "Steam import",
+        developer: addOn ? "Steam add-on" : "Steam import",
         publisher: null,
         release_year: null,
-        genre: "Steam",
+        genre: addOn ? "Add-on" : "Steam",
         platforms: ["PC", "Steam"],
         // Steam has several public store image sizes. The portrait library image is best for swipe cards when present.
         cover_url: `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/${appid}/library_600x900.jpg`,
-        summary: `Imported from Steam app catalog. Steam AppID: ${appid}.`,
+        summary: `${addOn ? "Smaller product/add-on grouped under its base game by GameLog." : "Imported from Steam app catalog."} Steam AppID: ${appid}.`,
+        product_type: addOn ? "dlc" : "game",
         is_community: true
       };
     });

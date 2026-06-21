@@ -12,6 +12,8 @@ export type Game = {
   igdb_id?: number | null;
   source?: string | null;
   source_url?: string | null;
+  product_type?: "game" | "dlc" | "edition" | "bundle" | "soundtrack" | null;
+  parent_game_id?: string | null;
   created_by?: string | null;
   is_community?: boolean | null;
 };

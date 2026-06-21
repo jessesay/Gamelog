@@ -72,6 +72,19 @@ type PriceSnapshot = {
   region: string;
   checked_at: string;
 };
+type ProductFamilyMap = {
+  visibleGames: Game[];
+  addOnsByParentId: Map<string, Game[]>;
+  parentIdByAddOnId: Map<string, string>;
+  addOnIds: Set<string>;
+};
+type SalePriceRow = {
+  game: Game;
+  saleProduct: Game;
+  latest: PriceSnapshot;
+  low: PriceSnapshot | null;
+  addOnCount: number;
+};
 type DiscoveryAction = { id: string; user_id: string; game_id: string; action: DiscoveryActionName; created_at: string; games?: Game | null };
 type UndoAction =
   | { kind: "pass"; action: DiscoveryAction }
@@ -176,6 +189,77 @@ function dedupeGameRecords(records: Game[]) {
 
 function isUuid(value?: string | null) {
   return Boolean(value && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value));
+}
+
+const addOnProductPattern = /\b(dlc|expansion|season pass|soundtrack|ost|artbook|upgrade|content pack|skin pack|cosmetic|add-on|addon|chapter|episode|currency|coins|points|starter pack|founder'?s pack|bonus content)\b/i;
+
+function isAddOnProduct(game: Game) {
+  const productType = String((game as Game & { product_type?: string | null }).product_type ?? "").toLowerCase();
+  if (["dlc", "add-on", "addon", "expansion", "soundtrack", "bundle"].includes(productType)) return true;
+  const text = [game.title, game.genre, game.developer, game.publisher, game.summary, game.source].filter(Boolean).join(" ");
+  return addOnProductPattern.test(text);
+}
+
+function addOnKind(game: Game) {
+  const text = [game.title, game.genre, game.summary].filter(Boolean).join(" ").toLowerCase();
+  if (/soundtrack|ost/.test(text)) return "Soundtrack";
+  if (/season pass|pass/.test(text)) return "Pass";
+  if (/expansion|chapter|episode/.test(text)) return "Expansion";
+  if (/skin|cosmetic|currency|coins|points/.test(text)) return "Extra";
+  return "DLC";
+}
+
+function inferBaseTitleFromAddOn(game: Game) {
+  const title = game.title.trim();
+  const dashParts = title.split(/\s[-–—]\s/).filter(Boolean);
+  if (dashParts.length > 1 && dashParts[0].length >= 3) return dashParts[0];
+
+  const colonParts = title.split(":").filter(Boolean);
+  if (colonParts.length > 1 && addOnProductPattern.test(colonParts.slice(1).join(" "))) return colonParts[0];
+
+  return null;
+}
+
+function buildProductFamilies(records: Game[]): ProductFamilyMap {
+  const parents = records.filter((game) => !isAddOnProduct(game));
+  const loose = records.filter((game) => isAddOnProduct(game));
+  const addOnsByParentId = new Map<string, Game[]>();
+  const parentIdByAddOnId = new Map<string, string>();
+  const addOnIds = new Set<string>();
+  const visibleGames = [...parents];
+
+  for (const addOn of loose) {
+    const inferredBaseKey = normalizeTitleKey(inferBaseTitleFromAddOn(addOn));
+    const addOnKey = normalizeTitleKey(addOn.title);
+    const parent = parents
+      .filter((candidate) => candidate.id !== addOn.id)
+      .sort((a, b) => normalizeTitleKey(b.title).length - normalizeTitleKey(a.title).length)
+      .find((candidate) => {
+        const candidateKey = normalizeTitleKey(candidate.title);
+        if (!candidateKey || candidateKey.length < 3) return false;
+        return inferredBaseKey === candidateKey
+          || addOnKey.startsWith(`${candidateKey} `)
+          || addOnKey.includes(` ${candidateKey} `)
+          || normalizeTitleKey(addOn.summary).includes(candidateKey);
+      });
+
+    if (!parent) {
+      visibleGames.push(addOn);
+      continue;
+    }
+
+    addOnIds.add(addOn.id);
+    parentIdByAddOnId.set(addOn.id, parent.id);
+    const current = addOnsByParentId.get(parent.id) ?? [];
+    addOnsByParentId.set(parent.id, [...current, addOn].sort((a, b) => a.title.localeCompare(b.title)));
+  }
+
+  return {
+    visibleGames: dedupeGameRecords(visibleGames),
+    addOnsByParentId,
+    parentIdByAddOnId,
+    addOnIds
+  };
 }
 
 function gameSource(game: Partial<Game>) {
@@ -492,6 +576,7 @@ export default function GameLogApp() {
   const [catalogEnriching, setCatalogEnriching] = useState(false);
   const [steamQuery, setSteamQuery] = useState("elden ring");
   const [steamImportLimit, setSteamImportLimit] = useState("30");
+  const [steamIncludeAddOns, setSteamIncludeAddOns] = useState(false);
   const [steamImporting, setSteamImporting] = useState(false);
   const [steamMegaImporting, setSteamMegaImporting] = useState(false);
   const [remoteCatalogEmpty, setRemoteCatalogEmpty] = useState(false);
@@ -588,9 +673,13 @@ export default function GameLogApp() {
   const followingCount = follows.filter((follow) => follow.follower_id === currentUserId).length;
   const followerCount = follows.filter((follow) => follow.following_id === currentUserId).length;
   const catalogGames = useMemo(() => dedupeGameRecords(games), [games]);
+  const productFamilies = useMemo(() => buildProductFamilies(catalogGames), [catalogGames]);
+  const primaryCatalogGames = productFamilies.visibleGames;
+  const addOnsByGameId = productFamilies.addOnsByParentId;
+  const hiddenAddOnCount = productFamilies.addOnIds.size;
   const hiddenDuplicateCount = Math.max(0, games.length - catalogGames.length);
-  const genres = useMemo(() => ["All", ...Array.from(new Set(catalogGames.map((game) => game.genre).filter(Boolean) as string[])).sort()], [catalogGames]);
-  const coverCount = useMemo(() => catalogGames.filter((game) => Boolean(getEffectiveCoverUrl(game))).length, [catalogGames]);
+  const genres = useMemo(() => ["All", ...Array.from(new Set(primaryCatalogGames.map((game) => game.genre).filter(Boolean) as string[])).sort()], [primaryCatalogGames]);
+  const coverCount = useMemo(() => primaryCatalogGames.filter((game) => Boolean(getEffectiveCoverUrl(game))).length, [primaryCatalogGames]);
   const starterTasteGenres = useMemo(() => genres.filter((item) => item !== "All").slice(0, 14), [genres]);
   const loggedGameIds = useMemo(() => new Set(myLogs.map((log) => log.game_id)), [myLogs]);
   const passedGameIds = useMemo(() => new Set(discoveryActions.filter((action) => action.action === "Pass").map((action) => action.game_id)), [discoveryActions]);
@@ -598,7 +687,7 @@ export default function GameLogApp() {
 
   const discoverPool = useMemo(() => {
     const needle = discoverQuery.toLowerCase();
-    const pool = catalogGames
+    const pool = primaryCatalogGames
       .filter((game) => discoverGenre === "All" || game.genre === discoverGenre)
       .filter((game) => discoverMood === "All" || gameMoodTags(game).includes(discoverMood))
       .filter((game) => {
@@ -624,14 +713,14 @@ export default function GameLogApp() {
       const scoreB = gameTasteScore(b, myLogs, tasteGenres, tasteMoods);
       return scoreB - scoreA || Number(Boolean(getEffectiveCoverUrl(b))) - Number(Boolean(getEffectiveCoverUrl(a))) || a.title.localeCompare(b.title);
     });
-  }, [catalogGames, discoverGenre, discoverMode, discoverMood, discoverQuery, loggedGameIds, myLogs, passedGameIds, tasteGenres, tasteMoods]);
+  }, [primaryCatalogGames, discoverGenre, discoverMode, discoverMood, discoverQuery, loggedGameIds, myLogs, passedGameIds, tasteGenres, tasteMoods]);
 
   const discoverGame = discoverPool.length ? discoverPool[discoverIndex % discoverPool.length] : null;
   const discoverReasons = discoverGame ? getDiscoveryReasons(discoverGame, myLogs) : [];
   const discoverMatch = discoverGame ? matchPercent(discoverGame, myLogs, tasteGenres, tasteMoods) : 0;
   const nextUpGames = useMemo(() => discoverPool.slice(discoverIndex + 1, discoverIndex + 4), [discoverIndex, discoverPool]);
   const recommendedGames = useMemo(() => {
-    return catalogGames
+    return primaryCatalogGames
       .filter((game) => game.id !== discoverGame?.id)
       .filter((game) => !loggedGameIds.has(game.id) && !passedGameIds.has(game.id))
       .map((game) => ({ game, score: gameTasteScore(game, myLogs, tasteGenres, tasteMoods) }))
@@ -639,11 +728,11 @@ export default function GameLogApp() {
       .sort((a, b) => b.score - a.score || a.game.title.localeCompare(b.game.title))
       .slice(0, 5)
       .map((item) => item.game);
-  }, [catalogGames, discoverGame?.id, loggedGameIds, myLogs, passedGameIds, tasteGenres, tasteMoods]);
+  }, [primaryCatalogGames, discoverGame?.id, loggedGameIds, myLogs, passedGameIds, tasteGenres, tasteMoods]);
 
   const filteredGames = useMemo(() => {
     const needle = query.toLowerCase();
-    return catalogGames
+    return primaryCatalogGames
       .filter((game) => genre === "All" || game.genre === genre)
       .filter((game) => {
         if (!needle) return true;
@@ -654,7 +743,7 @@ export default function GameLogApp() {
           .includes(needle);
       })
       .sort((a, b) => a.title.localeCompare(b.title));
-  }, [catalogGames, genre, query]);
+  }, [primaryCatalogGames, genre, query]);
 
   const displayedGames = useMemo(() => filteredGames.slice(0, gameDisplayLimit), [filteredGames, gameDisplayLimit]);
   const remainingFilteredGames = Math.max(0, filteredGames.length - displayedGames.length);
@@ -683,19 +772,35 @@ export default function GameLogApp() {
   const selectedGame = useMemo(() => games.find((game) => game.id === selectedGameId) ?? null, [games, selectedGameId]);
   const priceSelectedGame = useMemo(() => catalogGames.find((game) => game.id === priceSelectedGameId) ?? null, [catalogGames, priceSelectedGameId]);
   const watchedPriceGames = useMemo(() => priceWatchIds.map((id) => catalogGames.find((game) => game.id === id)).filter(Boolean) as Game[], [catalogGames, priceWatchIds]);
-  const salePriceRows = useMemo(() => {
-    return catalogGames
-      .map((game) => ({ game, latest: latestSnapshotForGame(priceSnapshots, game.id), low: lowSnapshotForGame(priceSnapshots, game.id) }))
-      .filter((row) => row.latest && Number(row.latest.discount_percent) > 0)
-      .sort((a, b) => Number(b.latest?.discount_percent ?? 0) - Number(a.latest?.discount_percent ?? 0) || Number(a.latest?.current_price ?? 9999) - Number(b.latest?.current_price ?? 9999))
+  const watchedPriceFamilyGames = useMemo(() => {
+    const parentIds = new Set<string>();
+    for (const watchedId of priceWatchIds) {
+      parentIds.add(productFamilies.parentIdByAddOnId.get(watchedId) ?? watchedId);
+    }
+    return Array.from(parentIds).map((id) => primaryCatalogGames.find((game) => game.id === id) ?? catalogGames.find((game) => game.id === id)).filter(Boolean) as Game[];
+  }, [catalogGames, priceWatchIds, primaryCatalogGames, productFamilies.parentIdByAddOnId]);
+  const salePriceRows = useMemo<SalePriceRow[]>(() => {
+    return primaryCatalogGames
+      .map((game): SalePriceRow | null => {
+        const products = [game, ...(addOnsByGameId.get(game.id) ?? [])];
+        const priced = products
+          .map((product) => ({ product, latest: latestSnapshotForGame(priceSnapshots, product.id), low: lowSnapshotForGame(priceSnapshots, product.id) }))
+          .filter((row): row is { product: Game; latest: PriceSnapshot; low: PriceSnapshot | null } => Boolean(row.latest && Number(row.latest.discount_percent) > 0))
+          .sort((a, b) => Number(b.latest.discount_percent ?? 0) - Number(a.latest.discount_percent ?? 0) || Number(a.latest.current_price ?? 9999) - Number(b.latest.current_price ?? 9999));
+        const best = priced[0];
+        return best ? { game, saleProduct: best.product, latest: best.latest, low: best.low, addOnCount: products.length - 1 } : null;
+      })
+      .filter((row): row is SalePriceRow => row !== null)
+      .sort((a, b) => Number(b.latest.discount_percent ?? 0) - Number(a.latest.discount_percent ?? 0) || Number(a.latest.current_price ?? 9999) - Number(b.latest.current_price ?? 9999))
       .slice(0, 12);
-  }, [catalogGames, priceSnapshots]);
+  }, [addOnsByGameId, priceSnapshots, primaryCatalogGames]);
   const priceSearchMatches = useMemo(() => {
     const needle = priceSearch.toLowerCase().trim();
-    return catalogGames
-      .filter((game) => !needle || [game.title, game.genre, game.developer, ...(game.platforms ?? [])].filter(Boolean).join(" ").toLowerCase().includes(needle))
+    return primaryCatalogGames
+      .filter((game) => !needle || [game.title, game.genre, game.developer, ...(game.platforms ?? []), ...(addOnsByGameId.get(game.id) ?? []).map((item) => item.title)].flat().filter(Boolean).join(" ").toLowerCase().includes(needle))
       .slice(0, 24);
-  }, [catalogGames, priceSearch]);
+  }, [addOnsByGameId, priceSearch, primaryCatalogGames]);
+  const selectedPriceAddOns = useMemo(() => priceSelectedGame ? addOnsByGameId.get(priceSelectedGame.id) ?? [] : [], [addOnsByGameId, priceSelectedGame]);
   const selectedPriceHistory = useMemo(() => {
     if (!priceSelectedGame) return [];
     return priceSnapshots
@@ -820,7 +925,7 @@ export default function GameLogApp() {
 
   const nowPlayingLogs = useMemo(() => myLogs.filter((log) => log.status === "Currently Playing" && log.games).slice(0, 6), [myLogs]);
   const signalGames = useMemo(() => {
-    return catalogGames
+    return primaryCatalogGames
       .filter((game) => !loggedGameIds.has(game.id) && !passedGameIds.has(game.id))
       .map((game) => ({
         game,
@@ -829,12 +934,12 @@ export default function GameLogApp() {
       }))
       .sort((a, b) => b.score - a.score || a.game.title.localeCompare(b.game.title))
       .slice(0, 12);
-  }, [catalogGames, loggedGameIds, myLogs, passedGameIds, tasteGenres, tasteMoods, topLibraryGenre]);
+  }, [primaryCatalogGames, loggedGameIds, myLogs, passedGameIds, tasteGenres, tasteMoods, topLibraryGenre]);
 
   const matchmakerPicks = useMemo(() => {
     const ownedStatuses = new Map(myLogs.map((log) => [log.game_id, log.status]));
 
-    return catalogGames
+    return primaryCatalogGames
       .map((game) => {
         const text = [game.title, game.genre, game.summary, game.developer, game.publisher, ...(game.platforms ?? [])].filter(Boolean).join(" ").toLowerCase();
         const reasons: string[] = [];
@@ -876,13 +981,13 @@ export default function GameLogApp() {
       .filter((item) => item.score > -6)
       .sort((a, b) => b.score - a.score || Number(Boolean(getEffectiveCoverUrl(b.game))) - Number(Boolean(getEffectiveCoverUrl(a.game))) || a.game.title.localeCompare(b.game.title))
       .slice(0, 12);
-  }, [catalogGames, matchEnergy, matchLength, myLogs, passedGameIds, tasteGenres, tasteMoods]);
+  }, [primaryCatalogGames, matchEnergy, matchLength, myLogs, passedGameIds, tasteGenres, tasteMoods]);
 
   const arenaPicks = useMemo(() => {
     const ordered = [
       ...matchmakerPicks.map((item) => item.game),
       ...signalGames.map((item) => item.game),
-      ...catalogGames
+      ...primaryCatalogGames
         .filter((game) => !loggedGameIds.has(game.id))
         .sort((a, b) => gameTasteScore(b, myLogs, tasteGenres, tasteMoods) - gameTasteScore(a, myLogs, tasteGenres, tasteMoods))
     ];
@@ -893,7 +998,7 @@ export default function GameLogApp() {
       seen.add(key);
       return true;
     }).slice(0, 24);
-  }, [catalogGames, loggedGameIds, matchmakerPicks, myLogs, signalGames, tasteGenres, tasteMoods]);
+  }, [primaryCatalogGames, loggedGameIds, matchmakerPicks, myLogs, signalGames, tasteGenres, tasteMoods]);
   const arenaLeft = arenaPicks.length ? arenaPicks[arenaSeed % arenaPicks.length] : null;
   const arenaRight = arenaPicks.length > 1 ? arenaPicks[(arenaSeed + 1) % arenaPicks.length] : null;
   const arenaWinnerTrail = useMemo(() => {
@@ -901,7 +1006,7 @@ export default function GameLogApp() {
   }, [backlogAttackPlan]);
 
   const mostLoggedChart = useMemo(() => {
-    return catalogGames
+    return primaryCatalogGames
       .map((game) => {
         const gameLogs = logs.filter((log) => log.game_id === game.id || log.games?.id === game.id || normalizeTitleKey(log.games?.title) === normalizeTitleKey(game.title));
         const rated = gameLogs.filter((log) => log.rating !== null && log.rating !== undefined);
@@ -915,7 +1020,7 @@ export default function GameLogApp() {
   }, [catalogGames, logs]);
 
   const topRatedChartRows = useMemo(() => {
-    return catalogGames
+    return primaryCatalogGames
       .map((game) => {
         const gameLogs = logs.filter((log) => (log.game_id === game.id || log.games?.id === game.id || normalizeTitleKey(log.games?.title) === normalizeTitleKey(game.title)) && log.rating !== null && log.rating !== undefined);
         const average = gameLogs.length ? gameLogs.reduce((sum, log) => sum + Number(log.rating), 0) / gameLogs.length : 0;
@@ -955,16 +1060,16 @@ export default function GameLogApp() {
     return signalGames.slice(0, 8).map((item) => ({ game: item.game, score: "Add", note: item.note }));
   }, [backlogAttackPlan, signalGames]);
 
-  const pulseNextPick = backlogAttackPlan[0]?.games ?? nowPlayingLogs[0]?.games ?? signalGames[0]?.game ?? homeTrendingGames[0] ?? catalogGames[0];
+  const pulseNextPick = backlogAttackPlan[0]?.games ?? nowPlayingLogs[0]?.games ?? signalGames[0]?.game ?? homeTrendingGames[0] ?? primaryCatalogGames[0];
   const pulseContinuePick = nowPlayingLogs[0]?.games ?? null;
   const socialSparkLine = trendingLogs[0]?.games?.title ? `${trendingLogs[0].games?.title} is getting reactions` : topGames[0]?.game.title ? `${topGames[0].game.title} leads your chart` : "Start the first big take";
-  const catalogTrustScore = Math.min(100, Math.round(((coverCount / Math.max(1, catalogGames.length)) * 55) + (Math.min(catalogGames.length, 700) / 700) * 30 + (connected ? 15 : 0)));
+  const catalogTrustScore = Math.min(100, Math.round(((coverCount / Math.max(1, primaryCatalogGames.length)) * 55) + (Math.min(primaryCatalogGames.length, 700) / 700) * 30 + (connected ? 15 : 0)));
   const betaLaunchScore = Math.min(100, Math.round((signedIn ? 16 : 0) + Math.min(28, myLogs.length * 3) + Math.min(18, discoveryActions.length) + Math.min(16, lists.length * 4) + (connected ? 22 : 0)));
   const nextLevelMissions = [
     { title: "Build the first public shelf", body: "Make one list that sells your taste in 5 games.", action: () => setView("lists" as View), cta: "Open lists", done: Boolean(topShareList) },
     { title: "Train the For You stream", body: "Swipe 20 games so GameLog knows your lane.", action: () => setView("discover" as View), cta: "Swipe now", done: discoveryActions.length >= 20 },
     { title: "Make your profile shareable", body: "Add bio, favorite game, and at least one review.", action: () => setView("share" as View), cta: "Open Share Studio", done: !profileNeedsSetup && reviewedCount > 0 },
-    { title: "Pressure-test the catalog", body: "Search one missing game and import it from IGDB.", action: () => setView("games" as View), cta: "Search games", done: catalogGames.some((game) => gameSource(game) === "IGDB") }
+    { title: "Pressure-test the catalog", body: "Search one missing game and import it from IGDB.", action: () => setView("games" as View), cta: "Search games", done: primaryCatalogGames.some((game) => gameSource(game) === "IGDB") }
   ];
 
   const todayKey = today();
@@ -2140,7 +2245,8 @@ export default function GameLogApp() {
 
     try {
       const limit = Math.max(5, Math.min(Number(steamImportLimit) || 30, 75));
-      const response = await fetch(`/api/steam/search?q=${encodeURIComponent(q)}&limit=${limit}`);
+      const addOnFlag = steamIncludeAddOns ? "&include_addons=1" : "";
+      const response = await fetch(`/api/steam/search?q=${encodeURIComponent(q)}&limit=${limit}${addOnFlag}`);
       if (!response.ok) throw new Error(`Steam search failed with status ${response.status}.`);
       const body = await response.json();
       const added = await importExternalGames(body.games ?? [], "Steam");
@@ -3269,6 +3375,9 @@ ${item.body}`;
               <GameDetailPanel
                 game={selectedGame}
                 logs={logs.filter((log) => log.game_id === selectedGame.id)}
+                addOns={addOnsByGameId.get(selectedGame.id) ?? []}
+                onTrackPrice={(product) => watchPrice(product)}
+                onOpenAddOn={(product) => setPriceSelectedGameId(product.id)}
                 onClose={() => setSelectedGameId(null)}
                 onLog={() => { setLogGameId(selectedGame.id); setView("log"); }}
               />
@@ -3865,8 +3974,8 @@ ${item.body}`;
           <section className="hero price-hero-v23">
             <div className="hero-card">
               <p className="eyebrow">GameLog Price Watch</p>
-              <h1>Track deals, sale drops, and price history.</h1>
-              <p className="lede">GameLog can now watch prices for your backlog, build historical price snapshots, and surface games on sale so the next play is also the smart buy.</p>
+              <h1>Track games, editions, DLC, and sale drops.</h1>
+              <p className="lede">GameLog now keeps smaller products inside the base game page, so DLCs and passes do not flood the catalog while still getting price history.</p>
               <div className="actions">
                 <button className="primary" onClick={checkTrackedPrices} disabled={Boolean(priceCheckingId)}><DollarSign size={18} /> {priceCheckingId ? "Checking..." : "Check watchlist"}</button>
                 <button className="secondary" onClick={() => setView("games")}><Search size={18} /> Add games</button>
@@ -3877,11 +3986,12 @@ ${item.body}`;
               <p className="eyebrow">Deal board</p>
               <div className="stats compact-stats">
                 <div className="stat"><strong>{watchedPriceGames.length}</strong><span>Watched</span></div>
+                <div className="stat"><strong>{hiddenAddOnCount}</strong><span>Nested DLC</span></div>
                 <div className="stat"><strong>{priceSnapshots.length}</strong><span>Snapshots</span></div>
                 <div className="stat"><strong>{salePriceRows.length}</strong><span>On sale</span></div>
                 <div className="stat"><strong>{priceSnapshots.filter((item) => item.discount_percent >= 50).length}</strong><span>Deep cuts</span></div>
               </div>
-              <p className="muted">Steam checks work best for Steam imports or games Steam can match by title. Historical charts grow every time you check prices.</p>
+              <p className="muted">DLCs, passes, soundtracks, and smaller products live inside their base game family instead of taking over your main rows.</p>
             </div>
           </section>
 
@@ -3896,16 +4006,18 @@ ${item.body}`;
               </div>
               {salePriceRows.length ? (
                 <div className="price-deal-grid">
-                  {salePriceRows.map(({ game, latest, low }) => latest && (
-                    <article className="price-card-v23" key={game.id}>
-                      <strong>{game.title}</strong>
-                      <span className="price-deal-badge">{latest.discount_percent}% off</span>
-                      <div className="price-big">{formatGamePrice(latest.current_price, latest.currency)}</div>
-                      <p className="muted">Was {formatGamePrice(latest.original_price, latest.currency)} · Low seen {formatGamePrice(low?.current_price, latest.currency)}</p>
+                  {salePriceRows.map((row) => (
+                    <article className="price-card-v23" key={`${row.game.id}-${row.saleProduct.id}`}>
+                      <strong>{row.game.title}</strong>
+                      {row.saleProduct.id !== row.game.id && <span className="tag nested-product-tag">{addOnKind(row.saleProduct)} · {row.saleProduct.title}</span>}
+                      {row.addOnCount > 0 && <span className="tag nested-product-tag">{row.addOnCount} add-on{row.addOnCount === 1 ? "" : "s"} inside</span>}
+                      <span className="price-deal-badge">{row.latest.discount_percent}% off</span>
+                      <div className="price-big">{formatGamePrice(row.latest.current_price, row.latest.currency)}</div>
+                      <p className="muted">Was {formatGamePrice(row.latest.original_price, row.latest.currency)} · Low seen {formatGamePrice(row.low?.current_price, row.latest.currency)}</p>
                       <div className="actions" style={{ marginTop: 10 }}>
-                        <button className="secondary" onClick={() => setPriceSelectedGameId(game.id)}>Chart</button>
-                        <button className="secondary" onClick={() => checkSteamPrice(game)} disabled={priceCheckingId === game.id}>{priceCheckingId === game.id ? "Checking..." : "Refresh"}</button>
-                        {latest.store_url && <a className="secondary inline-link" href={latest.store_url} target="_blank" rel="noreferrer"><ExternalLink size={14} /> Store</a>}
+                        <button className="secondary" onClick={() => setPriceSelectedGameId(row.game.id)}>Family</button>
+                        <button className="secondary" onClick={() => checkSteamPrice(row.saleProduct)} disabled={priceCheckingId === row.saleProduct.id}>{priceCheckingId === row.saleProduct.id ? "Checking..." : "Refresh"}</button>
+                        {row.latest.store_url && <a className="secondary inline-link" href={row.latest.store_url} target="_blank" rel="noreferrer"><ExternalLink size={14} /> Store</a>}
                       </div>
                     </article>
                   ))}
@@ -3930,6 +4042,23 @@ ${item.body}`;
                     <button className="primary" onClick={() => checkSteamPrice(priceSelectedGame)} disabled={priceCheckingId === priceSelectedGame.id}>{priceCheckingId === priceSelectedGame.id ? "Checking..." : "Check Steam"}</button>
                     <button className="secondary" onClick={() => seedPriceHistory(priceSelectedGame)}>Seed sample history</button>
                   </div>
+                  {!!selectedPriceAddOns.length && (
+                    <div className="nested-products-panel">
+                      <div className="review-top"><h3>DLC & smaller products</h3><span className="tag">{selectedPriceAddOns.length}</span></div>
+                      {selectedPriceAddOns.slice(0, 8).map((addOn) => {
+                        const latest = latestSnapshotForGame(priceSnapshots, addOn.id);
+                        return (
+                          <div className="nested-product-row" key={addOn.id}>
+                            <div><strong>{addOn.title}</strong><span>{addOnKind(addOn)} · {latest ? formatGamePrice(latest.current_price, latest.currency) : "Not checked"}</span></div>
+                            <div className="actions" style={{ marginTop: 0 }}>
+                              <button className="secondary" onClick={() => checkSteamPrice(addOn)} disabled={priceCheckingId === addOn.id}>{priceCheckingId === addOn.id ? "Checking..." : "Check"}</button>
+                              <button className="secondary" onClick={() => setPriceSelectedGameId(addOn.id)}>Chart</button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </>
               ) : <EmptyState title="Choose a watched game" body="Select a game below or add one from the catalog to see its price history." />}
             </aside>
@@ -3946,14 +4075,18 @@ ${item.body}`;
               </div>
 
               <div className="price-watch-grid" style={{ marginBottom: 18 }}>
-                {watchedPriceGames.map((game) => {
+                {watchedPriceFamilyGames.map((game) => {
                   const latest = latestSnapshotForGame(priceSnapshots, game.id);
+                  const addOns = addOnsByGameId.get(game.id) ?? [];
+                  const watchedAddOns = addOns.filter((item) => priceWatchIds.includes(item.id));
                   return (
                     <article className="price-card-v23" key={game.id}>
                       <strong>{game.title}</strong>
-                      <p className="muted">{latest ? `${formatGamePrice(latest.current_price, latest.currency)} · ${latest.discount_percent}% off · ${new Date(latest.checked_at).toLocaleDateString()}` : "No price check yet"}</p>
+                      <p className="muted">{latest ? `${formatGamePrice(latest.current_price, latest.currency)} · ${latest.discount_percent}% off · ${new Date(latest.checked_at).toLocaleDateString()}` : "No base-game price check yet"}</p>
+                      {!!addOns.length && <span className="tag nested-product-tag">{addOns.length} DLC / smaller product{addOns.length === 1 ? "" : "s"} inside</span>}
+                      {!!watchedAddOns.length && <p className="muted tiny-nested-list">Watching: {watchedAddOns.slice(0, 3).map((item) => item.title).join(", ")}{watchedAddOns.length > 3 ? "…" : ""}</p>}
                       <div className="actions" style={{ marginTop: 10 }}>
-                        <button className="secondary" onClick={() => setPriceSelectedGameId(game.id)}>Chart</button>
+                        <button className="secondary" onClick={() => setPriceSelectedGameId(game.id)}>Family</button>
                         <button className="secondary" onClick={() => checkSteamPrice(game)} disabled={priceCheckingId === game.id}>{priceCheckingId === game.id ? "Checking..." : "Check"}</button>
                         <button className="danger" onClick={() => unwatchPrice(game.id)}>Remove</button>
                       </div>
@@ -3969,7 +4102,7 @@ ${item.body}`;
                   return (
                     <div className="price-row" key={game.id}>
                       <strong>{game.title}</strong>
-                      <span className="muted">{game.genre ?? "Game"}</span>
+                      <span className="muted">{game.genre ?? "Game"}{(addOnsByGameId.get(game.id)?.length ?? 0) ? ` · ${addOnsByGameId.get(game.id)?.length} add-ons inside` : ""}</span>
                       <span>{latest ? formatGamePrice(latest.current_price, latest.currency) : "Not checked"}</span>
                       <span>{latest?.discount_percent ? <span className="price-deal-badge">{latest.discount_percent}% off</span> : <span className="muted">No sale data</span>}</span>
                       <div className="actions" style={{ marginTop: 0 }}>
@@ -4000,13 +4133,13 @@ ${item.body}`;
               </div>
             </div>
             <div className="catalog-engine-note">
-              <BadgeCheck size={16} /> v1.12 keeps duplicate cleanup and Show More, then adds a beta feedback loop so testers can help fix missing games and UI friction fast.
+              <BadgeCheck size={16} /> v2.4 keeps DLCs, passes, soundtracks, and smaller products inside the base game so the main catalog stays clean.
             </div>
             <div className="catalog-toolbar">
               <span><strong>{filteredGames.length}</strong> matches</span>
               <span><strong>{displayedGames.length}</strong> showing</span>
               <span><strong>{coverCount}</strong> covers</span>
-              {hiddenDuplicateCount ? <span><strong>{hiddenDuplicateCount}</strong> dupes hidden</span> : <span>Clean catalog view</span>}
+              {hiddenAddOnCount ? <span><strong>{hiddenAddOnCount}</strong> DLC nested</span> : hiddenDuplicateCount ? <span><strong>{hiddenDuplicateCount}</strong> dupes hidden</span> : <span>Clean catalog view</span>}
             </div>
             <div className="form-grid two" style={{ marginBottom: 16 }}>
               <div className="field">
@@ -4022,7 +4155,7 @@ ${item.body}`;
             </div>
             <div className="game-grid">
               {displayedGames.map((game) => (
-                <GameCard key={game.id} game={game} onLog={() => { setLogGameId(game.id); setView("log"); }} onDetails={() => setSelectedGameId(game.id)} onTrackPrice={() => watchPrice(game)} />
+                <GameCard key={game.id} game={game} addOnCount={addOnsByGameId.get(game.id)?.length ?? 0} onLog={() => { setLogGameId(game.id); setView("log"); }} onDetails={() => setSelectedGameId(game.id)} onTrackPrice={() => watchPrice(game)} />
               ))}
             </div>
             {remainingFilteredGames > 0 && (
@@ -4042,6 +4175,9 @@ ${item.body}`;
               <GameDetailPanel
                 game={selectedGame}
                 logs={logs.filter((log) => log.game_id === selectedGame.id)}
+                addOns={addOnsByGameId.get(selectedGame.id) ?? []}
+                onTrackPrice={(product) => watchPrice(product)}
+                onOpenAddOn={(product) => setPriceSelectedGameId(product.id)}
                 onClose={() => setSelectedGameId(null)}
                 onLog={() => { setLogGameId(selectedGame.id); setView("log"); }}
               />
@@ -4377,10 +4513,11 @@ ${item.body}`;
 
               {sourceMode === "steam" && (
                 <>
-                  <div className="review-top"><div><h3>Steam search import</h3><p className="muted">Fast PC game imports with Steam capsule art. Use search for precise terms or mega import for a broad starter wave.</p></div><span className="tag">PC</span></div>
+                  <div className="review-top"><div><h3>Steam search import</h3><p className="muted">Fast PC game imports with Steam capsule art. Turn on DLC / smaller products only when you want add-ons nested inside a base game family.</p></div><span className="tag">PC</span></div>
                   <div className="form-grid three">
                     <div className="field"><label><Search size={14} /> Steam search</label><input value={steamQuery} onChange={(event) => setSteamQuery(event.target.value)} placeholder="elden ring, souls, farming, shooter..." /></div>
                     <div className="field"><label>Limit</label><select value={steamImportLimit} onChange={(event) => setSteamImportLimit(event.target.value)}><option>10</option><option>30</option><option>50</option><option>75</option></select></div>
+                    <label className="inline-check source-button"><input type="checkbox" checked={steamIncludeAddOns} onChange={(event) => setSteamIncludeAddOns(event.target.checked)} /> Include DLC / smaller products</label>
                     <button className="primary source-button" onClick={importSteamSearchGames} disabled={steamImporting}><DownloadCloud size={18} /> {steamImporting ? "Importing..." : "Import Steam"}</button>
                   </div>
                   <div className="actions" style={{ marginTop: 12 }}><button className="secondary" onClick={importSteamMegaPack} disabled={steamMegaImporting}><DownloadCloud size={18} /> {steamMegaImporting ? "Mega importing..." : "Steam mega import"}</button></div>
@@ -4692,7 +4829,7 @@ function PriceHistoryChart({ snapshots }: { snapshots: PriceSnapshot[] }) {
   );
 }
 
-function GameCard({ game, onLog, onDetails, onTrackPrice }: { game: Game; onLog: () => void; onDetails: () => void; onTrackPrice?: () => void }) {
+function GameCard({ game, addOnCount = 0, onLog, onDetails, onTrackPrice }: { game: Game; addOnCount?: number; onLog: () => void; onDetails: () => void; onTrackPrice?: () => void }) {
   return (
     <article className="game-card">
       <GameCover game={game} />
@@ -4706,6 +4843,7 @@ function GameCard({ game, onLog, onDetails, onTrackPrice }: { game: Game; onLog:
         <p className="muted" style={{ minHeight: 58 }}>{game.summary ?? "No summary yet."}</p>
         <div className="tag-row">
           <span className={`tag source-badge source-${gameSource(game).toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}>{gameSource(game)}</span>
+          {addOnCount > 0 && <span className="tag nested-product-tag">{addOnCount} add-on{addOnCount === 1 ? "" : "s"}</span>}
           {(game.platforms ?? []).slice(0, 3).map((platform) => <span className="tag" key={platform}>{platform}</span>)}
         </div>
         <div className="card-actions">
@@ -4902,7 +5040,7 @@ function AchievementBadge({ badge }: { badge: { title: string; body: string; pro
   );
 }
 
-function GameDetailPanel({ game, logs, onClose, onLog }: { game: Game; logs: GameLog[]; onClose: () => void; onLog: () => void }) {
+function GameDetailPanel({ game, logs, addOns = [], onClose, onLog, onTrackPrice, onOpenAddOn }: { game: Game; logs: GameLog[]; addOns?: Game[]; onClose: () => void; onLog: () => void; onTrackPrice?: (game: Game) => void; onOpenAddOn?: (game: Game) => void }) {
   const rated = logs.filter((log) => log.rating !== null && log.rating !== undefined);
   const average = rated.length ? (rated.reduce((sum, log) => sum + Number(log.rating), 0) / rated.length).toFixed(1) : "0.0";
 
@@ -4925,8 +5063,24 @@ function GameDetailPanel({ game, logs, onClose, onLog }: { game: Game; logs: Gam
         {game.genre && <span className="tag">{game.genre}</span>}
         {(game.platforms ?? []).map((platform) => <span className="tag" key={platform}>{platform}</span>)}
       </div>
+      {!!addOns.length && (
+        <div className="nested-products-panel detail-nested-products">
+          <div className="review-top"><h3>DLC & smaller products</h3><span className="tag">{addOns.length} inside</span></div>
+          <p className="muted">GameLog keeps add-ons under the base game so small products do not clutter the main catalog.</p>
+          {addOns.slice(0, 8).map((addOn) => (
+            <div className="nested-product-row" key={addOn.id}>
+              <div><strong>{addOn.title}</strong><span>{addOnKind(addOn)} · {addOn.genre ?? "Add-on"}</span></div>
+              <div className="actions" style={{ marginTop: 0 }}>
+                {onTrackPrice && <button className="secondary" onClick={() => onTrackPrice(addOn)}>Watch price</button>}
+                {onOpenAddOn && <button className="secondary" onClick={() => onOpenAddOn(addOn)}>Chart</button>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="actions">
         <button className="primary" onClick={onLog}><Star size={16} /> Log this game</button>
+        {onTrackPrice && <button className="secondary" onClick={() => onTrackPrice(game)}><DollarSign size={16} /> Watch price</button>}
         {game.slug && <a className="secondary inline-link" href={`/g/${game.slug}`} target="_blank" rel="noreferrer"><ExternalLink size={16} /> Public game page</a>}
         <a className="secondary inline-link" href={archiveSearchUrl(game.title, "guides")} target="_blank" rel="noreferrer"><ExternalLink size={16} /> Find manuals/guides</a>
         {archiveDetailsUrlFromGame(game) && <a className="secondary inline-link" href={archiveDetailsUrlFromGame(game) ?? "#"} target="_blank" rel="noreferrer"><ExternalLink size={16} /> Open Archive item</a>}

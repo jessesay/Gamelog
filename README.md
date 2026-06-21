@@ -1,25 +1,22 @@
-# GameLog v2.3 — Price Watch Layer
+# GameLog v2.4 — Product Families / DLC Nesting
 
-This patch adds game/product price tracking to GameLog.
+This update keeps DLCs, passes, soundtracks, upgrades, and smaller products inside their base game instead of letting them fill the main catalog and price boards.
 
 ## New
 
-- Price Watch section in top navigation and mobile navigation.
-- Track games/products from the catalog.
-- Steam current price lookup through `/api/prices/steam`.
-- Local historical price snapshots.
-- Price history chart per watched game.
-- Games on sale board.
-- Export price data JSON.
-- Optional Supabase SQL: `supabase/v2_3_price_watch.sql`.
+- Main Games catalog hides nested DLC/add-ons when a base game is detected.
+- Game cards show compact add-on counts.
+- Game details include a DLC & smaller products drawer.
+- Price Watch groups add-ons under the base game family.
+- Sales can surface either the base game or a nested DLC/pass.
+- Steam import has an optional **Include DLC / smaller products** toggle.
+- Optional Supabase SQL adds `product_type` and `parent_game_id` for cleaner future relationships.
 
 ## Install
 
-Copy this patch into the root of the GameLog repo and replace files.
+Copy the patch into the repo root, replace files, commit:
 
-Commit:
-
-`Build GameLog v2.3 Price Watch layer`
+`Build GameLog v2.4 product families`
 
 Then run:
 
@@ -27,12 +24,11 @@ Then run:
 
 ## Test
 
-Open `http://localhost:3000` and check:
+- Import Steam with **Include DLC / smaller products** checked.
+- Open Games and confirm add-ons are not taking over the grid.
+- Open a base game detail page and look for **DLC & smaller products**.
+- Open Prices and confirm add-ons live inside the game family.
 
-- Home → Price Watch
-- Top nav → Prices
-- Games → Price button
-- Prices → Watch / Check / Seed sample history
-- Prices → Games on sale
+Optional Supabase SQL:
 
-Steam prices work best for games imported from Steam or games that Steam can match by title. Historical charts grow as you check prices over time. Seed sample history is included so you can see the chart immediately while testing.
+`supabase/v2_4_product_families.sql`
