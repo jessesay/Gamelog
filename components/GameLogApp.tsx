@@ -34,6 +34,7 @@ import {
   Trash2,
   Target,
   Trophy,
+  Timer,
   UserMinus,
   UserPlus,
   UserRound,
@@ -45,6 +46,7 @@ import { getSupabaseBrowserClient, hasSupabaseEnv } from "@/lib/supabase";
 import { demoProfile, loadDemoState, saveDemoState, starterGames } from "@/lib/demo";
 import { getEffectiveCoverUrl, getKnownCoverUrl, withKnownCover } from "@/lib/coverArt";
 import type { Follow, Game, GameList, GameLog, Profile, ReviewComment } from "@/lib/types";
+import { completionEstimateForGame, completionSortValue, formatCompletionHours, formatCompletionTotal, timeBucketLabel, totalCompletionHours, type CompletionBucket } from "@/lib/timeToBeat";
 
 type View = "home" | "onboarding" | "pulse" | "match" | "arena" | "prices" | "deals" | "radar" | "collections" | "discover" | "library" | "coach" | "charts" | "share" | "beta" | "quests" | "wrapped" | "games" | "log" | "feed" | "lists" | "people" | "history" | "sources" | "profile";
 type AuthMode = "signin" | "signup";
@@ -57,6 +59,8 @@ type ArchiveMode = "guides" | "software" | "covers";
 type CoachMode = "next" | "weekend" | "review" | "taste";
 type MatchLength = "Quick" | "One night" | "Long haul";
 type MatchEnergy = "Any" | "Cozy" | "Challenge" | "Story" | "Social";
+type GameTimeFilter = "All" | CompletionBucket;
+type GameSortMode = "Title" | "Shortest first" | "Longest first" | "Newest" | "Best fit";
 type FeedbackKind = "Bug" | "Missing game" | "Duplicate game" | "Feature idea" | "UI polish" | "Other";
 type PriceSnapshot = {
   id: string;
@@ -106,6 +110,8 @@ const vibes = ["Masterpiece", "Hidden Gem", "Overrated", "Cozy", "Sweaty", "Chao
 const discoveryMoods: DiscoveryMood[] = ["All", "Cozy", "Hardcore", "Multiplayer", "Story", "Short", "Open World", "Shooter", "Strategy", "Indie"];
 const matchLengths: MatchLength[] = ["Quick", "One night", "Long haul"];
 const matchEnergies: MatchEnergy[] = ["Any", "Cozy", "Challenge", "Story", "Social"];
+const gameTimeFilters: GameTimeFilter[] = ["All", "Short", "Weekend", "Long", "Massive", "Ongoing"];
+const gameSortModes: GameSortMode[] = ["Title", "Shortest first", "Longest first", "Newest", "Best fit"];
 
 const demoFriends: Profile[] = [
   {
@@ -303,6 +309,10 @@ function mergeGameRecord(existing: Game, incoming: Partial<Game>): Game {
     igdb_id: existing.igdb_id ?? incoming.igdb_id ?? null,
     source: existing.source ?? incoming.source ?? gameSource(incoming),
     source_url: existing.source_url ?? incoming.source_url ?? null,
+    time_to_beat_main_hours: existing.time_to_beat_main_hours ?? incoming.time_to_beat_main_hours ?? null,
+    time_to_beat_extra_hours: existing.time_to_beat_extra_hours ?? incoming.time_to_beat_extra_hours ?? null,
+    time_to_beat_completionist_hours: existing.time_to_beat_completionist_hours ?? incoming.time_to_beat_completionist_hours ?? null,
+    time_to_beat_source: existing.time_to_beat_source ?? incoming.time_to_beat_source ?? null,
     is_community: existing.is_community ?? incoming.is_community ?? true
   };
 }
@@ -558,7 +568,7 @@ export default function GameLogApp() {
   const [view, setView] = useState<View>("home");
   useEffect(() => {
     const requestedView = new URLSearchParams(window.location.search).get("view") as View | null;
-    const allowedViews: View[] = ["home", "onboarding", "pulse", "match", "arena", "prices", "deals", "radar", "discover", "library", "coach", "charts", "share", "beta", "quests", "wrapped", "games", "log", "feed", "lists", "people", "history", "sources", "profile"];
+    const allowedViews: View[] = ["home", "onboarding", "pulse", "match", "arena", "prices", "deals", "radar", "collections", "discover", "library", "coach", "charts", "share", "beta", "quests", "wrapped", "games", "log", "feed", "lists", "people", "history", "sources", "profile"];
     if (requestedView && allowedViews.includes(requestedView)) setView(requestedView);
   }, []);
   const [feedFilter, setFeedFilter] = useState<FeedFilter>("all");
@@ -628,6 +638,8 @@ export default function GameLogApp() {
 
   const [query, setQuery] = useState("");
   const [genre, setGenre] = useState("All");
+  const [gameTimeFilter, setGameTimeFilter] = useState<GameTimeFilter>("All");
+  const [gameSortMode, setGameSortMode] = useState<GameSortMode>("Title");
   const [gameDisplayLimit, setGameDisplayLimit] = useState(48);
   const [authMode, setAuthMode] = useState<AuthMode>("signin");
   const [email, setEmail] = useState("");
@@ -748,6 +760,7 @@ export default function GameLogApp() {
     const needle = query.toLowerCase();
     return primaryCatalogGames
       .filter((game) => genre === "All" || game.genre === genre)
+      .filter((game) => gameTimeFilter === "All" || completionEstimateForGame(game).bucket === gameTimeFilter)
       .filter((game) => {
         if (!needle) return true;
         return [game.title, game.developer, game.genre, game.summary, ...(game.platforms ?? [])]
@@ -756,15 +769,21 @@ export default function GameLogApp() {
           .toLowerCase()
           .includes(needle);
       })
-      .sort((a, b) => a.title.localeCompare(b.title));
-  }, [primaryCatalogGames, genre, query]);
+      .sort((a, b) => {
+        if (gameSortMode === "Shortest first") return completionSortValue(a) - completionSortValue(b) || a.title.localeCompare(b.title);
+        if (gameSortMode === "Longest first") return completionSortValue(b) - completionSortValue(a) || a.title.localeCompare(b.title);
+        if (gameSortMode === "Newest") return (b.release_year ?? 0) - (a.release_year ?? 0) || a.title.localeCompare(b.title);
+        if (gameSortMode === "Best fit") return gameTasteScore(b, myLogs, tasteGenres, tasteMoods) - gameTasteScore(a, myLogs, tasteGenres, tasteMoods) || completionSortValue(a) - completionSortValue(b) || a.title.localeCompare(b.title);
+        return a.title.localeCompare(b.title);
+      });
+  }, [primaryCatalogGames, genre, gameTimeFilter, gameSortMode, myLogs, query, tasteGenres, tasteMoods]);
 
   const displayedGames = useMemo(() => filteredGames.slice(0, gameDisplayLimit), [filteredGames, gameDisplayLimit]);
   const remainingFilteredGames = Math.max(0, filteredGames.length - displayedGames.length);
 
   useEffect(() => {
     setGameDisplayLimit(48);
-  }, [query, genre]);
+  }, [query, genre, gameTimeFilter, gameSortMode]);
 
   const feedLogs = useMemo(() => {
     if (feedFilter === "mine") return logs.filter((log) => log.user_id === currentUserId);
@@ -993,13 +1012,22 @@ export default function GameLogApp() {
     { title: "Completed", subtitle: "Finished games worth rating and reviewing", logs: myLogs.filter((log) => ["Completed", "100% Completed"].includes(log.status)) },
     { title: "Dropped / Replaying", subtitle: "Games that need another chance or did not hit", logs: myLogs.filter((log) => ["Dropped", "Replaying"].includes(log.status)) }
   ], [myLogs]);
+  const backlogTimeHours = useMemo(() => totalCompletionHours(myLogs.filter((log) => ["Want to Play", "Backlog"].includes(log.status)).map((log) => log.games)), [myLogs]);
+  const loggedTimeHours = useMemo(() => totalCompletionHours(myLogs.map((log) => log.games)), [myLogs]);
+  const shortBacklogCount = useMemo(() => myLogs.filter((log) => ["Want to Play", "Backlog"].includes(log.status) && log.games && completionEstimateForGame(log.games).bucket === "Short").length, [myLogs]);
+  const massiveBacklogCount = useMemo(() => myLogs.filter((log) => ["Want to Play", "Backlog"].includes(log.status) && log.games && ["Massive", "Ongoing"].includes(completionEstimateForGame(log.games).bucket)).length, [myLogs]);
+
   const backlogAttackPlan = useMemo(() => {
     const backlog = myLogs.filter((log) => ["Want to Play", "Backlog"].includes(log.status) && log.games);
     return [...backlog]
       .sort((a, b) => {
-        const scoreA = gameTasteScore(a.games!, myLogs, tasteGenres, tasteMoods) + Number(Boolean(getEffectiveCoverUrl(a.games!)));
-        const scoreB = gameTasteScore(b.games!, myLogs, tasteGenres, tasteMoods) + Number(Boolean(getEffectiveCoverUrl(b.games!)));
-        return scoreB - scoreA || new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime();
+        const timeA = completionEstimateForGame(a.games!);
+        const timeB = completionEstimateForGame(b.games!);
+        const timeFitA = timeA.bucket === "Short" ? 9 : timeA.bucket === "Weekend" ? 6 : timeA.bucket === "Long" ? 2 : -3;
+        const timeFitB = timeB.bucket === "Short" ? 9 : timeB.bucket === "Weekend" ? 6 : timeB.bucket === "Long" ? 2 : -3;
+        const scoreA = gameTasteScore(a.games!, myLogs, tasteGenres, tasteMoods) + Number(Boolean(getEffectiveCoverUrl(a.games!))) + timeFitA;
+        const scoreB = gameTasteScore(b.games!, myLogs, tasteGenres, tasteMoods) + Number(Boolean(getEffectiveCoverUrl(b.games!))) + timeFitB;
+        return scoreB - scoreA || completionSortValue(a.games!) - completionSortValue(b.games!) || new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime();
       })
       .slice(0, 5);
   }, [myLogs, tasteGenres, tasteMoods]);
@@ -1023,6 +1051,7 @@ export default function GameLogApp() {
     return primaryCatalogGames
       .map((game) => {
         const text = [game.title, game.genre, game.summary, game.developer, game.publisher, ...(game.platforms ?? [])].filter(Boolean).join(" ").toLowerCase();
+        const timeEstimate = completionEstimateForGame(game);
         const reasons: string[] = [];
         const status = ownedStatuses.get(game.id);
         let score = gameTasteScore(game, myLogs, tasteGenres, tasteMoods);
@@ -1033,14 +1062,18 @@ export default function GameLogApp() {
         if (passedGameIds.has(game.id)) score -= 22;
 
         if (matchLength === "Quick") {
-          if (/short|run|arcade|rogue|hades|vampire|slay|session|arena|chapter/.test(text)) { score += 12; reasons.push("Quick-session energy"); }
-          if (/open world|massive|mmo|hundred|campaign|crpg|jrpg|simulator/.test(text)) score -= 5;
+          if (timeEstimate.bucket === "Short") { score += 16; reasons.push(`${timeEstimate.compactLabel} finish`); }
+          if (/short|run|arcade|rogue|hades|vampire|slay|session|arena|chapter/.test(text)) { score += 8; reasons.push("Quick-session energy"); }
+          if (["Long", "Massive", "Ongoing"].includes(timeEstimate.bucket)) score -= 8;
+          if (/open world|massive|mmo|hundred|campaign|crpg|jrpg|simulator/.test(text)) score -= 4;
         }
         if (matchLength === "One night") {
-          if (/story|action|adventure|shooter|indie|horror|chapter|campaign/.test(text)) { score += 8; reasons.push("Good one-night plan"); }
+          if (["Short", "Weekend"].includes(timeEstimate.bucket)) { score += 10; reasons.push(`${timeEstimate.compactLabel} plan`); }
+          if (/story|action|adventure|shooter|indie|horror|chapter|campaign/.test(text)) { score += 6; reasons.push("Good one-night plan"); }
         }
         if (matchLength === "Long haul") {
-          if (/rpg|open world|sandbox|strategy|sim|mmo|colony|survival|builder|management/.test(text)) { score += 12; reasons.push("Long-haul save"); }
+          if (["Long", "Massive", "Ongoing"].includes(timeEstimate.bucket)) { score += 10; reasons.push(timeBucketLabel(timeEstimate.bucket)); }
+          if (/rpg|open world|sandbox|strategy|sim|mmo|colony|survival|builder|management/.test(text)) { score += 9; reasons.push("Long-haul save"); }
         }
 
         if (matchEnergy === "Cozy" && /cozy|farm|life|animal|stardew|chill|island|fishing|craft/.test(text)) { score += 12; reasons.push("Cozy lane"); }
@@ -1057,7 +1090,7 @@ export default function GameLogApp() {
         const percent = Math.max(58, Math.min(99, 66 + score * 2));
         const label = status === "Currently Playing" ? "Continue" : status === "Backlog" || status === "Want to Play" ? "Backlog" : "Fresh pick";
 
-        return { game, score, percent, label, reasons: uniqueReasons.length ? uniqueReasons : ["Fits your current settings"] };
+        return { game, score, percent, label, timeEstimate, reasons: uniqueReasons.length ? uniqueReasons : ["Fits your current settings"] };
       })
       .filter((item) => item.score > -6)
       .sort((a, b) => b.score - a.score || Number(Boolean(getEffectiveCoverUrl(b.game))) - Number(Boolean(getEffectiveCoverUrl(a.game))) || a.game.title.localeCompare(b.game.title))
@@ -3569,7 +3602,7 @@ ${item.body}`;
             <div className="card match-side-v21">
               <p className="eyebrow">Tonight mode</p>
               <h2>{matchmakerPicks[0]?.game.title ?? "Build your taste"}</h2>
-              <p className="muted">{matchmakerPicks[0] ? `${matchmakerPicks[0].percent}% fit · ${matchmakerPicks[0].reasons[0]}` : "Log, swipe, or import a few games and GameLog will turn this into a sharper play call."}</p>
+              <p className="muted">{matchmakerPicks[0] ? `${matchmakerPicks[0].percent}% fit · ${matchmakerPicks[0].timeEstimate.compactLabel} · ${matchmakerPicks[0].reasons[0]}` : "Log, swipe, or import a few games and GameLog will turn this into a sharper play call."}</p>
               {matchmakerPicks[0] ? <GameCover game={matchmakerPicks[0].game} variant="hero" /> : <EmptyState title="No pick yet" body="Import games or save a few from Discover." />}
               <div className="actions">
                 {matchmakerPicks[0] && <button className="primary" onClick={() => { setLogGameId(matchmakerPicks[0].game.id); setView("log"); }}><Star size={16} /> Log it</button>}
@@ -3593,6 +3626,7 @@ ${item.body}`;
                   </div>
                   <p className="muted">{item.game.release_year ?? "TBA"} · {item.game.genre ?? "Game"} · {gameSource(item.game)}</p>
                   <div className="tag-row">
+                    <span className="tag time-tag-v32"><Timer size={13} /> {item.timeEstimate.label}</span>
                     {item.reasons.map((reason) => <span className="tag" key={reason}>{reason}</span>)}
                   </div>
                   <div className="actions">
@@ -3889,6 +3923,11 @@ ${item.body}`;
               <span className="score-ring">{completionRate}%</span>
               <strong>Completion rate</strong>
               <p className="muted">{completedCount} finished out of {myLogs.length || 0} logged games.</p>
+              <div className="time-breakdown-v32">
+                <span><Timer size={13} /> {formatCompletionTotal(backlogTimeHours)} backlog</span>
+                <span>{shortBacklogCount} short wins</span>
+                <span>{massiveBacklogCount} huge saves</span>
+              </div>
             </div>
           </div>
 
@@ -3921,6 +3960,8 @@ ${item.body}`;
               <div className="stat"><strong>{monthlyLogs.length}</strong><span>This month</span></div>
               <div className="stat"><strong>{reviewedCount}</strong><span>Reviews written</span></div>
               <div className="stat"><strong>{backlogCount}</strong><span>Backlog</span></div>
+              <div className="stat"><strong>{formatCompletionTotal(backlogTimeHours)}</strong><span>Backlog time</span></div>
+              <div className="stat"><strong>{formatCompletionTotal(loggedTimeHours)}</strong><span>Library time</span></div>
             </div>
             <div className="divider" />
             <div className="mini-list">
@@ -3944,7 +3985,7 @@ ${item.body}`;
                   <button className="attack-row" key={log.id} onClick={() => startEditLog(log)}>
                     <span className="attack-rank">#{index + 1}</span>
                     <GameCover game={log.games} />
-                    <span><strong>{log.games.title}</strong><em>{getDiscoveryReasons(log.games, myLogs).slice(0, 2).join(" · ") || log.games.genre || "Backlog pick"}</em></span>
+                    <span><strong>{log.games.title}</strong><em>{completionEstimateForGame(log.games).compactLabel} · {getDiscoveryReasons(log.games, myLogs).slice(0, 2).join(" · ") || log.games.genre || "Backlog pick"}</em></span>
                   </button>
                 ) : null)}
               </div>
@@ -4274,7 +4315,7 @@ ${item.body}`;
                   <button className="attack-row" key={log.id} onClick={() => startEditLog(log)}>
                     <span className="attack-rank">#{index + 1}</span>
                     <GameCover game={log.games} />
-                    <span><strong>{log.games.title}</strong><em>{getDiscoveryReasons(log.games, myLogs).slice(0, 2).join(" · ") || log.games.genre || "Backlog pick"}</em></span>
+                    <span><strong>{log.games.title}</strong><em>{completionEstimateForGame(log.games).compactLabel} · {getDiscoveryReasons(log.games, myLogs).slice(0, 2).join(" · ") || log.games.genre || "Backlog pick"}</em></span>
                   </button>
                 ) : null)}
               </div>
@@ -4782,9 +4823,10 @@ ${item.body}`;
               <span><strong>{filteredGames.length}</strong> matches</span>
               <span><strong>{displayedGames.length}</strong> showing</span>
               <span><strong>{coverCount}</strong> covers</span>
+              <span><strong>{gameTimeFilter === "All" ? "Any" : timeBucketLabel(gameTimeFilter)}</strong> length</span>
               {hiddenAddOnCount ? <span><strong>{hiddenAddOnCount}</strong> DLC nested</span> : hiddenDuplicateCount ? <span><strong>{hiddenDuplicateCount}</strong> dupes hidden</span> : <span>Clean catalog view</span>}
             </div>
-            <div className="form-grid two" style={{ marginBottom: 16 }}>
+            <div className="form-grid four" style={{ marginBottom: 16 }}>
               <div className="field">
                 <label><Search size={14} /> Search games</label>
                 <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Minecraft, RPG, tactical, cozy..." />
@@ -4793,6 +4835,18 @@ ${item.body}`;
                 <label>Genre</label>
                 <select value={genre} onChange={(event) => setGenre(event.target.value)}>
                   {genres.map((item) => <option key={item}>{item}</option>)}
+                </select>
+              </div>
+              <div className="field">
+                <label><Timer size={14} /> Time to complete</label>
+                <select value={gameTimeFilter} onChange={(event) => setGameTimeFilter(event.target.value as GameTimeFilter)}>
+                  {gameTimeFilters.map((item) => <option key={item} value={item}>{item === "All" ? "Any length" : timeBucketLabel(item)}</option>)}
+                </select>
+              </div>
+              <div className="field">
+                <label>Sort</label>
+                <select value={gameSortMode} onChange={(event) => setGameSortMode(event.target.value as GameSortMode)}>
+                  {gameSortModes.map((item) => <option key={item}>{item}</option>)}
                 </select>
               </div>
             </div>
@@ -4972,7 +5026,7 @@ ${item.body}`;
                 {savedCollectionPacks.map((pack) => (
                   <button key={pack.id} className="mini-game-card" onClick={() => copyCollectionShare(pack)}>
                     <strong>{pack.title}</strong>
-                    <span>{pack.reason}</span>
+                    <span>{pack.reason} · {formatCompletionTotal(totalCompletionHours(pack.games))}</span>
                   </button>
                 ))}
               </div>
@@ -4989,7 +5043,7 @@ ${item.body}`;
                     <h2>{pack.title}</h2>
                     <p className="muted">{pack.tagline}</p>
                   </div>
-                  <span className="tag">{pack.reason}</span>
+                  <div className="tag-stack-v32"><span className="tag">{pack.reason}</span><span className="tag time-tag-v32"><Timer size={13} /> {formatCompletionTotal(totalCompletionHours(pack.games))}</span></div>
                 </div>
                 <p>{pack.description}</p>
                 <CoverRail games={pack.games.slice(0, 6)} onPick={(game) => { setSelectedGameId(game.id); setView("games"); }} />
@@ -5570,6 +5624,7 @@ function GameCard({ game, addOnCount = 0, onLog, onDetails, onTrackPrice }: { ga
         <p className="muted" style={{ minHeight: 58 }}>{game.summary ?? "No summary yet."}</p>
         <div className="tag-row">
           <span className={`tag source-badge source-${gameSource(game).toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}>{gameSource(game)}</span>
+          <span className="tag time-tag-v32"><Timer size={13} /> {completionEstimateForGame(game).compactLabel}</span>
           {addOnCount > 0 && <span className="tag nested-product-tag">{addOnCount} add-on{addOnCount === 1 ? "" : "s"}</span>}
           {(game.platforms ?? []).slice(0, 3).map((platform) => <span className="tag" key={platform}>{platform}</span>)}
         </div>
@@ -5704,7 +5759,7 @@ function LibraryShelf({ title, subtitle, logs, onLog }: { title: string; subtitl
           <h3>{title}</h3>
           <p className="muted" style={{ marginBottom: 0 }}>{subtitle}</p>
         </div>
-        <span className="tag">{logs.length}</span>
+        <div className="tag-stack-v32"><span className="tag">{logs.length}</span><span className="tag time-tag-v32"><Timer size={13} /> {formatCompletionTotal(totalCompletionHours(logs.map((log) => log.games)))}</span></div>
       </div>
       {logs.length ? (
         <div className="library-row">
@@ -5712,7 +5767,7 @@ function LibraryShelf({ title, subtitle, logs, onLog }: { title: string; subtitl
             <button className="library-game" key={log.id} onClick={() => onLog(log)} title={`Open ${log.games?.title ?? "game"} log`}>
               <GameCover game={log.games} />
               <strong>{log.games.title}</strong>
-              <span>{log.rating ? stars(log.rating) : log.status}</span>
+              <span>{completionEstimateForGame(log.games).compactLabel} · {log.rating ? stars(log.rating) : log.status}</span>
             </button>
           ) : null)}
         </div>
@@ -5783,8 +5838,14 @@ function GameDetailPanel({ game, logs, addOns = [], onClose, onLog, onTrackPrice
       </div>
       <div className="detail-cover-wrap"><GameCover game={game} /></div>
       <p className="lede" style={{ fontSize: "1rem" }}>{game.summary ?? "No summary yet."}</p>
+      <div className="completion-box-v32">
+        <strong><Timer size={15} /> Time to complete</strong>
+        <span>{completionEstimateForGame(game).label}</span>
+        <em>{completionEstimateForGame(game).reason} · extras around {formatCompletionHours(completionEstimateForGame(game).extraHours)} · completionist around {formatCompletionHours(completionEstimateForGame(game).completionistHours)}</em>
+      </div>
       <div className="tag-row">
         <span className="tag"><Trophy size={13} /> Avg {average}</span>
+        <span className="tag time-tag-v32"><Timer size={13} /> {completionEstimateForGame(game).label}</span>
         <span className={`tag source-badge source-${gameSource(game).toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}>{gameSource(game)}</span>
         <span className="tag">{logs.length} logs</span>
         {game.genre && <span className="tag">{game.genre}</span>}
@@ -5796,7 +5857,7 @@ function GameDetailPanel({ game, logs, addOns = [], onClose, onLog, onTrackPrice
           <p className="muted">GameLog keeps add-ons under the base game so small products do not clutter the main catalog.</p>
           {addOns.slice(0, 8).map((addOn) => (
             <div className="nested-product-row" key={addOn.id}>
-              <div><strong>{addOn.title}</strong><span>{addOnKind(addOn)} · {addOn.genre ?? "Add-on"}</span></div>
+              <div><strong>{addOn.title}</strong><span>{addOnKind(addOn)} · {completionEstimateForGame(addOn).compactLabel} · {addOn.genre ?? "Add-on"}</span></div>
               <div className="actions" style={{ marginTop: 0 }}>
                 {onTrackPrice && <button className="secondary" onClick={() => onTrackPrice(addOn)}>Watch price</button>}
                 {onOpenAddOn && <button className="secondary" onClick={() => onOpenAddOn(addOn)}>Chart</button>}
@@ -5852,14 +5913,14 @@ function GameListCard({ list, onShare }: { list: GameList; onShare?: (listId: st
           <h3>{list.title}</h3>
           <p className="muted" style={{ marginBottom: 0 }}>by @{list.profiles?.username ?? "player"}</p>
         </div>
-        <span className="tag">{list.list_items?.length ?? 0} games</span>
+        <div className="tag-stack-v32"><span className="tag">{list.list_items?.length ?? 0} games</span><span className="tag time-tag-v32"><Timer size={13} /> {formatCompletionTotal(totalCompletionHours((list.list_items ?? []).map((item) => item.games)))}</span></div>
       </div>
       {list.description && <p className="muted" style={{ marginTop: 12 }}>{list.description}</p>}
       <div className="list-cover-strip">
         {(list.list_items ?? []).slice(0, 5).map((item) => item.games ? <GameCover key={item.id} game={item.games} /> : null)}
       </div>
       <div className="tag-row">
-        {(list.list_items ?? []).slice(0, 8).map((item) => item.games ? <span className="tag" key={item.id}>{item.games.title}</span> : null)}
+        {(list.list_items ?? []).slice(0, 8).map((item) => item.games ? <span className="tag" key={item.id}>{item.games.title} · {completionEstimateForGame(item.games).compactLabel}</span> : null)}
       </div>
       <div className="card-actions">
         <a className="secondary inline-link" href={`/l/${list.id}`} target="_blank" rel="noreferrer"><ExternalLink size={15} /> Open list</a>

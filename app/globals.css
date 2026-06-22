@@ -4229,3 +4229,52 @@ textarea:focus {
 .mini-stats-v31 {
   margin-top: 18px;
 }
+
+/* v3.2 completion-time layer */
+.time-tag-v32 {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.tag-stack-v32 {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.completion-box-v32 {
+  display: grid;
+  gap: 6px;
+  margin: 14px 0;
+  padding: 13px;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 16px;
+  background: rgba(255,255,255,0.045);
+}
+.completion-box-v32 strong,
+.time-breakdown-v32 span:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.completion-box-v32 span {
+  font-weight: 800;
+  color: var(--text);
+}
+.completion-box-v32 em {
+  color: var(--muted);
+  font-style: normal;
+  font-size: 0.9rem;
+}
+.time-breakdown-v32 {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+@media (max-width: 760px) {
+  .tag-stack-v32 {
+    justify-content: flex-start;
+  }
+}

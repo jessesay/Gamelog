@@ -12,6 +12,10 @@ export type Game = {
   igdb_id?: number | null;
   source?: string | null;
   source_url?: string | null;
+  time_to_beat_main_hours?: number | null;
+  time_to_beat_extra_hours?: number | null;
+  time_to_beat_completionist_hours?: number | null;
+  time_to_beat_source?: string | null;
   product_type?: "game" | "dlc" | "edition" | "bundle" | "soundtrack" | null;
   parent_game_id?: string | null;
   created_by?: string | null;

@@ -2,6 +2,11 @@
 
 GameLog is a gaming command center for tracking, discovering, buying, and sharing games.
 
+## GameLog v3.2 — Completion Time Layer
+
+GameLog now considers time to complete when showing games, shelves, lists, Matchmaker picks, backlog plans, public game pages, and public list pages. Catalog cards include completion-time badges, catalog search has completion length filters, and backlog planning now highlights short wins versus massive saves.
+
+
 ## v3.1 adds
 
 - In-app guided setup hub at `/app?view=onboarding`

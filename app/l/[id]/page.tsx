@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import type { CSSProperties } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CalendarDays, ExternalLink, ListChecks, Share2, Star } from "lucide-react";
+import { CalendarDays, ExternalLink, ListChecks, Share2, Star, Timer } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
+import { completionEstimateForGame, formatCompletionTotal, totalCompletionHours } from "@/lib/timeToBeat";
 
 function gameHue(game: any) {
   const seed = (game?.slug ?? game?.title ?? "list").split("").reduce((sum: number, char: string) => sum + char.charCodeAt(0), 0);
@@ -90,7 +91,9 @@ export default async function PublicListPage({ params }: { params: Promise<{ id:
 
   const owner = Array.isArray(list.profiles) ? list.profiles[0] : list.profiles;
   const items = [...(list.list_items ?? [])].sort((a: any, b: any) => (a.position ?? 9999) - (b.position ?? 9999) || new Date(a.created_at ?? 0).getTime() - new Date(b.created_at ?? 0).getTime());
-  const coverGames = items.map((item: any) => item.games).filter(Boolean).slice(0, 5);
+  const listGames = items.map((item: any) => item.games).filter(Boolean);
+  const coverGames = listGames.slice(0, 5);
+  const listHours = totalCompletionHours(listGames);
 
   return (
     <main className="shell public-page-shell">
@@ -112,6 +115,7 @@ export default async function PublicListPage({ params }: { params: Promise<{ id:
           {list.description && <p className="muted public-description">{list.description}</p>}
           <div className="tag-row">
             <span className="tag">{items.length} games</span>
+            <span className="tag"><Timer size={13} /> {formatCompletionTotal(listHours)} to finish</span>
             {list.is_ranked && <span className="tag"><Star size={13} /> Ranked</span>}
             {list.created_at && <span className="tag"><CalendarDays size={13} /> {new Date(list.created_at).toLocaleDateString()}</span>}
           </div>
@@ -138,6 +142,7 @@ export default async function PublicListPage({ params }: { params: Promise<{ id:
                 <h3>{item.games.title}</h3>
                 <p className="muted">{item.games.release_year ?? "TBA"} · {item.games.genre ?? "Game"}</p>
                 <div className="tag-row">
+                  <span className="tag"><Timer size={13} /> {completionEstimateForGame(item.games).compactLabel}</span>
                   {(item.games.platforms ?? []).slice(0, 3).map((platform: string) => <span className="tag" key={platform}>{platform}</span>)}
                 </div>
                 {item.games.slug && <Link className="tiny-link" href={`/g/${item.games.slug}`}>Open game page <ExternalLink size={12} /></Link>}

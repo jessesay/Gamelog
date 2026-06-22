@@ -1,8 +1,9 @@
 import type { CSSProperties } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CalendarDays, Star } from "lucide-react";
+import { CalendarDays, Star, Timer } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
+import { completionEstimateForGame, formatCompletionHours } from "@/lib/timeToBeat";
 
 
 function gameHue(game: any) {
@@ -83,6 +84,7 @@ export default async function GamePage({ params }: { params: Promise<{ slug: str
   const rated = (logs ?? []).filter((log) => log.rating !== null);
   const avgRating = rated.length ? (rated.reduce((sum, log) => sum + Number(log.rating), 0) / rated.length).toFixed(1) : "0.0";
   const completed = (logs ?? []).filter((log) => ["Completed", "100% Completed"].includes(log.status)).length;
+  const completion = completionEstimateForGame(game);
 
   return (
     <main className="shell">
@@ -103,6 +105,7 @@ export default async function GamePage({ params }: { params: Promise<{ slug: str
           <p className="lede">{game.summary || "No summary yet."}</p>
           <div className="tag-row">
             <span className="tag"><Star size={13} /> Avg {avgRating}</span>
+            <span className="tag"><Timer size={13} /> {completion.label}</span>
             <span className="tag">{logs?.length ?? 0} logs</span>
             <span className="tag">{completed} completed</span>
             {game.genre && <span className="tag">{game.genre}</span>}
@@ -115,6 +118,8 @@ export default async function GamePage({ params }: { params: Promise<{ slug: str
           <p className="muted">Developer: {game.developer || "Unknown"}</p>
           <p className="muted">Publisher: {game.publisher || "Unknown"}</p>
           <p className="muted">Release: {game.release_year || "TBA"}</p>
+          <p className="muted">Time: {completion.label}</p>
+          <p className="muted">Extras: around {formatCompletionHours(completion.extraHours)} · Completionist: around {formatCompletionHours(completion.completionistHours)}</p>
           <div className="actions" style={{ marginTop: 12 }}>
             <Link className="primary inline-link" href="/">Log this in the app</Link>
             <a className="secondary inline-link" href={archiveSearchUrl(game.title)} target="_blank" rel="noreferrer">Find manuals/guides</a>
