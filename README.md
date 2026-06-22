@@ -1,80 +1,64 @@
-# GameLog v3.1 — New User Onboarding Polish
+# GameLog Discovery Feed v1
 
-GameLog is a gaming command center for tracking, discovering, buying, and sharing games.
+This is the drop-in upgrade that adds:
 
-## v3.1 adds
+- RAWG game sync
+- Supabase `games` table
+- Supabase `game_swipes` table
+- Swipe-style mobile feed
+- API routes for loading the feed and saving swipes
+- `npm run sync:games`
 
-- In-app guided setup hub at `/app?view=onboarding`
-- Start setup button on the app home screen
-- Launch readiness score inside the app
-- Seven first-run steps for beta testers
-- Starter taste button
-- Better `/start` guide links
-- PWA shortcut for setup
+## Fast setup
 
-## Install
+1. Unzip this folder.
+2. Copy `apply-gamelog-discovery.ps1` into the root of your GameLog project.
+3. Open PowerShell in the GameLog project root.
+4. Run:
 
-Copy the patch files into your GameLog project and replace existing files.
-
-Commit:
-
-`Build GameLog v3.1 onboarding polish`
-
-Then push and redeploy Vercel.
-
-## GameLog v3.3 — Top 10,000 catalog importer
-
-GameLog can now fill Supabase with a much deeper IGDB-powered catalog.
-
-### What changed
-
-- New public page: `/catalog-builder`
-- New API route: `/api/igdb/top-10000`
-- New Supabase upgrade: `supabase/v3_3_top_10000_catalog.sql`
-- New local importer: `scripts/import-igdb-top-10000.mjs`
-- New count checker: `scripts/check-catalog-count.mjs`
-- New Windows shortcuts: `import-top-10000.bat` and `check-catalog-count.bat`
-- `package.json` scripts: `pnpm catalog:igdb-top` and `pnpm catalog:count`
-
-### Required setup
-
-Run this SQL in Supabase first:
-
-```text
-supabase/v3_3_top_10000_catalog.sql
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\apply-gamelog-discovery.ps1
 ```
 
-Then add these to `.env.local`:
+5. Go to Supabase → SQL Editor → New query.
+6. Paste/run `gamelog_discovery_schema.sql`.
+7. In `.env.local`, replace placeholders:
 
-```text
-NEXT_PUBLIC_SUPABASE_URL=...
-SUPABASE_SERVICE_ROLE_KEY=...
-IGDB_CLIENT_ID=...
-IGDB_CLIENT_SECRET=...
+```env
+RAWG_API_KEY=your_real_rawg_key
+SUPABASE_SERVICE_ROLE_KEY=your_real_service_role_key
 ```
 
-Do not commit the real service role key.
-
-### Import command
+8. Run:
 
 ```bash
-pnpm catalog:igdb-top
+npm run sync:games
+npm run dev
 ```
 
-Or on Windows, double-click:
+## What changes
 
-```text
-import-top-10000.bat
+The installer writes these files into your project:
+
+```txt
+src/lib/gameSources/rawg.ts
+src/lib/supabase/admin.ts
+scripts/sync-games.ts
+src/app/api/games/feed/route.ts
+src/app/api/games/swipe/route.ts
+src/components/GameSwipeDeck.tsx
+src/app/page.tsx
 ```
 
-### Check database count
+It also adds this package script:
 
-```bash
-pnpm catalog:count
+```json
+"sync:games": "tsx scripts/sync-games.ts"
 ```
 
-Or on Windows, double-click:
+## Important
 
-```text
-check-catalog-count.bat
-```
+The installer replaces `src/app/page.tsx` with the swipe feed homepage. If you want to keep your old homepage, copy it somewhere first.
+
+The Supabase service role key must only stay in `.env.local` and server-side scripts/routes. Do not put it inside client components.
