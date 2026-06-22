@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, BadgeDollarSign, BarChart3, CheckCircle2, Gamepad2, Layers3, MessageSquare, Radio, Sparkles, Trophy, UserPlus } from "lucide-react";
+import { ArrowRight, BadgeDollarSign, BarChart3, CheckCircle2, Database, Gamepad2, Layers3, MessageSquare, Radio, Sparkles, Trophy, UserPlus } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "GameLog — Your gaming command center",
@@ -8,6 +8,11 @@ export const metadata: Metadata = {
 };
 
 const productPillars = [
+  {
+    title: "Deep 10,000-game catalog",
+    text: "Catalog Builder imports a ranked IGDB-powered game database so search and discovery feel real.",
+    icon: Database
+  },
   {
     title: "Decide what to play",
     text: "Pulse, Matchmaker, and Arena turn your backlog into clear tonight-ready picks.",
@@ -30,7 +35,7 @@ const productPillars = [
   }
 ];
 
-const featureRail = ["Guided Setup", "Pulse", "Matchmaker", "Arena", "Charts", "Collections", "Release Radar", "Deal Radar", "Price Watch", "Beta Launch"];
+const featureRail = ["Guided Setup", "Pulse", "Matchmaker", "Arena", "Charts", "Collections", "Release Radar", "Deal Radar", "Price Watch", "Beta Launch", "Catalog Builder"];
 
 const launchSteps = [
   "Join the beta list",
@@ -57,6 +62,7 @@ export default function MarketingHomePage() {
         </Link>
         <nav className="marketing-links" aria-label="Website navigation">
           <Link href="/features">Features</Link>
+          <Link href="/catalog-builder">Catalog</Link>
           <Link href="/join">Join beta</Link>
           <Link href="/roadmap">Roadmap</Link>
           <Link href="/status">Status</Link>
@@ -194,6 +200,7 @@ export default function MarketingHomePage() {
       <footer className="marketing-footer">
         <span>© {new Date().getFullYear()} GameLog</span>
         <Link href="/features">Features</Link>
+        <Link href="/catalog-builder">Catalog</Link>
         <Link href="/join">Join beta</Link>
         <Link href="/changelog">Changelog</Link>
         <Link href="/status">Status</Link>

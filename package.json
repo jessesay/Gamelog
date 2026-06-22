@@ -1,12 +1,14 @@
 {
   "name": "gamelog-next",
-  "version": "3.2.0",
+  "version": "3.3.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "catalog:igdb-top": "node scripts/import-igdb-top-10000.mjs --target=10000 --batch=500",
+    "catalog:count": "node scripts/check-catalog-count.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "latest",

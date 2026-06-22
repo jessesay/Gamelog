@@ -24,6 +24,12 @@
   ],
   "shortcuts": [
     {
+      "name": "Catalog Builder",
+      "short_name": "Catalog",
+      "description": "Open the GameLog top 10,000 catalog import guide.",
+      "url": "/catalog-builder"
+    },
+    {
       "name": "Setup GameLog",
       "short_name": "Setup",
       "description": "Open the in-app first-run setup checklist.",

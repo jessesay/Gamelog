@@ -7,6 +7,8 @@ export const metadata: Metadata = {
 };
 
 const releases = [
+  { version: "v3.3", title: "Top 10,000 catalog", notes: ["IGDB top catalog importer", "Supabase catalog rank and score fields", "Catalog Builder page", "Windows import and count scripts", "Server-safe service role workflow"] },
+  { version: "v3.2", title: "Completion time layer", notes: ["Time-to-complete badges", "Backlog time totals", "Matchmaker session fit", "Public list time totals"] },
   { version: "v3.0", title: "Beta launch system", notes: ["Beta signup", "First-run onboarding checklist", "Feedback inbox", "Feature voting", "What's new page", "Optional Supabase beta launch schema"] },
   { version: "v2.9", title: "Website readiness", notes: ["Features page", "Beta access guide", "Changelog", "Status page", "FAQ", "Updated sitemap and website navigation"] },
   { version: "v2.8", title: "Real website shell", notes: ["Landing page", "About, roadmap, press, privacy, terms, launch pages", "PWA start URL moved to /app"] },
@@ -23,6 +25,7 @@ export default function ChangelogPage() {
         <Link className="marketing-brand" href="/"><span className="logo">GL</span><span>GameLog</span></Link>
         <nav className="marketing-links" aria-label="Website navigation">
           <Link href="/features">Features</Link>
+          <Link href="/catalog-builder">Catalog</Link>
           <Link href="/roadmap">Roadmap</Link>
           <Link href="/app" className="marketing-nav-cta">Open app</Link>
         </nav>

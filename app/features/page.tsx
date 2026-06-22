@@ -8,6 +8,10 @@ export const metadata: Metadata = {
 
 const groups = [
   {
+    title: "Catalog depth",
+    items: ["Top 10,000 IGDB catalog pipeline", "Ranked catalog metadata", "Bulk import scripts", "Catalog count checker"]
+  },
+  {
     title: "Play decisions",
     items: ["Pulse daily command center", "Matchmaker session filters", "Arena head-to-head picks", "Charts and hidden gems"]
   },
@@ -31,6 +35,7 @@ export default function FeaturesPage() {
       <header className="marketing-nav compact-nav">
         <Link className="marketing-brand" href="/"><span className="logo">GL</span><span>GameLog</span></Link>
         <nav className="marketing-links" aria-label="Website navigation">
+          <Link href="/catalog-builder">Catalog</Link>
           <Link href="/join">Join beta</Link>
           <Link href="/roadmap">Roadmap</Link>
           <Link href="/app" className="marketing-nav-cta">Open app</Link>

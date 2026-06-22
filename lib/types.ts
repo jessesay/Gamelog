@@ -16,6 +16,13 @@ export type Game = {
   time_to_beat_extra_hours?: number | null;
   time_to_beat_completionist_hours?: number | null;
   time_to_beat_source?: string | null;
+  catalog_rank?: number | null;
+  catalog_score?: number | null;
+  igdb_total_rating?: number | null;
+  igdb_total_rating_count?: number | null;
+  igdb_hypes?: number | null;
+  igdb_follows?: number | null;
+  catalog_imported_at?: string | null;
   product_type?: "game" | "dlc" | "edition" | "bundle" | "soundtrack" | null;
   parent_game_id?: string | null;
   created_by?: string | null;

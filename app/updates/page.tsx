@@ -7,11 +7,11 @@ export const metadata: Metadata = {
 };
 
 const updates = [
-  "Beta signup and tester invite flow",
-  "First-run onboarding checklist",
-  "Feedback inbox with lightweight voting",
-  "Launch funnel links across the public website",
-  "v3.0 beta launch checklist and Supabase schema"
+  "Top 10,000 IGDB catalog importer",
+  "Supabase catalog rank and score metadata",
+  "Catalog Builder website page",
+  "Windows import and count scripts",
+  "Server-safe service role workflow"
 ];
 
 export default function UpdatesPage() {
@@ -20,6 +20,7 @@ export default function UpdatesPage() {
       <header className="marketing-nav compact-nav">
         <Link className="marketing-brand" href="/"><span className="logo">GL</span><span>GameLog</span></Link>
         <nav className="marketing-links" aria-label="Website navigation">
+          <Link href="/catalog-builder">Catalog</Link>
           <Link href="/changelog">Changelog</Link>
           <Link href="/join">Join beta</Link>
           <Link href="/app" className="marketing-nav-cta">Open app</Link>
@@ -27,9 +28,9 @@ export default function UpdatesPage() {
       </header>
       <section className="legal-card page-hero-card">
         <p className="eyebrow">What's new</p>
-        <h1>GameLog v3.0 beta launch system.</h1>
-        <p>This update turns the website into a stronger beta funnel and gives testers a clear first-run path.</p>
-        <div className="hero-actions"><Link className="primary xl" href="/start">Start guide</Link><Link className="secondary xl" href="/feedback">Feedback board</Link></div>
+        <h1>GameLog v3.3 top 10,000 catalog system.</h1>
+        <p>This update gives GameLog a real database growth path with a ranked IGDB top 10,000 importer, Supabase catalog metadata, and local admin scripts.</p>
+        <div className="hero-actions"><Link className="primary xl" href="/catalog-builder">Open Catalog Builder</Link><Link className="secondary xl" href="/app">Open app</Link></div>
       </section>
       <section className="website-grid two">
         {updates.map((item, index) => (
