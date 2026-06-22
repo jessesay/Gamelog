@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "catalog:igdb-top": "node scripts/import-igdb-top-10000.mjs --target=10000 --batch=500",
-    "catalog:count": "node scripts/check-catalog-count.mjs"
+    "catalog:count": "node scripts/check-catalog-count.mjs",
+    "sync:games": "node --env-file=.env.local scripts/sync-games.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "latest",
