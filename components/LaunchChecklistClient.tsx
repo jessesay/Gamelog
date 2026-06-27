@@ -2,15 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-const checklistKey = "gamelog-v3-launch-checklist";
+const checklistKey = "gamelog-v311-beta-checklist";
 const steps = [
-  { id: "profile", title: "Create your profile", text: "Set display name, username, favorite game, and a quick bio." },
-  { id: "catalog", title: "Import or repair catalog", text: "Use IGDB, Steam, or the starter catalog so the app feels full." },
-  { id: "taste", title: "Build your taste profile", text: "Save a few games, rate something, and try the Taste setup." },
-  { id: "matchmaker", title: "Pick tonight's game", text: "Use Pulse, Matchmaker, or Arena to get one clear play pick." },
-  { id: "prices", title: "Track one price", text: "Watch a game, seed price history, or check Steam price." },
-  { id: "share", title: "Share one thing", text: "Copy your profile, publish a list, or share a collection." },
-  { id: "feedback", title: "Send feedback", text: "Report what was confusing, missing, or surprisingly useful." }
+  { id: "profile", title: "Create your gaming identity", text: "Choose a username, bio, favorite genres, platforms, and games." },
+  { id: "logs", title: "Log three games", text: "Search the catalog and mark what you are playing, completed, or saving." },
+  { id: "review", title: "Rate or review a favorite", text: "A rating starts shaping Top Rated and your future Taste Matches." },
+  { id: "list", title: "Build your first list", text: "Curate a public recommendation or keep a private collection." },
+  { id: "match", title: "Try discovery and Taste Match", text: "Swipe the catalog, search a genre, then compare a public profile." }
 ];
 
 export default function LaunchChecklistClient() {
@@ -43,7 +41,7 @@ export default function LaunchChecklistClient() {
         <div>
           <p className="eyebrow">First-run setup</p>
           <h2>{percent}% beta-ready</h2>
-          <p>Give testers a clear path through the best parts of GameLog in the first session.</p>
+          <p>Track what you play, shape your profile, and make discovery personal in one first session.</p>
         </div>
         <span className="match-score launch-score">{done.length}/{steps.length}</span>
       </div>
@@ -59,7 +57,7 @@ export default function LaunchChecklistClient() {
           );
         })}
       </div>
-      <div className="hero-actions"><a className="primary xl" href="/app">Open app</a><a className="secondary xl" href="/feedback">Send feedback</a></div>
+      <div className="hero-actions"><a className="primary xl" href="/app/profile">Start logging</a><a className="secondary xl" href="/app/search">Explore games</a><a className="secondary xl" href="/feedback">Send feedback</a></div>
     </section>
   );
 }

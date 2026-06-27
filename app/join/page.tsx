@@ -4,7 +4,7 @@ import BetaWaitlistForm from "@/components/BetaWaitlistForm";
 
 export const metadata: Metadata = {
   title: "Join the Beta",
-  description: "Join the GameLog beta waitlist and help shape the gaming command center."
+  description: "Join the early GameLog beta. Track what you play, review what you love, and discover what is next."
 };
 
 export default function JoinBetaPage() {
@@ -21,9 +21,9 @@ export default function JoinBetaPage() {
       </header>
 
       <section className="legal-card page-hero-card">
-        <p className="eyebrow">GameLog v3.0</p>
-        <h1>Join the beta launch list.</h1>
-        <p>GameLog now has a cleaner tester funnel: signup, onboarding, feedback, voting, and launch-ready next steps.</p>
+        <p className="eyebrow">Early Beta</p>
+        <h1>Help shape a better home for your gaming life.</h1>
+        <p>Track what you play. Review what you love. Discover what’s next. Join the beta and tell us where GameLog feels brilliant—or bewildering.</p>
       </section>
 
       <BetaWaitlistForm />

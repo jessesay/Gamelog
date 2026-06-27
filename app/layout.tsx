@@ -8,7 +8,7 @@ export const metadata: Metadata = {
     default: "GameLog — Your gaming command center",
     template: "%s | GameLog"
   },
-  description: "Track your library, decide what to play, watch prices, follow releases, build collections, and share your gaming taste. Now with a beta launch system, tester onboarding, feedback voting, feature pages, changelog, and status pages.",
+  description: "Track what you play. Review what you love. Discover what’s next. Build profile shelves, lists, and recommendations around your gaming taste.",
   manifest: "/manifest.webmanifest",
   icons: {
     icon: "/favicon.svg",
@@ -21,13 +21,13 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "GameLog",
-    description: "Decide what to play. Track what you love. Watch prices. Share your taste. Join the GameLog beta and help shape the next build.",
+    description: "Track what you play. Review what you love. Discover what’s next. Join the early GameLog beta.",
     type: "website"
   },
   twitter: {
     card: "summary_large_image",
     title: "GameLog",
-    description: "Your gaming command center."
+    description: "Track what you play. Review what you love. Discover what’s next."
   }
 };
 

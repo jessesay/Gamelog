@@ -125,7 +125,7 @@ function ListShelf({ lists, href, editable }: { lists: any[]; href?: string; edi
       {visible.length ? <div className="profile-list-grid-v39">{visible.map((list) => {
         const items = [...(list.list_items ?? [])].sort((a: any, b: any) => Number(a.position ?? 9999) - Number(b.position ?? 9999));
         const cover = items.find((item: any) => item.games?.cover_url)?.games;
-        return <Link className="profile-list-tile-v39" href={`/l/${list.id}`} key={list.id}><span>{cover?.cover_url ? <img src={cover.cover_url} alt="" /> : <Layers3 size={20} />}</span><span><strong>{list.title}</strong><small>{editable && list.is_public === false ? "Private · " : ""}{items.length} {items.length === 1 ? "game" : "games"}</small></span><ChevronRight size={17} /></Link>;
+        return <Link className="profile-list-tile-v39" href={list.href ?? `/l/${list.id}`} key={list.id}><span>{cover?.cover_url ? <img src={cover.cover_url} alt="" /> : <Layers3 size={20} />}</span><span><strong>{list.title}</strong><small>{editable && list.is_public === false ? "Private · " : ""}{items.length} {items.length === 1 ? "game" : "games"}</small></span><ChevronRight size={17} /></Link>;
       })}</div> : <div className="profile-shelf-empty-v39">{editable ? "Create a list to start curating your library." : "No public lists yet."}</div>}
     </ShelfFrame>
   );

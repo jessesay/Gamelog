@@ -8,10 +8,10 @@ export const metadata: Metadata = {
 };
 
 const starterActions = [
-  { title: "Import games first", text: "A full catalog makes every other feature feel better.", href: "/app?view=sources" },
-  { title: "Build taste signals", text: "Use the in-app setup hub to choose starter taste, save a backlog pick, and open the right next tool.", href: "/app?view=onboarding" },
-  { title: "Pick tonight's game", text: "Pulse, Matchmaker, and Arena should get a tester to one clear answer.", href: "/app?view=match" },
-  { title: "Try the buy loop", text: "Track one price, open Deal Radar, and watch one upcoming release.", href: "/app?view=deals" }
+  { title: "Create your profile", text: "Set up the identity that holds your shelves, reviews, lists, and Taste Match signals.", href: "/app/profile" },
+  { title: "Search and quick log", text: "Find three games, then mark what you are playing, completed, and saving for later.", href: "/app/search" },
+  { title: "Swipe into something new", text: "Use the discovery deck when you want inspiration instead of a specific title.", href: "/app/discover" },
+  { title: "Build a list", text: "Create a public recommendation or a private collection for yourself.", href: "/app/lists" }
 ];
 
 export default function StartGuidePage() {
@@ -27,9 +27,9 @@ export default function StartGuidePage() {
       </header>
 
       <section className="legal-card page-hero-card">
-        <p className="eyebrow">v3.1 first 60 seconds</p>
-        <h1>Give every tester a clear path inside the app.</h1>
-        <p>The best beta flow is simple: open the guided setup, fill the catalog, build taste, pick a game, check a deal, share one thing, then tell us what broke or felt good.</p>
+        <p className="eyebrow">Early Beta · Your first five minutes</p>
+        <h1>Build a profile that gets smarter with every game.</h1>
+        <p>Create your gaming identity, log three titles, review a favorite, build a list, and let GameLog turn those signals into better discovery.</p>
       </section>
 
       <LaunchChecklistClient />

@@ -65,9 +65,9 @@ export default function OnboardingForm({ defaultEmail, initialProfile }: { defau
   return (
     <section className="onboarding-card-v36">
       <div>
-        <p className="eyebrow">Welcome to GameLog</p>
-        <h1>Set up your player profile</h1>
-        <p className="muted">This becomes your public Letterboxd-style profile for games.</p>
+        <p className="eyebrow">Early Beta · Welcome to GameLog</p>
+        <h1>Build your gaming identity</h1>
+        <p className="muted">Your favorites seed profile shelves, discovery, and explainable Taste Matches.</p>
       </div>
 
       <div className="social-form-grid-v35">
@@ -113,7 +113,7 @@ export default function OnboardingForm({ defaultEmail, initialProfile }: { defau
       </section>
 
       <button className="primary onboarding-finish-v36" onClick={finish} disabled={saving || draft.username.length < 3 || !draft.display_name.trim()}>
-        {saving ? "Saving..." : "Finish setup"}
+        {saving ? "Saving..." : "Finish and start logging"}
       </button>
       {message ? <p className="notice error">{message}</p> : null}
     </section>
