@@ -2,9 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import ProfileStatusShelves from "@/components/ProfileStatusShelves";
+import TasteMatchCard from "@/components/TasteMatchCard";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { createClient } from "@/utils/supabase/server";
 import { dedupeGameLogs } from "@/lib/social";
 import { normalizeGameStatus } from "@/lib/gameStatus";
+import { buildTasteProfile, calculateTasteMatch } from "@/lib/tasteMatch";
 
 export async function generateMetadata({ params }: { params: Promise<{ username: string }> }): Promise<Metadata> {
   const { username } = await params;
@@ -22,6 +25,10 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
   const { data: profile } = await supabaseAdmin.from("profiles").select("id, username, display_name, bio, favorite_game, avatar_url").eq("username", username).maybeSingle();
   if (!profile) notFound();
 
+  const authClient = await createClient();
+  const { data: authData } = authClient ? await authClient.auth.getUser() : { data: { user: null } };
+  const viewer = authData.user;
+
   // Public profiles deliberately receive public profile fields, public log/review
   // data, and lists explicitly filtered to is_public. Owned/private lists are only
   // queried by the authenticated /app/profile page.
@@ -35,6 +42,17 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
 
   const publicLogs = dedupeGameLogs(logs ?? []);
   const publicReviews = (reviews ?? []).map((review) => ({ ...review, review: review.body }));
+  let tasteMatch = null;
+  if (viewer && authClient) {
+    const [viewerLogsResult, viewerReviewsResult, viewerListsResult] = await Promise.all([
+      authClient.from("game_logs").select("game_id, status, rating, review, games(id, title, genre, genres, platforms)").eq("user_id", viewer.id).order("updated_at", { ascending: false }).limit(500),
+      authClient.from("game_reviews").select("game_id, rating, body, games(id, title, genre, genres, platforms)").eq("user_id", viewer.id).order("updated_at", { ascending: false }).limit(500),
+      authClient.from("game_lists").select("id, title, list_items(id, game_id, games(id, title, genre, genres, platforms))").eq("user_id", viewer.id).limit(200),
+    ]);
+    const viewerTaste = buildTasteProfile(viewerLogsResult.data ?? [], viewerReviewsResult.data ?? [], viewerListsResult.data ?? []);
+    const ownerTaste = buildTasteProfile(publicLogs, publicReviews, lists ?? []);
+    tasteMatch = calculateTasteMatch(viewerTaste, ownerTaste, viewer.id === profile.id);
+  }
   const rated = publicReviews.filter((review) => review.rating !== null && review.rating !== undefined);
   const completed = publicLogs.filter((log) => ["played", "completed"].includes(normalizeGameStatus(log.status) ?? "")).length;
   const playing = publicLogs.filter((log) => normalizeGameStatus(log.status) === "playing").length;
@@ -58,6 +76,8 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
       <section className="social-stat-grid-v35">
         <Stat label="Playing now" value={playing} /><Stat label="Completed" value={completed} /><Stat label="Reviews" value={publicReviews.length} /><Stat label="Average rating" value={avgRating} />
       </section>
+
+      <TasteMatchCard ownerName={profile.display_name} match={tasteMatch} />
 
       <section className="profile-taste-v39">
         <div><p className="eyebrow">Taste fingerprint</p><h2>What {profile.display_name} plays</h2></div>
