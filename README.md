@@ -8,8 +8,9 @@ Requirements: Node.js 24.x, npm, and a Supabase project.
 
 ```bash
 cp .env.example .env.local
-npm ci
-npm run dev
+corepack enable
+pnpm install --frozen-lockfile
+pnpm run dev
 ```
 
 Open `http://localhost:3000`.

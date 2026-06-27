@@ -13,7 +13,7 @@
 
 ## Vercel
 
-- [ ] Use repository root, Next.js preset, Node.js 24.x, `npm ci`, and `npm run build`.
+- [ ] Use repository root, Next.js preset, Node.js 24.x, a frozen pnpm install, and `pnpm run build`.
 - [ ] Set all three required `NEXT_PUBLIC_` variables.
 - [ ] Set exactly one private Supabase admin key.
 - [ ] Add optional provider secrets only when those integrations are enabled.

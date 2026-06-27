@@ -61,8 +61,8 @@ Import the Git repository into Vercel with:
 - Framework preset: Next.js
 - Root directory: repository root (`.`)
 - Node.js: 24.x
-- Install command: `npm ci`
-- Build command: `npm run build`
+- Install command: `corepack enable && pnpm install --frozen-lockfile`
+- Build command: `pnpm run build`
 - Output directory: leave blank (Next.js default)
 
 Do not run `catalog:import` as a build command. Vercel functions have finite execution limits; run large imports locally or in a dedicated trusted CI job.
