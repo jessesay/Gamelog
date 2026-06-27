@@ -5026,6 +5026,44 @@ textarea:focus {
   .home-beta-panel-v311 { grid-template-columns: .8fr 1.2fr; align-items: center; }.home-beta-panel-v311 > .home-cta-row-v311 { grid-column: 1/-1; margin-top: 0; }
 }
 
+/* GameLog v3.12 lightweight beta feedback */
+.beta-feedback-page-v312 { padding-bottom: 45px; }
+.beta-feedback-hero-v312 { position: relative; overflow: hidden; }
+.beta-feedback-hero-v312::after { content: ""; position: absolute; width: 210px; height: 210px; right: -95px; top: -110px; border-radius: 50%; background: rgba(45,212,191,.12); pointer-events: none; }
+.beta-feedback-card-v312 { display: grid; gap: 17px; margin-top: 14px; }
+.beta-feedback-card-v312 h2 { margin: 0; font-size: 1.5rem; }
+.beta-feedback-form-v312 { display: grid; gap: 15px; }
+.beta-feedback-type-grid-v312 { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px; }
+.beta-feedback-type-grid-v312 > button { min-width: 0; display: grid; grid-template-columns: 24px minmax(0,1fr); gap: 6px; align-items: start; border: 1px solid rgba(255,255,255,.11); border-radius: 14px; padding: 10px 8px; background: rgba(255,255,255,.04); color: #cbd5e1; text-align: left; }
+.beta-feedback-type-grid-v312 > button > svg { margin-top: 2px; color: var(--muted); }
+.beta-feedback-type-grid-v312 > button span { min-width: 0; display: grid; gap: 3px; }
+.beta-feedback-type-grid-v312 > button strong { font-size: .78rem; }.beta-feedback-type-grid-v312 > button small { color: var(--muted); font-size: .62rem; line-height: 1.35; }
+.beta-feedback-type-grid-v312 > button.active { border-color: rgba(45,212,191,.55); background: rgba(20,184,166,.14); color: #f0fdfa; }
+.beta-feedback-type-grid-v312 > button.active > svg { color: #5eead4; }
+.beta-feedback-fields-v312 { display: grid; gap: 11px; }
+.beta-feedback-field-v312 { min-width: 0; display: grid; gap: 6px; }
+.beta-feedback-field-v312 > span { color: #cbd5e1; font-size: .76rem; font-weight: 850; }
+.beta-feedback-field-v312 > span b,.beta-feedback-field-v312 > span em { margin-left: 4px; color: #5eead4; font-size: .62rem; font-style: normal; text-transform: uppercase; letter-spacing: .04em; }
+.beta-feedback-field-v312 > span em { color: var(--muted); }
+.beta-feedback-field-v312 textarea { min-height: 150px; resize: vertical; }
+.beta-feedback-field-v312 > small { justify-self: end; color: var(--muted); font-size: .65rem; }
+.beta-feedback-honeypot-v312 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.beta-feedback-submit-v312 { display: grid; gap: 8px; }
+.beta-feedback-submit-v312 > button { justify-content: center; }
+.beta-feedback-submit-v312 > span { color: var(--muted); font-size: .68rem; line-height: 1.4; text-align: center; }
+.beta-feedback-state-v312 { margin: 0; border: 1px solid; border-radius: 13px; padding: 10px 12px; font-size: .78rem; }
+.beta-feedback-state-v312.success { border-color: rgba(45,212,191,.35); background: rgba(20,184,166,.1); color: #99f6e4; }
+.beta-feedback-state-v312.error { border-color: rgba(251,113,133,.35); background: rgba(244,63,94,.09); color: #fda4af; }
+.beta-feedback-spin-v312 { animation: beta-feedback-spin-v312 .8s linear infinite; }
+@keyframes beta-feedback-spin-v312 { to { transform: rotate(360deg); } }
+
+@media (min-width: 700px) {
+  .beta-feedback-card-v312 { grid-template-columns: minmax(190px,.5fr) minmax(0,1.5fr); gap: 28px; padding: 25px; }
+  .beta-feedback-type-grid-v312 { grid-template-columns: repeat(4,minmax(0,1fr)); }
+  .beta-feedback-fields-v312 { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .beta-feedback-submit-v312 { grid-template-columns: auto minmax(0,1fr); align-items: center; }.beta-feedback-submit-v312 > span { text-align: left; }
+}
+
 /* GameLog v3.9 profile identity shelves */
 .profile-identity-v39 { padding-bottom: 28px; }
 .profile-identity-hero-v39 { position: relative; overflow: hidden; }

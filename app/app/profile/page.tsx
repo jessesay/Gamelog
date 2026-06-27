@@ -41,7 +41,7 @@ export default async function MyProfilePage() {
     <main className="social-shell-v35 profile-identity-v39">
       <section className="social-hero-v35 profile-identity-hero-v39">
         <div className="social-avatar-v35">{profile.avatar_url ? <img src={profile.avatar_url} alt="" /> : profile.display_name.slice(0, 2).toUpperCase()}</div>
-        <div><p className="eyebrow">My gaming identity</p><h1>{profile.display_name}</h1><p className="muted">@{profile.username}</p><p>{profile.bio || "Add a bio and tell people what kind of player you are."}</p><div className="tag-row"><span className="tag">Favorite: {profile.favorite_game || "Unset"}</span><span className="tag">Followers: {followerResult.count ?? 0}</span><span className="tag">Following: {followingResult.count ?? 0}</span><Link className="tag action-tag" href={`/u/${profile.username}`}>View public profile</Link></div></div>
+        <div><p className="eyebrow">My gaming identity</p><h1>{profile.display_name}</h1><p className="muted">@{profile.username}</p><p>{profile.bio || "Add a bio and tell people what kind of player you are."}</p><div className="tag-row"><span className="tag">Favorite: {profile.favorite_game || "Unset"}</span><span className="tag">Followers: {followerResult.count ?? 0}</span><span className="tag">Following: {followingResult.count ?? 0}</span><Link className="tag action-tag" href={`/u/${profile.username}`}>View public profile</Link><Link className="tag action-tag" href="/feedback?from=/app/profile">Send feedback</Link></div></div>
       </section>
 
       <section className="social-stat-grid-v35">
