@@ -35,7 +35,7 @@ export default async function MyProfilePage() {
       .limit(80),
     supabase
       .from("game_lists")
-      .select("*, list_items(id, games(*))")
+      .select("*, list_items(id, position, games(*))")
       .eq("user_id", profile.id)
       .order("created_at", { ascending: false })
       .limit(8),
@@ -120,6 +120,14 @@ export default async function MyProfilePage() {
         </div>
         <ReviewList logs={reviews.slice(0, 8)} editable />
       </section>
+
+      <section className="social-card-v35">
+        <div className="social-section-head-v35">
+          <div><p className="eyebrow">Your lists</p><h2>Curated by you</h2></div>
+          <Link className="secondary" href="/app/lists">Manage lists</Link>
+        </div>
+        <ProfileListShelf lists={lists ?? []} />
+      </section>
     </main>
   );
 }
@@ -175,6 +183,24 @@ function GameShelf({ logs, empty }: { logs: any[]; empty: string }) {
           {log.games.cover_url ? <img src={log.games.cover_url} alt="" /> : <span>{log.games.title}</span>}
         </Link>
       ) : null)}
+    </div>
+  );
+}
+
+function ProfileListShelf({ lists }: { lists: any[] }) {
+  if (!lists.length) return <div className="empty">Create a list to start curating your favorite games.</div>;
+  return (
+    <div className="profile-list-grid-v37">
+      {lists.map((list) => {
+        const items = [...(list.list_items ?? [])].sort((a: any, b: any) => Number(a.position ?? 9999) - Number(b.position ?? 9999));
+        const cover = items.find((item: any) => item.games?.cover_url)?.games;
+        return (
+          <Link className="profile-list-card-v37" href={`/l/${list.id}`} key={list.id}>
+            <span className="profile-list-cover-v37">{cover?.cover_url ? <img src={cover.cover_url} alt="" /> : list.title.slice(0, 2).toUpperCase()}</span>
+            <span><strong>{list.title}</strong><small>{list.is_public === false ? "Private" : "Public"} · {items.length} {items.length === 1 ? "game" : "games"}</small></span>
+          </Link>
+        );
+      })}
     </div>
   );
 }

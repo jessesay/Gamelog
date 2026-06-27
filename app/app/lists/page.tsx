@@ -1,9 +1,9 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import ListCreator from "@/components/ListCreator";
+import ListManager from "@/components/ListManager";
 import AuthPanel from "@/components/AuthPanel";
 import { createClient } from "@/utils/supabase/server";
-import { gamePath, getSignedInProfile } from "@/lib/social";
+import { getSignedInProfile } from "@/lib/social";
 import { safeServerError } from "@/lib/serverError";
 
 export default async function MyListsPage() {
@@ -36,7 +36,7 @@ export default async function MyListsPage() {
 
   const { data: lists, error } = await supabase
     .from("game_lists")
-    .select("*, list_items(id, games(*))")
+    .select("*, list_items(id, position, created_at, games(*))")
     .eq("user_id", profile.id)
     .order("created_at", { ascending: false });
 
@@ -56,31 +56,15 @@ export default async function MyListsPage() {
       <section className="social-page-head-v35">
         <p className="eyebrow">Lists</p>
         <h1>Your game lists</h1>
-        <p className="muted">Make public shelves for favorites, backlogs, ranked runs, and themed recommendations.</p>
+        <p className="muted">Build shareable collections, private backlogs, rankings, and recommendations that feel unmistakably yours.</p>
       </section>
 
       <ListCreator />
 
-      <section className="social-grid-v35">
+      <section className="list-manager-grid-v37">
         {(lists ?? []).length ? (lists ?? []).map((list: any) => (
-          <article className="social-card-v35" key={list.id}>
-            <div className="social-section-head-v35">
-              <div>
-                <h2>{list.title}</h2>
-                <p className="muted">{list.description || "No description yet."}</p>
-              </div>
-              <Link className="secondary" href={`/l/${list.id}`}>Public</Link>
-            </div>
-            <div className="social-poster-row-v35">
-              {(list.list_items ?? []).slice(0, 8).map((item: any) => item.games ? (
-                <Link href={gamePath(item.games)} key={item.id}>
-                  {item.games.cover_url ? <img src={item.games.cover_url} alt="" /> : <span>{item.games.title}</span>}
-                </Link>
-              ) : null)}
-            </div>
-            {!(list.list_items ?? []).length ? <div className="empty">No games in this list yet.</div> : null}
-          </article>
-        )) : <section className="social-card-v35 social-empty-v35"><h2>No lists yet</h2><p className="muted">Create your first list above.</p></section>}
+          <ListManager list={list} key={list.id} />
+        )) : <section className="social-card-v35 social-empty-v35"><h2>Your first list starts here</h2><p className="muted">Create a public recommendation or keep a private shortlist for yourself.</p></section>}
       </section>
     </main>
   );

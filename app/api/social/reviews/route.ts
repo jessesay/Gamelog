@@ -97,7 +97,7 @@ export async function POST(request: Request) {
 
   const { data: existing, error: existingError } = await supabase
     .from("game_logs")
-    .select("id")
+    .select("id, status, rating, review")
     .eq("user_id", user.id)
     .eq("game_id", game.id)
     .order("updated_at", { ascending: false })
@@ -135,13 +135,19 @@ export async function POST(request: Request) {
   try {
     const canonicalReview = isStatusOnly ? null : await syncCanonicalReview(supabase, payload);
     if (!isStatusOnly) await syncRating(supabase, payload).catch(() => undefined);
-    await insertActivity(supabase, {
-      user_id: payload.user_id,
-      game_id: payload.game_id,
-      review_id: canonicalReview?.id ?? null,
-      event_type: eventType,
-      metadata: { rating: payload.rating, has_review: Boolean(payload.review) },
-    }).catch(() => undefined);
+    const shouldPublishActivity = !existing?.id
+      || (isStatusOnly && existing.status !== status)
+      || (!isStatusOnly && Boolean(payload.review) && !existing.review)
+      || (!isStatusOnly && payload.rating !== null && existing.rating === null);
+    if (shouldPublishActivity) {
+      await insertActivity(supabase, {
+        user_id: payload.user_id,
+        game_id: payload.game_id,
+        review_id: canonicalReview?.id ?? null,
+        event_type: eventType,
+        metadata: { rating: payload.rating, has_review: Boolean(payload.review) },
+      }).catch(() => undefined);
+    }
   } catch (socialError) {
     return NextResponse.json({ error: safeServerError(socialError, "Could not publish the review.") }, { status: 500 });
   }
@@ -173,20 +179,13 @@ export async function PATCH(request: Request) {
 
   if (error) return NextResponse.json({ error: safeServerError(error, "Could not update that review.") }, { status: 500 });
   try {
-    const canonicalReview = await syncCanonicalReview(supabase, {
+    await syncCanonicalReview(supabase, {
       user_id: user.id,
       game_id: data.game_id,
       rating: data.rating,
       review: data.review,
     });
     await syncRating(supabase, { user_id: user.id, game_id: data.game_id, rating: data.rating }).catch(() => undefined);
-    await insertActivity(supabase, {
-      user_id: user.id,
-      game_id: data.game_id,
-      review_id: canonicalReview.id,
-      event_type: data.review ? "reviewed" : "rated",
-      metadata: { rating: data.rating, edited: true },
-    }).catch(() => undefined);
   } catch (socialError) {
     return NextResponse.json({ error: safeServerError(socialError, "Could not update the published review.") }, { status: 500 });
   }

@@ -83,7 +83,8 @@ export type GameList = {
   title: string;
   description: string | null;
   is_ranked?: boolean | null;
+  is_public?: boolean | null;
   created_at: string;
   profiles?: Pick<Profile, "username" | "display_name"> | null;
-  list_items?: Array<{ id: string; games: Game | null }> | null;
+  list_items?: Array<{ id: string; position?: number | null; games: Game | null }> | null;
 };

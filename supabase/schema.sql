@@ -51,6 +51,7 @@ create table if not exists public.game_lists (
   title text not null,
   description text,
   is_ranked boolean not null default false,
+  is_public boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -201,10 +202,18 @@ drop policy if exists "logs are public" on public.game_logs;
 create policy "logs are public" on public.game_logs for select using (true);
 
 drop policy if exists "lists are public" on public.game_lists;
-create policy "lists are public" on public.game_lists for select using (true);
+drop policy if exists "lists are visible" on public.game_lists;
+create policy "lists are visible" on public.game_lists for select using (is_public or auth.uid() = user_id);
 
 drop policy if exists "list items are public" on public.list_items;
-create policy "list items are public" on public.list_items for select using (true);
+drop policy if exists "list items are visible" on public.list_items;
+create policy "list items are visible" on public.list_items for select using (
+  exists (
+    select 1 from public.game_lists
+    where game_lists.id = list_id
+      and (game_lists.is_public or game_lists.user_id = auth.uid())
+  )
+);
 
 drop policy if exists "follows are public" on public.follows;
 create policy "follows are public" on public.follows for select using (true);

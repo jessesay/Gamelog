@@ -103,7 +103,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
       .limit(80),
     supabase
       .from("game_lists")
-      .select("*, list_items(id, games(*))")
+      .select("*, list_items(id, position, games(*))")
       .eq("user_id", profile.id)
       .eq("is_public", true)
       .order("created_at", { ascending: false })
@@ -232,12 +232,16 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
           <div className="divider" />
           <h3>Public lists</h3>
           <div className="mini-list">
-            {(lists ?? []).length ? (lists ?? []).map((list: any) => (
-              <Link className="mini-row" key={list.id} href={`/l/${list.id}`}>
-                <span>{list.title}</span>
-                <strong><Layers3 size={13} /> {list.list_items?.length ?? 0}</strong>
-              </Link>
-            )) : <p className="muted">No lists yet.</p>}
+            {(lists ?? []).length ? (lists ?? []).map((list: any) => {
+              const ordered = [...(list.list_items ?? [])].sort((a: any, b: any) => Number(a.position ?? 9999) - Number(b.position ?? 9999));
+              const cover = ordered.find((item: any) => item.games?.cover_url)?.games;
+              return (
+                <Link className="public-profile-list-v37" key={list.id} href={`/l/${list.id}`}>
+                  <span className="public-profile-list-cover-v37">{cover?.cover_url ? <img src={cover.cover_url} alt="" /> : list.title.slice(0, 2).toUpperCase()}</span>
+                  <span><strong>{list.title}</strong><small><Layers3 size={12} /> {ordered.length} {ordered.length === 1 ? "game" : "games"}</small></span>
+                </Link>
+              );
+            }) : <p className="muted">No public lists yet.</p>}
           </div>
         </aside>
       </section>

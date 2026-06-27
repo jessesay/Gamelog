@@ -7,7 +7,7 @@ export default async function ActivityPage() {
   const [{ data: events, error }, { data: recentReviews, error: reviewError }] = await Promise.all([
     supabaseAdmin
       .from("activity_events")
-      .select("*, games(*), profiles(username, display_name, avatar_url), game_reviews(*)")
+      .select("*, games(*), profiles(username, display_name, avatar_url), game_reviews(*), game_lists(id, title, is_public)")
       .order("created_at", { ascending: false })
       .limit(60),
     supabaseAdmin
@@ -28,6 +28,12 @@ export default async function ActivityPage() {
     );
   }
   const reviewsByUserGame = new Map((recentReviews ?? []).map((review) => [`${review.user_id}:${review.game_id}`, review]));
+  const visibleEvents = (events ?? []).filter((event: any, index, allEvents) => {
+    if (!event.review_id) return true;
+    return allEvents.findIndex((candidate: any) => (
+      candidate.review_id === event.review_id && candidate.event_type === event.event_type
+    )) === index;
+  });
 
   return (
     <main className="social-shell-v35">
@@ -39,23 +45,27 @@ export default async function ActivityPage() {
 
       <section className="social-card-v35">
         <div className="social-list-v35">
-          {(events ?? []).length ? (events ?? []).map((event: any) => {
-            const review = event.game_reviews ?? reviewsByUserGame.get(`${event.user_id}:${event.game_id}`);
+          {visibleEvents.length ? visibleEvents.map((event: any) => {
+            const review = ["reviewed", "rated"].includes(event.event_type)
+              ? event.game_reviews ?? reviewsByUserGame.get(`${event.user_id}:${event.game_id}`)
+              : null;
+            const createdList = event.metadata?.action === "created-list";
             return (
             <article className="social-row-v35" key={event.id}>
               {event.games?.cover_url ? <img src={event.games.cover_url} alt="" /> : <div className="social-cover-fallback-v35">GL</div>}
               <div>
                 <p className="muted">
                   <Link href={`/u/${event.profiles?.username ?? "player"}`}>@{event.profiles?.username ?? "player"}</Link>
-                  {" "}{activityLabel(event.event_type)}
+                  {" "}{activityLabel(event)}
                 </p>
-                <strong>{event.games?.title ?? "Unknown game"}</strong>
-                {review?.rating || event.metadata?.rating
+                <strong>{createdList ? event.game_lists?.title ?? event.metadata?.list_title ?? "Untitled list" : event.games?.title ?? "Unknown game"}</strong>
+                {!createdList && (review?.rating || event.metadata?.rating)
                   ? <p className="muted">{displayStars(review?.rating ?? event.metadata?.rating)}</p>
                   : null}
-                {review?.body ? <p>{review.body}</p> : null}
+                {!createdList && review?.body ? <p>{review.body}</p> : null}
                 <div className="tag-row">
-                  {event.games ? <Link className="tag action-tag" href={gamePath(event.games)}>Game page</Link> : null}
+                  {createdList && event.list_id ? <Link className="tag action-tag" href={`/l/${event.list_id}`}>Open list</Link> : null}
+                  {!createdList && event.games ? <Link className="tag action-tag" href={gamePath(event.games)}>Game page</Link> : null}
                 </div>
               </div>
             </article>
@@ -66,7 +76,9 @@ export default async function ActivityPage() {
   );
 }
 
-function activityLabel(eventType: string) {
+function activityLabel(event: any) {
+  if (event.metadata?.action === "created-list") return "created a list";
+  const eventType = event.event_type;
   if (eventType === "reviewed") return "reviewed";
   if (eventType === "rated") return "rated";
   if (eventType === "wishlisted") return "wishlisted";

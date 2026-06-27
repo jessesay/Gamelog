@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import type { CSSProperties } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CalendarDays, ExternalLink, ListChecks, Share2, Star, Timer } from "lucide-react";
+import { CalendarDays, ExternalLink, ListChecks, Lock, Share2, Star, Timer } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
 import { completionEstimateForGame, formatCompletionTotal, totalCompletionHours } from "@/lib/timeToBeat";
+import { safeServerError } from "@/lib/serverError";
 
 function gameHue(game: any) {
   const seed = (game?.slug ?? game?.title ?? "list").split("").reduce((sum: number, char: string) => sum + char.charCodeAt(0), 0);
@@ -82,14 +83,17 @@ export default async function PublicListPage({ params }: { params: Promise<{ id:
     );
   }
 
-  const { data: list } = await supabase
+  const { data: userResult } = await supabase.auth.getUser();
+  const { data: list, error } = await supabase
     .from("game_lists")
     .select("*, profiles(username, display_name, avatar_url), list_items(id, position, created_at, games(*))")
     .eq("id", id)
-    .eq("is_public", true)
     .maybeSingle();
 
-  if (!list) notFound();
+  if (error) {
+    return <main className="shell public-page-shell"><section className="card social-empty-v35"><h1>List could not load</h1><p className="muted">{safeServerError(error, "Please try this list again in a moment.")}</p><Link className="secondary inline-link" href="/">Back to GameLog</Link></section></main>;
+  }
+  if (!list || (list.is_public === false && list.user_id !== userResult.user?.id)) notFound();
 
   const owner = Array.isArray(list.profiles) ? list.profiles[0] : list.profiles;
   const items = [...(list.list_items ?? [])].sort((a: any, b: any) => (a.position ?? 9999) - (b.position ?? 9999) || new Date(a.created_at ?? 0).getTime() - new Date(b.created_at ?? 0).getTime());
@@ -105,13 +109,13 @@ export default async function PublicListPage({ params }: { params: Promise<{ id:
             <span className="logo">GL</span>
             <span>GameLog</span>
           </Link>
-          <Link className="pill" href="/">Open app</Link>
+          <Link className="pill" href={list.user_id === userResult.user?.id ? "/app/lists" : "/"}>{list.user_id === userResult.user?.id ? "Manage list" : "Open app"}</Link>
         </div>
       </header>
 
       <section className="hero public-list-hero">
         <div className="hero-card">
-          <p className="eyebrow"><ListChecks size={14} /> Public list</p>
+          <p className="eyebrow">{list.is_public === false ? <Lock size={14} /> : <ListChecks size={14} />} {list.is_public === false ? "Private list" : "Public list"}</p>
           <h1>{list.title}</h1>
           <p className="lede">by <Link href={`/u/${owner?.username ?? ""}`}>@{owner?.username ?? "player"}</Link></p>
           {list.description && <p className="muted public-description">{list.description}</p>}
@@ -123,7 +127,7 @@ export default async function PublicListPage({ params }: { params: Promise<{ id:
           </div>
         </div>
         <div className="public-cover-stack">
-          {coverGames.length ? coverGames.map((game: any) => <PublicCover key={game.id} game={game} compact />) : <div className="empty">No games yet.</div>}
+          {coverGames.length ? coverGames.map((game: any) => <PublicCover key={game.id} game={game} compact />) : <div className="list-public-fallback-v37"><span>{list.title.slice(0, 2).toUpperCase()}</span><small>GameLog list</small></div>}
         </div>
       </section>
 
@@ -133,7 +137,7 @@ export default async function PublicListPage({ params }: { params: Promise<{ id:
             <p className="eyebrow">List entries</p>
             <h2>{items.length ? "Games on this list" : "Empty list"}</h2>
           </div>
-          <Link className="secondary inline-link" href="/"><Share2 size={16} /> Make your own</Link>
+          {list.is_public !== false ? <Link className="secondary inline-link" href="/"><Share2 size={16} /> Make your own</Link> : <span className="tag"><Lock size={13} /> Only you can see this</span>}
         </div>
         <div className="public-list-grid">
           {items.length ? items.map((item: any, index: number) => item.games ? (
