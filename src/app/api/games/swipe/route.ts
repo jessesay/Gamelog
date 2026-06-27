@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
-const allowedActions = new Set(["liked", "disliked", "skipped", "saved"]);
+const allowedActions = new Set(["liked", "disliked", "skipped", "saved", "played"]);
 
 export async function POST(request: NextRequest) {
   const body = await request.json();

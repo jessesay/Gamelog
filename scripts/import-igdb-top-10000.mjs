@@ -40,7 +40,7 @@ const includeDlc = args.get("include-dlc") === "true" || args.get("includeDlc") 
 const dryRun = args.get("dry-run") === "true" || args.get("dryRun") === "true";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
+const serviceRoleKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
 const igdbClientId = process.env.IGDB_CLIENT_ID;
 const igdbClientSecret = process.env.IGDB_CLIENT_SECRET;
 
@@ -52,7 +52,7 @@ function required(name, value) {
 }
 
 required("NEXT_PUBLIC_SUPABASE_URL", supabaseUrl);
-required("SUPABASE_SERVICE_ROLE_KEY", serviceRoleKey);
+required("SUPABASE_SECRET_KEY or SUPABASE_SERVICE_ROLE_KEY", serviceRoleKey);
 required("IGDB_CLIENT_ID", igdbClientId);
 required("IGDB_CLIENT_SECRET", igdbClientSecret);
 

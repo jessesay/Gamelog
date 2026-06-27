@@ -1,4 +1,5 @@
 import { streamText } from "ai";
+import { safeServerError } from "@/lib/serverError";
 
 export const runtime = "nodejs";
 
@@ -71,7 +72,7 @@ export async function POST(request: Request) {
     return result.toTextStreamResponse();
   } catch (error) {
     return Response.json(
-      { error: error instanceof Error ? error.message : "GameLog Coach failed." },
+      { error: safeServerError(error, "GameLog Coach is temporarily unavailable.") },
       { status: 500 }
     );
   }

@@ -1,5 +1,5 @@
-import GameLogApp from "@/components/GameLogApp";
+import { redirect } from "next/navigation";
 
 export default function AppPage() {
-  return <GameLogApp />;
+  redirect("/app/discover");
 }

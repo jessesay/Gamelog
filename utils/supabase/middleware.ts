@@ -25,7 +25,28 @@ export async function updateSession(request: NextRequest) {
   });
 
   // Important: this refreshes the user session when the auth token is stale.
-  await supabase.auth.getUser();
+  const { data } = await supabase.auth.getUser();
+
+  const isAppRoute = request.nextUrl.pathname.startsWith("/app");
+  const isOnboarding = request.nextUrl.pathname === "/app/onboarding";
+  const shouldCheckProfile = isAppRoute && !isOnboarding;
+
+  if (shouldCheckProfile && data.user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("id", data.user.id)
+      .maybeSingle();
+
+    if (!profile) {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = "/app/onboarding";
+      redirectUrl.searchParams.set("next", request.nextUrl.pathname);
+      const redirectResponse = NextResponse.redirect(redirectUrl);
+      supabaseResponse.cookies.getAll().forEach((cookie) => redirectResponse.cookies.set(cookie));
+      return redirectResponse;
+    }
+  }
 
   return supabaseResponse;
 }

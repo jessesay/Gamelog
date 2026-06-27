@@ -36,6 +36,10 @@
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "gamelog_backlog_v1",
+    "scripts/**/*.ts",
+    "src/app",
+    "src/components"
   ]
 }

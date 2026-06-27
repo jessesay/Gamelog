@@ -1,8 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { getSiteUrl } from "@/lib/siteUrl";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://gamelog.app"),
+  metadataBase: new URL(getSiteUrl()),
   title: {
     default: "GameLog — Your gaming command center",
     template: "%s | GameLog"

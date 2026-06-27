@@ -25,7 +25,7 @@ create table if not exists public.game_swipes (
   session_id text not null,
   user_id uuid,
   game_id uuid not null references public.games(id) on delete cascade,
-  action text not null check (action in ('liked', 'disliked', 'skipped', 'saved')),
+  action text not null check (action in ('liked', 'disliked', 'skipped', 'saved', 'played')),
   created_at timestamptz default now(),
   updated_at timestamptz default now(),
   unique (session_id, game_id)

@@ -1,7 +1,8 @@
 import type { MetadataRoute } from "next";
+import { getSiteUrl } from "@/lib/siteUrl";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://gamelog.app";
+  const siteUrl = getSiteUrl();
   const routes = ["", "/app", "/features", "/catalog-builder", "/beta", "/join", "/start", "/feedback", "/updates", "/faq", "/changelog", "/status", "/about", "/roadmap", "/press", "/privacy", "/terms", "/launch"];
   return routes.map((route) => ({
     url: `${siteUrl}${route}`,

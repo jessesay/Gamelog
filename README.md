@@ -1,64 +1,50 @@
-# GameLog Discovery Feed v1
+# GameLog
 
-This is the drop-in upgrade that adds:
+GameLog is a Next.js social game diary with swipe discovery, public profiles, reviews, ratings, lists, and activity feeds. Supabase provides authentication and persistence; the catalog importer can enrich the game database from Steam, RAWG, itch.io, and IGDB.
 
-- RAWG game sync
-- Supabase `games` table
-- Supabase `game_swipes` table
-- Swipe-style mobile feed
-- API routes for loading the feed and saving swipes
-- `npm run sync:games`
+## Local development
 
-## Fast setup
-
-1. Unzip this folder.
-2. Copy `apply-gamelog-discovery.ps1` into the root of your GameLog project.
-3. Open PowerShell in the GameLog project root.
-4. Run:
-
-```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-.\apply-gamelog-discovery.ps1
-```
-
-5. Go to Supabase → SQL Editor → New query.
-6. Paste/run `gamelog_discovery_schema.sql`.
-7. In `.env.local`, replace placeholders:
-
-```env
-RAWG_API_KEY=your_real_rawg_key
-SUPABASE_SERVICE_ROLE_KEY=your_real_service_role_key
-```
-
-8. Run:
+Requirements: Node.js 24.x, npm, and a Supabase project.
 
 ```bash
-npm run sync:games
+cp .env.example .env.local
+npm ci
 npm run dev
 ```
 
-## What changes
+Open `http://localhost:3000`.
 
-The installer writes these files into your project:
+The minimum local variables are:
 
-```txt
-src/lib/gameSources/rawg.ts
-src/lib/supabase/admin.ts
-scripts/sync-games.ts
-src/app/api/games/feed/route.ts
-src/app/api/games/swipe/route.ts
-src/components/GameSwipeDeck.tsx
-src/app/page.tsx
+```env
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_REPLACE_ME
+SUPABASE_SECRET_KEY=sb_secret_REPLACE_ME
 ```
 
-It also adds this package script:
+The publishable key is intentionally available to browser code and relies on RLS. `SUPABASE_SECRET_KEY` (or the legacy `SUPABASE_SERVICE_ROLE_KEY`) bypasses RLS and must remain server-only.
 
-```json
-"sync:games": "tsx scripts/sync-games.ts"
+## Database setup
+
+For a new Supabase project, run the SQL files in the exact order documented in [DEPLOYMENT.md](./DEPLOYMENT.md). Do not run `gamelog_discovery_schema.sql` when using the full migration sequence; `supabase/v3_4_import_pipeline.sql` supersedes it.
+
+## Catalog import
+
+```bash
+npm run catalog:import -- --dry-run --sources=steam --steam-limit=1
+npm run catalog:import
 ```
 
-## Important
+Steam needs no API key. RAWG, itch.io, and IGDB are optional and use server-only credentials listed in `.env.example`. Catalog imports are operational jobs; they are not part of the Vercel build.
 
-The installer replaces `src/app/page.tsx` with the swipe feed homepage. If you want to keep your old homepage, copy it somewhere first.
+## Deployment
 
-The Supabase service role key must only stay in `.env.local` and server-side scripts/routes. Do not put it inside client components.
+Follow [DEPLOYMENT.md](./DEPLOYMENT.md) for Supabase Auth URLs, Vercel settings, environment variables, RLS assumptions, migrations, and verification. Use [PRELAUNCH_CHECKLIST.md](./PRELAUNCH_CHECKLIST.md) immediately before launch.
+
+## Verification
+
+```bash
+npm run build
+npm run catalog:import -- --dry-run --sources=steam --steam-limit=1
+```

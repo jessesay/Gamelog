@@ -49,6 +49,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     .from("game_lists")
     .select("title, description, profiles(display_name, username)")
     .eq("id", id)
+    .eq("is_public", true)
     .maybeSingle();
 
   if (!list) return { title: "GameLog list" };
@@ -85,6 +86,7 @@ export default async function PublicListPage({ params }: { params: Promise<{ id:
     .from("game_lists")
     .select("*, profiles(username, display_name, avatar_url), list_items(id, position, created_at, games(*))")
     .eq("id", id)
+    .eq("is_public", true)
     .maybeSingle();
 
   if (!list) notFound();

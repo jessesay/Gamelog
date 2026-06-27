@@ -46,7 +46,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
   const { data: log } = await supabase
     .from("game_logs")
-    .select("rating, review, status, games(title), profiles(display_name, username)")
+    .select("rating, review, status, games(title), profiles!game_logs_user_id_fkey(display_name, username)")
     .eq("id", id)
     .maybeSingle();
 
@@ -83,7 +83,7 @@ export default async function ReviewPage({ params }: { params: Promise<{ id: str
 
   const { data: log } = await supabase
     .from("game_logs")
-    .select("*, games(*), profiles(username, display_name, bio, avatar_url), review_likes(user_id), comments(id, body, created_at, profiles(username, display_name))")
+    .select("*, games(*), profiles!game_logs_user_id_fkey(username, display_name, bio, avatar_url), review_likes(user_id), comments(id, body, created_at, profiles!comments_user_id_fkey(username, display_name))")
     .eq("id", id)
     .maybeSingle();
 

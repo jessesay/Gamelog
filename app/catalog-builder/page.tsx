@@ -14,25 +14,25 @@ const importSteps = [
     icon: Database
   },
   {
-    title: "Add the service role key locally",
-    text: "Put SUPABASE_SERVICE_ROLE_KEY in .env.local. Keep it server-only and never paste it into browser code or commit it.",
+    title: "Add the Supabase admin key locally",
+    text: "Put SUPABASE_SECRET_KEY (recommended) or SUPABASE_SERVICE_ROLE_KEY in .env.local. Keep it server-only and never paste it into browser code or commit it.",
     icon: ShieldAlert
   },
   {
     title: "Run the importer",
-    text: "Double-click import-top-10000.bat or run pnpm catalog:igdb-top. It imports IGDB games in safe 500-game batches.",
+    text: "Double-click import-top-10000.bat or run npm run catalog:igdb-top. It imports IGDB games in safe 500-game batches.",
     icon: DownloadCloud
   },
   {
     title: "Check the count",
-    text: "Run check-catalog-count.bat or pnpm catalog:count to confirm the database is filling up.",
+    text: "Run check-catalog-count.bat or npm run catalog:count to confirm the database is filling up.",
     icon: CheckCircle2
   }
 ];
 
 const envKeys = [
   "NEXT_PUBLIC_SUPABASE_URL",
-  "SUPABASE_SERVICE_ROLE_KEY",
+  "SUPABASE_SECRET_KEY (or legacy SUPABASE_SERVICE_ROLE_KEY)",
   "IGDB_CLIENT_ID",
   "IGDB_CLIENT_SECRET"
 ];
@@ -76,7 +76,7 @@ export default function CatalogBuilderPage() {
           <TerminalSquare size={26} />
           <h2>Fast commands</h2>
           <p>After the patch is copied in, run these from the GameLog folder.</p>
-          <pre className="code-block">pnpm catalog:igdb-top{"\n"}pnpm catalog:count</pre>
+          <pre className="code-block">npm run catalog:igdb-top{"\n"}npm run catalog:count</pre>
           <p>Windows shortcut files are included too: import-top-10000.bat and check-catalog-count.bat.</p>
         </article>
 

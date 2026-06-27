@@ -2,6 +2,9 @@
   "name": "gamelog-next",
   "version": "3.3.0",
   "private": true,
+  "engines": {
+    "node": "24.x"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -9,7 +12,10 @@
     "lint": "next lint",
     "catalog:igdb-top": "node scripts/import-igdb-top-10000.mjs --target=10000 --batch=500",
     "catalog:count": "node scripts/check-catalog-count.mjs",
-    "sync:games": "node --env-file=.env.local scripts/sync-games.mjs"
+    "sync:games": "node scripts/sync-games.mjs",
+    "catalog:import": "node scripts/sync-games.mjs",
+    "catalog:reset": "node scripts/sync-games.mjs --reset",
+    "catalog:reseed": "node scripts/sync-games.mjs --reseed"
   },
   "dependencies": {
     "@supabase/ssr": "latest",
@@ -28,5 +34,5 @@
     "eslint-config-next": "latest",
     "typescript": "latest"
   },
-  "packageManager": "pnpm@11.8.0"
+  "packageManager": "npm@11.13.0"
 }

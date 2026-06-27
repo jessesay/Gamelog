@@ -818,7 +818,7 @@ export default function GameLogApp() {
         const products = [game, ...(addOnsByGameId.get(game.id) ?? [])];
         const priced = products
           .map((product) => ({ product, latest: latestSnapshotForGame(priceSnapshots, product.id), low: lowSnapshotForGame(priceSnapshots, product.id) }))
-          .filter((row): row is { product: Game; latest: PriceSnapshot; low: PriceSnapshot | null } => Boolean(row.latest && Number(row.latest.discount_percent) > 0))
+          .filter((row): row is { product: Game; latest: PriceSnapshot; low: PriceSnapshot } => Boolean(row.latest && Number(row.latest.discount_percent) > 0))
           .sort((a, b) => Number(b.latest.discount_percent ?? 0) - Number(a.latest.discount_percent ?? 0) || Number(a.latest.current_price ?? 9999) - Number(b.latest.current_price ?? 9999));
         const best = priced[0];
         return best ? { game, saleProduct: best.product, latest: best.latest, low: best.low, addOnCount: products.length - 1 } : null;
@@ -1641,7 +1641,7 @@ export default function GameLogApp() {
       supabase.from("games").select("*").order("title"),
       supabase
         .from("game_logs")
-        .select("*, games(*), profiles(username, display_name, avatar_url), review_likes(user_id), comments(id, user_id, log_id, body, created_at, profiles(username, display_name, avatar_url))")
+        .select("*, games(*), profiles!game_logs_user_id_fkey(username, display_name, avatar_url), review_likes(user_id), comments(id, user_id, log_id, body, created_at, profiles!comments_user_id_fkey(username, display_name, avatar_url))")
         .order("created_at", { ascending: false })
         .limit(120),
       supabase

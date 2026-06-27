@@ -1,3 +1,5 @@
+import "server-only";
+
 export const IGDB_GAME_FIELDS = [
   "id",
   "name",

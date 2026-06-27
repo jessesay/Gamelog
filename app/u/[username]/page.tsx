@@ -3,7 +3,8 @@ import type { CSSProperties } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CalendarDays, Heart, Layers3, MessageCircle, Share2, Star, Trophy } from "lucide-react";
-import { createClient } from "@/utils/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
+import { dedupeGameLogs } from "@/lib/social";
 
 function stars(rating: number | null | undefined) {
   if (rating === null || rating === undefined) return "Unrated";
@@ -41,7 +42,7 @@ function PublicCover({ game }: { game: any }) {
 
 export async function generateMetadata({ params }: { params: Promise<{ username: string }> }): Promise<Metadata> {
   const { username } = await params;
-  const supabase = await createClient();
+  const supabase = supabaseAdmin;
   if (!supabase) return { title: `@${username} — GameLog` };
 
   const { data: profile } = await supabase
@@ -64,7 +65,7 @@ export async function generateMetadata({ params }: { params: Promise<{ username:
 
 export default async function PublicProfilePage({ params }: { params: Promise<{ username: string }> }) {
   const { username } = await params;
-  const supabase = await createClient();
+  const supabase = supabaseAdmin;
 
   if (!supabase) {
     return (
@@ -87,7 +88,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
 
   if (!profile) notFound();
 
-  const [{ data: logs }, { data: lists }, followerResult, followingResult] = await Promise.all([
+  const [{ data: logs }, { data: reviews }, { data: lists }, followerResult, followingResult] = await Promise.all([
     supabase
       .from("game_logs")
       .select("*, games(*), review_likes(user_id), comments(id)")
@@ -95,23 +96,32 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
       .order("created_at", { ascending: false })
       .limit(80),
     supabase
+      .from("game_reviews")
+      .select("*, games(*)")
+      .eq("user_id", profile.id)
+      .order("created_at", { ascending: false })
+      .limit(80),
+    supabase
       .from("game_lists")
       .select("*, list_items(id, games(*))")
       .eq("user_id", profile.id)
+      .eq("is_public", true)
       .order("created_at", { ascending: false })
       .limit(6),
     supabase.from("follows").select("follower_id", { count: "exact", head: true }).eq("following_id", profile.id),
     supabase.from("follows").select("following_id", { count: "exact", head: true }).eq("follower_id", profile.id)
   ]);
 
-  const profileLogs = logs ?? [];
-  const rated = profileLogs.filter((log) => log.rating !== null && log.rating !== undefined);
+  const profileLogs = dedupeGameLogs(logs ?? []);
+  const profileReviews = reviews ?? [];
+  const rated = profileReviews.filter((review) => review.rating !== null && review.rating !== undefined);
   const avgRating = rated.length
-    ? (rated.reduce((sum, log) => sum + Number(log.rating), 0) / rated.length).toFixed(1)
+    ? (rated.reduce((sum, review) => sum + Number(review.rating), 0) / rated.length).toFixed(1)
     : "0.0";
   const completed = profileLogs.filter((log) => ["Completed", "100% Completed"].includes(log.status)).length;
   const backlog = profileLogs.filter((log) => ["Backlog", "Want to Play"].includes(log.status)).length;
-  const reviewed = profileLogs.filter((log) => Boolean(log.review?.trim())).length;
+  const reviewed = profileReviews.length;
+  const logsByGame = new Map(profileLogs.map((log) => [log.game_id, log]));
   const shelfGames = profileLogs
     .filter((log) => log.games)
     .sort((a, b) => Number(b.rating ?? 0) - Number(a.rating ?? 0) || new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime())
@@ -181,28 +191,30 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
             <Link className="secondary inline-link" href="/"><Share2 size={16} /> Make your profile</Link>
           </div>
           <div className="feed public-feed">
-            {profileLogs.length ? profileLogs.slice(0, 12).map((log) => (
-              <article className="review-card public-review-row" key={log.id}>
-                {log.games && <PublicCover game={log.games} />}
+            {profileReviews.length ? profileReviews.slice(0, 12).map((review) => {
+              const log = logsByGame.get(review.game_id);
+              return (
+              <article className="review-card public-review-row" key={review.id}>
+                {review.games && <PublicCover game={review.games} />}
                 <div className="public-review-body">
                   <div className="review-top">
                     <div>
-                      <strong>{log.games?.title ?? "Unknown Game"}</strong>
-                      <p className="muted" style={{ margin: "4px 0 0" }}>{log.status}</p>
+                      <strong>{review.games?.title ?? "Unknown Game"}</strong>
+                      {log?.status && <p className="muted" style={{ margin: "4px 0 0" }}>{log.status}</p>}
                     </div>
-                    <div className="stars">{stars(log.rating)}</div>
+                    <div className="stars">{stars(review.rating)}</div>
                   </div>
-                  {log.review && <p style={{ margin: "13px 0 8px", lineHeight: 1.6 }}>{log.review}</p>}
+                  {review.body && <p style={{ margin: "13px 0 8px", lineHeight: 1.6 }}>{review.body}</p>}
                   <div className="tag-row">
-                    {log.vibe && <span className="tag">{log.vibe}</span>}
-                    {log.played_on && <span className="tag"><CalendarDays size={13} /> {log.played_on}</span>}
-                    <span className="tag"><Heart size={13} /> {log.review_likes?.length ?? 0}</span>
-                    <span className="tag"><MessageCircle size={13} /> {log.comments?.length ?? 0}</span>
-                    <Link className="tag action-tag" href={`/r/${log.id}`}>Open review</Link>
+                    {log?.vibe && <span className="tag">{log.vibe}</span>}
+                    {log?.played_on && <span className="tag"><CalendarDays size={13} /> {log.played_on}</span>}
+                    {log && <span className="tag"><Heart size={13} /> {log.review_likes?.length ?? 0}</span>}
+                    {log && <span className="tag"><MessageCircle size={13} /> {log.comments?.length ?? 0}</span>}
+                    {log?.id && <Link className="tag action-tag" href={`/r/${log.id}`}>Open review</Link>}
                   </div>
                 </div>
               </article>
-            )) : <div className="empty">No logs yet.</div>}
+            )}) : <div className="empty">No reviews yet.</div>}
           </div>
         </div>
 
