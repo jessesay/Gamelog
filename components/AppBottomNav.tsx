@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Compass, List, Radio, UserRound } from "lucide-react";
+import { Compass, List, Radio, Search, UserRound } from "lucide-react";
 
 const items = [
   { href: "/app/discover", label: "Discover", icon: Compass },
+  { href: "/app/search", label: "Search", icon: Search },
   { href: "/app/activity", label: "Activity", icon: Radio },
   { href: "/app/lists", label: "Lists", icon: List },
   { href: "/app/profile", label: "Profile", icon: UserRound },

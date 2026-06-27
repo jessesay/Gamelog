@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/utils/supabase/server";
 import { safeServerError } from "@/lib/serverError";
+import { normalizeGameStatus, toStorageStatus } from "@/lib/gameStatus";
 
 async function getUser() {
   const supabase = await createClient();
@@ -82,10 +83,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Rating must be a number from 1 to 5." }, { status: 400 });
   }
   const rating = parsedRating === null ? null : Math.max(1, Math.min(5, parsedRating));
-  const status = body.status === "Wishlist" ? "Want to Play" : body.status === "Played" ? "Completed" : String(body.status ?? "Completed");
-  if (!["Want to Play", "Completed"].includes(status)) {
+  const statusKey = normalizeGameStatus(body.status ?? "played");
+  if (!statusKey) {
     return NextResponse.json({ error: "Invalid review status." }, { status: 400 });
   }
+  const status = toStorageStatus(statusKey);
 
   const { data: game, error: gameError } = await supabase
     .from("games")
@@ -131,7 +133,7 @@ export async function POST(request: Request) {
     .single();
 
   if (error) return NextResponse.json({ error: safeServerError(error, "Could not save your game log.") }, { status: 500 });
-  const eventType = status === "Want to Play" ? "wishlisted" : !isStatusOnly && payload.review ? "reviewed" : !isStatusOnly && payload.rating ? "rated" : "played";
+  const eventType = statusKey === "wishlist" || statusKey === "want_to_play" ? "wishlisted" : !isStatusOnly && payload.review ? "reviewed" : !isStatusOnly && payload.rating ? "rated" : "played";
   try {
     const canonicalReview = isStatusOnly ? null : await syncCanonicalReview(supabase, payload);
     if (!isStatusOnly) await syncRating(supabase, payload).catch(() => undefined);
