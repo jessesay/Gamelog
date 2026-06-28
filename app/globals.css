@@ -4794,6 +4794,414 @@ textarea:focus {
   padding-bottom: 96px;
 }
 
+/* GameLog core discovery loop */
+.swipe-shell-v34 {
+  width: min(100%, 520px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 12px 94px;
+}
+
+.swipe-topbar-v34 {
+  align-items: center;
+}
+
+.swipe-topbar-v34 h1 {
+  font-size: clamp(1.8rem, 8vw, 2.35rem);
+}
+
+.swipe-feed-status-v34 {
+  display: grid;
+  justify-items: end;
+  gap: 5px;
+}
+
+.swipe-count-v34 {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #cffafe;
+  border-color: rgba(103, 232, 249, 0.22);
+  background: rgba(8, 145, 178, 0.13);
+}
+
+.swipe-guest-v34 {
+  color: rgba(226, 232, 240, 0.62);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.swipe-stack-v34 {
+  position: relative;
+  flex: 1 1 560px;
+  min-height: 500px;
+  isolation: isolate;
+}
+
+.swipe-card-backdrop-v34 {
+  position: absolute;
+  inset: 10px 8px -7px;
+  z-index: -1;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 30px;
+  background: #172033;
+  opacity: 0.55;
+  transform: scale(0.96) translateY(12px);
+}
+
+.swipe-card-backdrop-v34::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(7, 10, 18, 0.58);
+}
+
+.swipe-card-backdrop-v34 img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.swipe-card-v34 {
+  position: relative;
+  z-index: 2;
+  height: 100%;
+  min-height: 500px;
+  display: block;
+  overflow: hidden;
+  border-radius: 30px;
+  cursor: grab;
+  touch-action: pan-y;
+  user-select: none;
+  transform-origin: 50% 90%;
+  will-change: transform;
+}
+
+.swipe-card-v34:active {
+  cursor: grabbing;
+}
+
+.swipe-art-v34 {
+  position: absolute;
+  inset: 0;
+}
+
+.swipe-art-v34 img {
+  object-position: center 28%;
+  pointer-events: none;
+}
+
+.swipe-art-empty-v34 {
+  gap: 10px;
+  align-content: center;
+}
+
+.swipe-art-fade-v34 {
+  inset: 0;
+  height: auto;
+  background: linear-gradient(180deg, rgba(2, 6, 23, 0.12) 18%, transparent 42%, rgba(6, 9, 17, 0.22) 55%, rgba(6, 9, 17, 0.98) 100%);
+}
+
+.swipe-match-v34 {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 999px;
+  padding: 8px 11px;
+  background: rgba(7, 10, 18, 0.66);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(16px);
+  color: #a5f3fc;
+  font-size: 0.78rem;
+  font-weight: 950;
+}
+
+.swipe-card-body-v34 {
+  position: absolute;
+  inset: auto 0 0;
+  z-index: 2;
+  gap: 9px;
+  padding: 42px 17px 18px;
+}
+
+.swipe-card-body-v34 h2 {
+  max-width: 92%;
+  font-size: clamp(2rem, 9vw, 3rem);
+  line-height: 0.96;
+  text-wrap: balance;
+  text-shadow: 0 3px 20px rgba(0, 0, 0, 0.58);
+}
+
+.swipe-meta-v34,
+.swipe-genre-row-v34 {
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+.swipe-meta-v34 span,
+.swipe-genre-row-v34 span {
+  flex: 0 0 auto;
+  border-color: rgba(255, 255, 255, 0.19);
+  background: rgba(7, 10, 18, 0.56);
+  backdrop-filter: blur(12px);
+  color: rgba(248, 250, 252, 0.9);
+}
+
+.swipe-gesture-stamp-v34 {
+  position: absolute;
+  top: 74px;
+  z-index: 8;
+  border: 4px solid currentColor;
+  border-radius: 13px;
+  padding: 8px 12px;
+  opacity: 0;
+  font-size: 1.55rem;
+  font-weight: 1000;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: opacity 90ms ease;
+}
+
+.swipe-gesture-stamp-v34.is-visible {
+  opacity: 1;
+}
+
+.swipe-gesture-skip-v34 {
+  right: 24px;
+  color: #fda4af;
+  transform: rotate(10deg);
+}
+
+.swipe-gesture-want-v34 {
+  left: 24px;
+  color: #5eead4;
+  transform: rotate(-10deg);
+}
+
+.swipe-hint-v34 {
+  display: flex;
+  justify-content: space-between;
+  margin: 0 4px;
+  color: rgba(148, 163, 184, 0.66);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.swipe-actions-v34 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  padding: 7px;
+  border-radius: 22px;
+}
+
+.swipe-action-v34 {
+  min-height: 60px;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 17px;
+  font-size: 0.68rem;
+  line-height: 1.05;
+}
+
+.swipe-action-skipped-v34 {
+  color: #cbd5e1;
+  background: rgba(148, 163, 184, 0.1);
+}
+
+.swipe-action-saved-v34 {
+  color: #bae6fd;
+  background: rgba(14, 165, 233, 0.17);
+}
+
+.swipe-action-liked-v34 {
+  color: #ccfbf1;
+  background: linear-gradient(135deg, rgba(20, 184, 166, 0.66), rgba(13, 148, 136, 0.5));
+}
+
+.swipe-action-played-v34 {
+  color: #ede9fe;
+  background: rgba(139, 92, 246, 0.22);
+}
+
+.swipe-error-v34 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.swipe-error-v34 button {
+  border: 0;
+  background: transparent;
+  color: #fecdd3;
+  font-weight: 900;
+}
+
+.swipe-loading-more-v34 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: -3px 0 0;
+  color: rgba(148, 163, 184, 0.72);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.swipe-toast-v34 {
+  position: fixed;
+  left: 50%;
+  bottom: max(106px, calc(env(safe-area-inset-bottom) + 94px));
+  z-index: 90;
+  width: min(440px, calc(100% - 28px));
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid rgba(103, 232, 249, 0.22);
+  border-radius: 18px;
+  padding: 12px 14px;
+  background: rgba(8, 15, 27, 0.94);
+  box-shadow: 0 20px 70px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(18px);
+  color: #e2e8f0;
+  font-size: 0.8rem;
+  font-weight: 750;
+}
+
+.swipe-toast-v34 a {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #67e8f9;
+  font-weight: 950;
+}
+
+.swipe-skeleton-wrap-v34 {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 560px;
+}
+
+.swipe-skeleton-card-v34 {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 490px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 30px;
+  background: linear-gradient(110deg, #121a29 20%, #1d2a3d 36%, #121a29 52%);
+  background-size: 220% 100%;
+  animation: swipe-shimmer-v34 1.35s linear infinite;
+}
+
+.swipe-skeleton-match-v34 {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 132px;
+  height: 34px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.swipe-skeleton-copy-v34 {
+  position: absolute;
+  inset: auto 18px 22px;
+  display: grid;
+  gap: 10px;
+}
+
+.swipe-skeleton-copy-v34 span {
+  width: 80%;
+  height: 17px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.swipe-skeleton-copy-v34 span:first-child {
+  width: 68%;
+  height: 42px;
+}
+
+.swipe-skeleton-copy-v34 span:last-child {
+  width: 52%;
+}
+
+.swipe-skeleton-actions-v34 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 7px;
+}
+
+.swipe-skeleton-actions-v34 span {
+  height: 64px;
+  border-radius: 17px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+@keyframes swipe-shimmer-v34 {
+  to { background-position-x: -220%; }
+}
+
+@media (min-width: 760px) {
+  .swipe-shell-v34 {
+    height: min(900px, calc(100svh - 48px));
+    min-height: 720px;
+    padding-bottom: 94px;
+  }
+
+  .swipe-stack-v34 {
+    min-height: 0;
+  }
+
+  .swipe-card-v34 {
+    min-height: 0;
+  }
+}
+
+@media (max-width: 430px) {
+  .swipe-stack-v34 {
+    flex-basis: 500px;
+    min-height: 440px;
+  }
+
+  .swipe-card-v34 {
+    min-height: 440px;
+  }
+
+  .swipe-card-body-v34 h2 {
+    font-size: clamp(1.85rem, 9vw, 2.5rem);
+  }
+
+  .swipe-toast-v34 {
+    align-items: flex-start;
+  }
+}
+
+@media (max-height: 760px) and (max-width: 759px) {
+  .swipe-stack-v34,
+  .swipe-card-v34 {
+    min-height: 405px;
+  }
+
+  .swipe-hint-v34 {
+    display: none;
+  }
+}
+
 .app-bottom-nav-v35 {
   position: fixed;
   left: 50%;

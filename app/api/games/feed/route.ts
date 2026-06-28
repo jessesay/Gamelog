@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { safeServerError } from "@/lib/serverError";
+import { createClient } from "@/utils/supabase/server";
 
 export const runtime = "nodejs";
 
@@ -27,6 +28,12 @@ type GameRow = {
 
 type SwipeRow = {
   action: string;
+  game_id: string;
+  games: GameRow | null;
+};
+
+type LogRow = {
+  status: string;
   game_id: string;
   games: GameRow | null;
 };
@@ -87,7 +94,7 @@ function overlapScore(values: Set<string>, likedValues: Set<string>, points: num
   return score;
 }
 
-function scoreGame(game: GameRow, likedTraits: ReturnType<typeof traitsFor>, skippedIds: Set<string>) {
+function scoreGame(game: GameRow, likedTraits: ReturnType<typeof traitsFor>) {
   const traits = traitsFor(game);
   let score = 0;
 
@@ -95,7 +102,6 @@ function scoreGame(game: GameRow, likedTraits: ReturnType<typeof traitsFor>, ski
   // - Liked and wishlisted games are treated as strong taste signals.
   // - Played games are useful but slightly weaker because they may include older history.
   // - Shared genre/source are strong boosts; tags/platforms add smaller explainable boosts.
-  // - Skipped games are heavily penalized so they only come back in the fallback pool.
   score += overlapScore(traits.genres, likedTraits.genres, 8);
   score += overlapScore(traits.tags, likedTraits.tags, 4);
   score += overlapScore(traits.platforms, likedTraits.platforms, 3);
@@ -103,9 +109,24 @@ function scoreGame(game: GameRow, likedTraits: ReturnType<typeof traitsFor>, ski
   score += Number(game.rating ?? 0);
   score += game.cover_url ? 2 : 0;
 
-  if (skippedIds.has(game.id)) score -= 100;
-
   return score;
+}
+
+function tasteMatchScore(game: GameRow, likedTraits: ReturnType<typeof traitsFor>) {
+  const traits = traitsFor(game);
+  const signalCount = likedTraits.genres.size + likedTraits.tags.size + likedTraits.platforms.size + likedTraits.sources.size;
+  const quality = Math.min(18, Math.max(0, Number(game.rating ?? 0)) * 1.8);
+  const artBonus = game.cover_url ? 3 : 0;
+
+  if (!signalCount) return Math.round(Math.min(88, 54 + quality + artBonus));
+
+  const affinity =
+    overlapScore(traits.genres, likedTraits.genres, 12) +
+    overlapScore(traits.tags, likedTraits.tags, 5) +
+    overlapScore(traits.platforms, likedTraits.platforms, 4) +
+    overlapScore(traits.sources, likedTraits.sources, 2);
+
+  return Math.round(Math.min(98, 52 + quality + artBonus + Math.min(30, affinity)));
 }
 
 export async function GET(request: NextRequest) {
@@ -117,32 +138,43 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Missing or invalid sessionId." }, { status: 400 });
   }
 
-  const { data: swipes, error: swipeError } = await supabaseAdmin
+  const authClient = await createClient();
+  const { data: authData } = authClient ? await authClient.auth.getUser() : { data: { user: null } };
+  const user = authData.user;
+
+  const swipeQuery = supabaseAdmin
     .from("game_swipes")
     .select(`action, game_id, games(${gameSelect})`)
     .eq("session_id", sessionId)
     .limit(5000);
+  const logQuery = user
+    ? supabaseAdmin.from("game_logs").select(`status, game_id, games(${gameSelect})`).eq("user_id", user.id).limit(5000)
+    : Promise.resolve({ data: [], error: null });
+  const [{ data: swipes, error: swipeError }, { data: logs, error: logError }] = await Promise.all([swipeQuery, logQuery]);
 
   if (swipeError) {
     return NextResponse.json({ error: safeServerError(swipeError, "Could not load your discovery history.") }, { status: 500 });
   }
+  if (logError) {
+    return NextResponse.json({ error: safeServerError(logError, "Could not load your game shelves.") }, { status: 500 });
+  }
 
   const swipeRows = (swipes ?? []) as unknown as SwipeRow[];
+  const logRows = (logs ?? []) as unknown as LogRow[];
   const positiveActions = new Set(["liked", "saved", "played"]);
-  const positiveGames = swipeRows
+  const positiveGamesFromSwipes = swipeRows
     .filter((swipe) => positiveActions.has(swipe.action))
     .map((swipe) => swipe.games)
     .filter(Boolean) as GameRow[];
-  const skippedIds = new Set(
-    swipeRows
-      .filter((swipe) => swipe.action === "skipped" || swipe.action === "disliked")
-      .map((swipe) => swipe.game_id)
-      .filter(Boolean)
-  );
-  const blockedIds = swipeRows
-    .filter((swipe) => swipe.action !== "skipped" && swipe.action !== "disliked")
-    .map((swipe) => swipe.game_id)
-    .filter(Boolean);
+  const positiveGamesFromLogs = logRows
+    .filter((log) => String(log.status).toLowerCase() !== "dropped")
+    .map((log) => log.games)
+    .filter(Boolean) as GameRow[];
+  const positiveGames = [...positiveGamesFromSwipes, ...positiveGamesFromLogs];
+  const blockedIds = [...new Set([
+    ...swipeRows.map((swipe) => swipe.game_id),
+    ...logRows.map((log) => log.game_id),
+  ].filter(Boolean))];
 
   const likedTraits = {
     genres: new Set<string>(),
@@ -164,7 +196,7 @@ export async function GET(request: NextRequest) {
     .select(gameSelect)
     .order("rating", { ascending: false, nullsFirst: false })
     .order("release_date", { ascending: false, nullsFirst: false })
-    .limit(Math.max(limit * 5, 120));
+    .limit(Math.max(limit * 8, 160));
 
   if (blockedIds.length > 0) {
     query = query.not("id", "in", `(${blockedIds.join(",")})`);
@@ -177,17 +209,10 @@ export async function GET(request: NextRequest) {
   }
 
   const allGames = (games ?? []) as unknown as GameRow[];
-  const candidateGames = allGames.filter((game) => !skippedIds.has(game.id));
-  const fallbackSkippedGames = allGames.filter((game) => skippedIds.has(game.id));
-  const rankedGames = candidateGames
-    .map((game) => ({ game, score: scoreGame(game, likedTraits, skippedIds) }))
+  const rankedGames = allGames
+    .map((game) => ({ game, score: scoreGame(game, likedTraits) }))
     .sort((a, b) => b.score - a.score || String(a.game.title).localeCompare(String(b.game.title)))
-    .map((row) => row.game);
+    .map((row) => ({ ...row.game, taste_match: tasteMatchScore(row.game, likedTraits) }));
 
-  const fallbackGames = fallbackSkippedGames
-    .map((game) => ({ game, score: scoreGame(game, likedTraits, skippedIds) }))
-    .sort((a, b) => b.score - a.score || String(a.game.title).localeCompare(String(b.game.title)))
-    .map((row) => row.game);
-
-  return NextResponse.json({ games: [...rankedGames, ...fallbackGames].slice(0, limit) });
+  return NextResponse.json({ games: rankedGames.slice(0, limit), personalized: positiveGames.length > 0, signedIn: Boolean(user) });
 }
