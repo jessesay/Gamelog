@@ -30,8 +30,9 @@ Open Supabase → SQL Editor and run each file once, in order:
 12. `supabase/v3_6_list_upgrade.sql`
 13. `supabase/v3_8_global_search.sql`
 14. `supabase/v3_10_discovery_learning.sql`
+15. `supabase/v3_11_catalog_import_health.sql`
 
-`v3_5_social_foundation.sql` keeps the newest duplicate user/game log or review before adding uniqueness indexes. `v3_10_discovery_learning.sql` adds per-user discovery preferences and event history. Back up production data before running migrations. Do not also run `gamelog_discovery_schema.sql`; v3.4 contains the maintained discovery schema.
+`v3_5_social_foundation.sql` keeps the newest duplicate user/game log or review before adding uniqueness indexes. `v3_10_discovery_learning.sql` adds per-user discovery preferences and event history. `v3_11_catalog_import_health.sql` adds private importer run/error tracking and catalog quality metrics. Back up production data before running migrations. Do not also run `gamelog_discovery_schema.sql`; v3.4 contains the maintained discovery schema.
 
 Optional data files such as `seed.sql`, `mega_seed.sql`, and `cover_updates.sql` are data loads, not required migrations.
 
@@ -69,6 +70,8 @@ Import the Git repository into Vercel with:
 - Output directory: leave blank (Next.js default)
 
 Do not run `catalog:import` as a build command. Vercel functions have finite execution limits; run large imports locally or in a dedicated trusted CI job.
+
+For production imports, first run the one-game Steam dry run from a trusted shell. Then use bounded batches and inspect `/catalog-builder/status`. The status page can queue failed rows, but intentionally does not launch imports from a web request; process queued rows with `pnpm run catalog:retry`. Set `CATALOG_ADMIN_EMAILS` to a comma-separated allowlist before exposing that page in production.
 
 ## 4. Set Vercel environment variables
 

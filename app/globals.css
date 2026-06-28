@@ -6678,3 +6678,241 @@ textarea:focus {
     height: 38px;
   }
 }
+
+/* GameLog v3.11 catalog health */
+.catalog-status-page-v311 {
+  width: min(1180px, calc(100% - 28px));
+  margin: 0 auto;
+  padding: 32px 0 80px;
+  color: #f8fafc;
+}
+
+.catalog-status-head-v311 {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 22px;
+}
+
+.catalog-status-head-v311 a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 24px;
+  color: #a5f3fc;
+  font-weight: 900;
+}
+
+.catalog-status-head-v311 h1 {
+  margin: 4px 0 8px;
+  font-size: clamp(2.5rem, 7vw, 5rem);
+  line-height: 0.92;
+}
+
+.catalog-status-head-v311 p:last-child {
+  max-width: 680px;
+  margin: 0;
+  color: rgba(226, 232, 240, 0.7);
+}
+
+.catalog-retry-v311 {
+  display: grid;
+  justify-items: end;
+  gap: 7px;
+}
+
+.catalog-retry-v311 button {
+  min-height: 46px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 15px;
+  padding: 0 16px;
+  background: linear-gradient(135deg, #2dd4bf, #22d3ee);
+  color: #061116;
+  font-weight: 950;
+}
+
+.catalog-retry-v311 button:disabled {
+  opacity: 0.45;
+}
+
+.catalog-retry-v311 p {
+  max-width: 380px;
+  margin: 0;
+  color: rgba(165, 243, 252, 0.76);
+  font-size: 0.76rem;
+  text-align: right;
+}
+
+.catalog-migration-warning-v311 {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 18px;
+  border: 1px solid rgba(251, 191, 36, 0.34);
+  border-radius: 18px;
+  padding: 14px;
+  background: rgba(245, 158, 11, 0.1);
+  color: #fde68a;
+}
+
+.catalog-migration-warning-v311 p {
+  margin: 3px 0 0;
+  color: rgba(254, 243, 199, 0.78);
+}
+
+.catalog-health-grid-v311 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.catalog-health-card-v311 {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 15px;
+  background: rgba(15, 23, 42, 0.76);
+}
+
+.catalog-health-card-v311 > span {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: rgba(56, 189, 248, 0.11);
+  color: #7dd3fc;
+}
+
+.catalog-health-card-v311.is-good > span { background: rgba(45, 212, 191, 0.12); color: #5eead4; }
+.catalog-health-card-v311.is-warn > span { background: rgba(251, 191, 36, 0.11); color: #fcd34d; }
+.catalog-health-card-v311.is-bad > span { background: rgba(251, 113, 133, 0.12); color: #fda4af; }
+.catalog-health-card-v311 small { color: rgba(148, 163, 184, 0.78); font-weight: 850; }
+.catalog-health-card-v311 strong { display: block; margin: 3px 0; font-size: 1.8rem; }
+.catalog-health-card-v311 p { margin: 0; color: rgba(148, 163, 184, 0.66); font-size: 0.74rem; }
+
+.catalog-status-panel-v311,
+.catalog-production-guide-v311 {
+  margin-top: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 22px;
+  padding: 17px;
+  background: rgba(15, 23, 42, 0.7);
+}
+
+.catalog-status-panel-v311 > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.catalog-status-panel-v311 h2,
+.catalog-production-guide-v311 h2 { margin: 3px 0 0; font-size: 1.35rem; }
+.catalog-status-panel-v311 code,
+.catalog-status-panel-v311 > header > span { color: #a5f3fc; font-size: 0.76rem; font-weight: 850; }
+
+.catalog-run-list-v311,
+.catalog-error-list-v311 { display: grid; gap: 8px; }
+.catalog-run-list-v311 article,
+.catalog-error-list-v311 article { display: grid; grid-template-columns: 82px minmax(0, 1fr) auto; gap: 12px; align-items: center; border-radius: 15px; padding: 11px; background: rgba(255, 255, 255, 0.045); }
+.catalog-error-list-v311 article { grid-template-columns: 82px minmax(0, 1fr); }
+.catalog-run-list-v311 article > div:last-child { text-align: right; }
+.catalog-run-list-v311 strong,
+.catalog-error-list-v311 strong { display: block; }
+.catalog-run-list-v311 small,
+.catalog-error-list-v311 small { color: rgba(148, 163, 184, 0.68); }
+.catalog-run-list-v311 p,
+.catalog-error-list-v311 p { margin: 4px 0; color: #fecdd3; font-size: 0.8rem; }
+
+.catalog-run-state-v311 {
+  border-radius: 999px;
+  padding: 6px 8px;
+  background: rgba(148, 163, 184, 0.1);
+  color: #cbd5e1;
+  font-size: 0.67rem;
+  font-weight: 950;
+  text-align: center;
+  text-transform: uppercase;
+}
+.catalog-run-state-v311.is-completed,
+.catalog-run-state-v311.is-resolved { background: rgba(45, 212, 191, 0.12); color: #99f6e4; }
+.catalog-run-state-v311.is-failed { background: rgba(251, 113, 133, 0.12); color: #fecdd3; }
+.catalog-run-state-v311.is-running,
+.catalog-run-state-v311.is-retrying { background: rgba(56, 189, 248, 0.12); color: #bae6fd; }
+
+.catalog-empty-v311 { border-radius: 15px; padding: 24px; background: rgba(255, 255, 255, 0.04); color: rgba(148, 163, 184, 0.76); text-align: center; }
+.catalog-production-guide-v311 { display: grid; grid-template-columns: 50px minmax(0, 1fr); gap: 15px; }
+.catalog-production-guide-v311 > svg { color: #5eead4; }
+.catalog-production-guide-v311 ol { display: grid; gap: 8px; margin: 14px 0 0; padding-left: 20px; color: rgba(226, 232, 240, 0.72); line-height: 1.5; }
+.catalog-production-guide-v311 code { color: #a5f3fc; }
+
+@media (max-width: 760px) {
+  .catalog-status-page-v311 { width: min(100% - 20px, 680px); padding-top: 18px; }
+  .catalog-status-head-v311 { display: grid; align-items: start; }
+  .catalog-retry-v311 { justify-items: start; }
+  .catalog-retry-v311 p { text-align: left; }
+  .catalog-health-grid-v311 { grid-template-columns: 1fr 1fr; }
+  .catalog-run-list-v311 article { grid-template-columns: 72px minmax(0, 1fr); }
+  .catalog-run-list-v311 article > div:last-child { grid-column: 2; text-align: left; }
+}
+
+@media (max-width: 440px) {
+  .catalog-health-grid-v311 { grid-template-columns: 1fr; }
+  .catalog-status-panel-v311 > header { align-items: start; }
+  .catalog-status-panel-v311 > header code { display: none; }
+  .catalog-error-list-v311 article { grid-template-columns: 1fr; }
+  .catalog-run-state-v311 { width: fit-content; }
+  .catalog-production-guide-v311 { grid-template-columns: 1fr; }
+}
+
+.game-cover-fallback-v311 {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: inherit;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 8px;
+  overflow: hidden;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 70% 22%, rgba(255, 255, 255, 0.2), transparent 18%),
+    linear-gradient(145deg, #0f766e, #172554 58%, #3b0764);
+  color: rgba(255, 255, 255, 0.9);
+  text-align: center;
+}
+
+.game-cover-fallback-v311.tone-1 { background: radial-gradient(circle at 70% 22%, rgba(255,255,255,.2), transparent 18%), linear-gradient(145deg, #9f1239, #312e81 60%, #111827); }
+.game-cover-fallback-v311.tone-2 { background: radial-gradient(circle at 70% 22%, rgba(255,255,255,.2), transparent 18%), linear-gradient(145deg, #a16207, #9f1239 60%, #312e81); }
+.game-cover-fallback-v311.tone-3 { background: radial-gradient(circle at 70% 22%, rgba(255,255,255,.2), transparent 18%), linear-gradient(145deg, #0369a1, #164e63 55%, #172554); }
+.game-cover-fallback-v311.tone-4 { background: radial-gradient(circle at 70% 22%, rgba(255,255,255,.2), transparent 18%), linear-gradient(145deg, #4d7c0f, #065f46 55%, #134e4a); }
+.game-cover-fallback-v311.tone-5 { background: radial-gradient(circle at 70% 22%, rgba(255,255,255,.2), transparent 18%), linear-gradient(145deg, #7e22ce, #be185d 58%, #4c1d95); }
+
+.game-cover-orbit-v311 {
+  position: absolute;
+  width: 72%;
+  aspect-ratio: 1;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 42% 58% 65% 35%;
+  transform: rotate(24deg);
+  box-shadow: 0 0 0 28px rgba(255, 255, 255, 0.035), 0 0 0 62px rgba(255, 255, 255, 0.025);
+}
+
+.game-cover-fallback-v311 > svg,
+.game-cover-fallback-v311 > strong,
+.game-cover-fallback-v311 > div { position: relative; z-index: 1; }
+.game-cover-fallback-v311 > strong { font-size: clamp(3rem, 16vw, 6rem); line-height: 0.9; letter-spacing: -0.06em; text-shadow: 0 8px 30px rgba(0,0,0,.32); }
+.game-cover-fallback-v311 > div { display: grid; gap: 2px; }
+.game-cover-fallback-v311 b { max-width: 18rem; font-size: 0.9rem; }
+.game-cover-fallback-v311 small { color: rgba(255,255,255,.65); font-size: 0.7rem; text-transform: uppercase; letter-spacing: .08em; }
+.swipe-card-backdrop-v34 .game-cover-fallback-v311 { min-height: 100%; }
+.swipe-modal-art-v34 .game-cover-fallback-v311 { min-height: 240px; }

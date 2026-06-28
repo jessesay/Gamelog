@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { Bookmark, CheckCircle2, ExternalLink, Gamepad2, Loader2, LogIn, RotateCcw, Settings2, Sparkles, X } from "lucide-react";
 import DiscoveryPreferenceSetup from "@/components/DiscoveryPreferenceSetup";
+import GameCoverArt from "@/components/GameCoverArt";
 import { emptyDiscoveryPreferences, normalizeDiscoveryPreferences, type DiscoveryPreferences } from "@/lib/discoveryPreferences";
 
 type SwipeAction = "skipped" | "liked" | "saved" | "played";
@@ -467,7 +468,7 @@ export default function GameSwipeDeck({ signedIn = false }: { signedIn?: boolean
                 <div className={`swipe-gesture-stamp-v34 swipe-gesture-skip-v34 ${dragX < -25 ? "is-visible" : ""}`}>Skip</div>
                 <div className={`swipe-gesture-stamp-v34 swipe-gesture-want-v34 ${dragX > 25 ? "is-visible" : ""}`}>Want it</div>
                 <div className="swipe-art-v34">
-                  {currentGame.cover_url ? <img src={currentGame.cover_url} alt={`${currentGame.title} box art`} draggable={false} /> : <div className="swipe-art-empty-v34"><Gamepad2 size={42} /><span>Box art coming soon</span></div>}
+                  <GameCoverArt src={currentGame.cover_url} title={currentGame.title} genre={currentGame.genre ?? currentGame.genres?.[0]} />
                   <div className="swipe-art-fade-v34" />
                   <span className="swipe-match-v34"><Sparkles size={14} /> {currentGame.taste_match}% Taste Match</span>
                   <div className="swipe-card-body-v34">
@@ -505,7 +506,7 @@ export default function GameSwipeDeck({ signedIn = false }: { signedIn?: boolean
 }
 
 function CardBackdrop({ game }: { game: Game }) {
-  return <div className="swipe-card-backdrop-v34" aria-hidden="true">{game.cover_url ? <img src={game.cover_url} alt="" /> : null}</div>;
+  return <div className="swipe-card-backdrop-v34" aria-hidden="true"><GameCoverArt src={game.cover_url} title={game.title} genre={game.genre ?? game.genres?.[0]} decorative /></div>;
 }
 
 function ActionButton({ label, action, busy, disabled, icon, onClick }: { label: string; action: SwipeAction; busy: boolean; disabled: boolean; icon: ReactNode; onClick: (action: SwipeAction) => void }) {
@@ -523,7 +524,7 @@ function GameDetailModal({ game, savingAction, onClose, onAction }: { game: Game
     <div className="swipe-modal-backdrop-v34" role="presentation" onClick={onClose}>
       <section className="swipe-modal-v34" role="dialog" aria-modal="true" aria-labelledby="swipe-detail-title" onClick={(event) => event.stopPropagation()}>
         <header className="swipe-modal-header-v34"><div><p className="swipe-eyebrow-v34">{game.taste_match}% Taste Match · {sourceLabel(game)}</p><h2 id="swipe-detail-title">{game.title}</h2></div><button className="swipe-modal-close-v34" type="button" onClick={onClose} aria-label="Close details"><X size={20} /></button></header>
-        <div className="swipe-modal-art-v34">{game.cover_url ? <img src={game.cover_url} alt={`${game.title} box art`} /> : <div className="swipe-art-empty-v34">Artwork has not been imported yet.</div>}</div>
+        <div className="swipe-modal-art-v34"><GameCoverArt src={game.cover_url} title={game.title} genre={game.genre ?? game.genres?.[0]} /></div>
         <div className="swipe-detail-grid-v34"><DetailBlock label="Release" value={formatDate(game)} /><DetailBlock label="Taste Match" value={`${game.taste_match}%`} /></div>
         <ChipSection title="Platforms" values={platforms} fallback="No platforms imported yet." />
         <ChipSection title="Genres" values={genres} fallback="No genres imported yet." />

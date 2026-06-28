@@ -56,9 +56,10 @@ function unique(values: Array<string | null | undefined>) {
 }
 
 function traitsFor(game: GameRow | null | undefined) {
+  const genericValues = new Set(["game", "unknown", "n/a", "other"]);
   return {
-    genres: unique([...(game?.genres ?? []), game?.genre]),
-    platforms: unique(game?.platforms ?? []),
+    genres: unique([...(game?.genres ?? []), game?.genre]).filter((value) => !genericValues.has(value)),
+    platforms: unique(game?.platforms ?? []).filter((value) => !genericValues.has(value)),
     tags: unique(game?.tags ?? []),
   };
 }
@@ -150,14 +151,26 @@ function styleScore(game: GameRow, styles: Set<string>) {
   return score;
 }
 
+function catalogQualityScore(game: GameRow) {
+  const traits = traitsFor(game);
+  let score = 0;
+  if (game.cover_url?.trim()) score += 45;
+  if (traits.genres.length) score += 18;
+  if (traits.platforms.length) score += 18;
+  if (gameYear(game)) score += 11;
+  if ((game.description || game.summary)?.trim()) score += 8;
+  return score;
+}
+
 function scoreGame(game: GameRow, profile: TasteProfile) {
   const traits = traitsFor(game);
   return overlapWeight(traits.genres, profile.genres)
     + overlapWeight(traits.platforms, profile.platforms)
     + (profile.years.get(yearBucket(game)) ?? 0)
     + styleScore(game, profile.styles)
+    + catalogQualityScore(game) * 0.55
     + Number(game.rating ?? 0)
-    + (game.cover_url ? 3 : 0);
+    + (game.cover_url ? 5 : 0);
 }
 
 function matchReasons(game: GameRow, profile: TasteProfile) {
@@ -279,11 +292,14 @@ export async function GET(request: NextRequest) {
   const { data: games, error } = await query;
   if (error) return NextResponse.json({ error: safeServerError(error, "Could not load the game catalog.") }, { status: 500 });
 
-  const rankedGames = ((games ?? []) as unknown as GameRow[])
-    .map((game) => ({ game, score: scoreGame(game, taste) }))
-    .sort((a, b) => b.score - a.score || String(a.game.title).localeCompare(String(b.game.title)))
+  const scoredGames = ((games ?? []) as unknown as GameRow[])
+    .map((game) => ({ game, quality: catalogQualityScore(game), score: scoreGame(game, taste) }))
+    .sort((a, b) => b.score - a.score || String(a.game.title).localeCompare(String(b.game.title)));
+  const discoveryReady = scoredGames.filter((row) => row.quality >= 65);
+  const fallbackGames = scoredGames.filter((row) => row.quality < 65);
+  const rankedGames = [...discoveryReady, ...fallbackGames]
     .slice(0, limit)
-    .map(({ game }) => ({ ...game, taste_match: tasteMatchScore(game, taste), match_reasons: matchReasons(game, taste) }));
+    .map(({ game, quality }) => ({ ...game, catalog_quality: quality, taste_match: tasteMatchScore(game, taste), match_reasons: matchReasons(game, taste) }));
 
   return NextResponse.json({
     games: rankedGames,

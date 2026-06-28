@@ -56,6 +56,7 @@ export default function CatalogBuilderPage() {
           GameLog v3.3 adds a real catalog pipeline: pull ranked game data from IGDB, write it into Supabase, and give the app a much deeper discovery base for search, charts, Matchmaker, Arena, deals, releases, and collections.
         </p>
         <div className="hero-actions">
+          <Link className="primary xl" href="/catalog-builder/status">Open import status <ArrowRight size={18} /></Link>
           <Link className="primary xl" href="/app">Open app <ArrowRight size={18} /></Link>
           <Link className="secondary xl" href="/features">Feature map</Link>
         </div>
@@ -76,7 +77,7 @@ export default function CatalogBuilderPage() {
           <TerminalSquare size={26} />
           <h2>Fast commands</h2>
           <p>After the patch is copied in, run these from the GameLog folder.</p>
-          <pre className="code-block">npm run catalog:igdb-top{"\n"}npm run catalog:count</pre>
+          <pre className="code-block">pnpm run catalog:igdb-top{"\n"}pnpm run catalog:count{"\n"}pnpm run catalog:retry</pre>
           <p>Windows shortcut files are included too: import-top-10000.bat and check-catalog-count.bat.</p>
         </article>
 

@@ -38,6 +38,7 @@ const itchApiKey = process.env.ITCH_API_KEY;
 const dryRun = truthy(args.get("dry-run")) || truthy(args.get("dryRun"));
 const reset = truthy(args.get("reset"));
 const reseed = truthy(args.get("reseed"));
+const retryFailed = truthy(args.get("retry-failed")) || truthy(args.get("retryFailed"));
 const skipExisting = args.get("skip-existing") !== "false";
 const sources = String(args.get("sources") || process.env.GAMELOG_IMPORT_SOURCES || "rawg,steam,itch")
   .split(",")
@@ -53,6 +54,8 @@ if (!supabaseUrl) fail("Missing NEXT_PUBLIC_SUPABASE_URL in .env.local.");
 if (!serviceRoleKey) fail("Missing SUPABASE_SECRET_KEY or SUPABASE_SERVICE_ROLE_KEY in .env.local.");
 
 const importedSources = ["rawg", "steam", "itch"];
+let activeRunId = null;
+const runStats = { collected: 0, saved: 0, missing_art: 0, retried: 0, sources: {} };
 
 function truthy(value) {
   return ["1", "true", "yes", "y"].includes(String(value || "").toLowerCase());
@@ -240,35 +243,42 @@ async function fetchRawgRows() {
     url.searchParams.set("page_size", String(rawgPageSize));
     url.searchParams.set("ordering", "-rating");
     console.log(`RAWG page ${page}/${rawgPages}`);
-    const data = await fetchJson(url);
+    let data;
+    try {
+      data = await fetchJson(url);
+    } catch (error) {
+      await recordImportError("rawg", `page-${page}`, `RAWG page ${page}`, error, { page });
+      throw error;
+    }
     for (const game of data.results || []) {
-      const title = String(game.name || "").trim();
-      if (!title) continue;
-      rows.push({
-        source: "rawg",
-        source_id: String(game.id),
-        title,
-        slug: game.slug ? `rawg-${game.id}-${game.slug}` : null,
-        description: null,
-        cover_url: game.background_image || null,
-        background_url: game.background_image || null,
-        platforms: (game.platforms || []).map((item) => item.platform?.name),
-        genres: (game.genres || []).map((item) => item.name),
-        tags: (game.tags || []).filter((tag) => !tag.language || tag.language === "eng").map((tag) => tag.name),
-        release_date: game.released || null,
-        rating: game.rating ?? null,
-        metacritic: game.metacritic ?? null,
-        stores: (game.stores || []).map((item) => ({
-          id: item.store?.id ?? null,
-          name: item.store?.name ?? null,
-          slug: item.store?.slug ?? null
-        })),
-        raw: { rawg: game },
-        source_url: game.slug ? `https://rawg.io/games/${game.slug}` : null
-      });
+      const row = mapRawgGame(game);
+      if (row) rows.push(row);
     }
   }
   return rows;
+}
+
+function mapRawgGame(game) {
+  const title = String(game?.name || "").trim();
+  if (!title) return null;
+  return {
+    source: "rawg",
+    source_id: String(game.id),
+    title,
+    slug: game.slug ? `rawg-${game.id}-${game.slug}` : null,
+    description: null,
+    cover_url: game.background_image || null,
+    background_url: game.background_image || null,
+    platforms: (game.platforms || []).map((item) => item.platform?.name),
+    genres: (game.genres || []).map((item) => item.name),
+    tags: (game.tags || []).filter((tag) => !tag.language || tag.language === "eng").map((tag) => tag.name),
+    release_date: game.released || null,
+    rating: game.rating ?? null,
+    metacritic: game.metacritic ?? null,
+    stores: (game.stores || []).map((item) => ({ id: item.store?.id ?? null, name: item.store?.name ?? null, slug: item.store?.slug ?? null })),
+    raw: { rawg: game },
+    source_url: game.slug ? `https://rawg.io/games/${game.slug}` : null
+  };
 }
 
 async function fetchSteamRows() {
@@ -285,6 +295,7 @@ async function fetchSteamRows() {
       rows.push(mapSteamDetail(appid, detail));
     } catch (error) {
       console.warn(`Steam ${appid} skipped: ${error.message}`);
+      await recordImportError("steam", String(appid), null, error, { appid });
     }
     await sleep(75);
   }
@@ -304,6 +315,7 @@ async function discoverSteamIds() {
     }
   } catch (error) {
     console.warn(`Steam featured discovery failed: ${error.message}`);
+    await recordImportError("steam", "featured", "Steam featured discovery", error, { mode: "featured" });
   }
   return unique(ids).map(Number).filter(Boolean);
 }
@@ -355,6 +367,7 @@ async function fetchItchRows() {
       }
     } catch (error) {
       console.warn(`itch.io API import skipped: ${error.message}`);
+      await recordImportError("itch", "api-library", "itch.io API library", error, { mode: "api" });
     }
   }
 
@@ -364,6 +377,7 @@ async function fetchItchRows() {
       rows.push(await fetchItchPageRow(url));
     } catch (error) {
       console.warn(`itch.io page skipped (${url}): ${error.message}`);
+      await recordImportError("itch", url, null, error, { url });
     }
   }
 
@@ -510,6 +524,118 @@ async function restRequest(table, query, options = {}) {
   return text ? JSON.parse(text) : null;
 }
 
+let importHealthAvailable = true;
+
+async function startImportRun() {
+  if (dryRun) return null;
+  try {
+    const rows = await restRequest("catalog_import_runs", "", {
+      method: "POST",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify({ importer: "catalog:import", sources: retryFailed ? ["retry-queue"] : sources, status: "running", dry_run: false })
+    });
+    activeRunId = rows?.[0]?.id || null;
+  } catch (error) {
+    importHealthAvailable = false;
+    console.warn(`Import health tracking unavailable: ${error.message}`);
+  }
+  return activeRunId;
+}
+
+async function finishImportRun(status, error = null) {
+  if (!activeRunId || !importHealthAvailable) return;
+  try {
+    await restRequest("catalog_import_runs", `id=eq.${activeRunId}`, {
+      method: "PATCH",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({ status, stats: runStats, error_message: error ? String(error.message || error).slice(0, 2000) : null, finished_at: new Date().toISOString() })
+    });
+  } catch (trackingError) {
+    console.warn(`Could not finish import run tracking: ${trackingError.message}`);
+  }
+}
+
+async function recordImportError(source, sourceId, title, error, payload = {}) {
+  if (!activeRunId || !importHealthAvailable || dryRun) return;
+  try {
+    await restRequest("catalog_import_errors", "", {
+      method: "POST",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({
+        run_id: activeRunId,
+        source,
+        source_id: sourceId ? String(sourceId) : null,
+        title: title || null,
+        error_message: String(error?.message || error || "Unknown import error").slice(0, 2000),
+        payload
+      })
+    });
+  } catch (trackingError) {
+    importHealthAvailable = false;
+    console.warn(`Could not record import error: ${trackingError.message}`);
+  }
+}
+
+async function retryQueuedImports() {
+  if (dryRun) {
+    console.log("Retry queue dry run: no queue rows will be changed.");
+    return { rows: [], resolvedIds: [] };
+  }
+  let queued;
+  try {
+    queued = await restRequest("catalog_import_errors", "select=id,source,source_id,title,payload&status=eq.retrying&order=first_seen_at.asc&limit=100");
+  } catch (error) {
+    throw new Error(`Could not load the retry queue. Run supabase/v3_11_catalog_import_health.sql first. ${error.message}`);
+  }
+
+  const rows = [];
+  const resolvedIds = [];
+  for (const item of queued || []) {
+    try {
+      if (item.source === "steam" && item.payload?.appid) {
+        const appid = Number(item.payload.appid);
+        const data = await fetchJson(`https://store.steampowered.com/api/appdetails?appids=${appid}&filters=basic,genres,categories,developers,publishers,release_date,metacritic`);
+        const detail = data?.[appid]?.data;
+        const row = data?.[appid]?.success && detail?.type === "game" ? mapSteamDetail(appid, detail) : null;
+        if (!row) throw new Error("Steam returned no importable game data.");
+        rows.push(row);
+      } else if (item.source === "itch" && item.payload?.url) {
+        const row = await fetchItchPageRow(item.payload.url);
+        if (!row) throw new Error("itch.io returned no importable game data.");
+        rows.push(row);
+      } else if (item.source === "rawg" && item.payload?.page && rawgApiKey) {
+        const url = new URL("https://api.rawg.io/api/games");
+        url.searchParams.set("key", rawgApiKey);
+        url.searchParams.set("page", String(item.payload.page));
+        url.searchParams.set("page_size", String(rawgPageSize));
+        url.searchParams.set("ordering", "-rating");
+        const data = await fetchJson(url);
+        rows.push(...(data.results || []).map(mapRawgGame).filter(Boolean));
+      } else {
+        throw new Error("This error needs a full source rerun; its retry payload is incomplete.");
+      }
+      resolvedIds.push(item.id);
+      runStats.retried += 1;
+    } catch (error) {
+      await restRequest("catalog_import_errors", `id=eq.${item.id}`, {
+        method: "PATCH",
+        headers: { Prefer: "return=minimal" },
+        body: JSON.stringify({ status: "failed", error_message: String(error.message || error).slice(0, 2000) })
+      });
+    }
+  }
+  return { rows, resolvedIds };
+}
+
+async function resolveImportErrors(ids) {
+  if (!ids.length) return;
+  await restRequest("catalog_import_errors", `id=${encodeURIComponent(`in.(${ids.join(",")})`)}`, {
+    method: "PATCH",
+    headers: { Prefer: "return=minimal" },
+    body: JSON.stringify({ status: "resolved", resolved_at: new Date().toISOString() })
+  });
+}
+
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -565,7 +691,17 @@ async function existingImportKeys(keys) {
 }
 
 async function upsertRows(rows) {
-  const finalized = rows.map(finalizeRow).filter((row) => row.title && row.cover_url);
+  const allFinalized = rows.map(finalizeRow).filter((row) => row.title);
+  const missingArt = allFinalized.filter((row) => !row.cover_url);
+  const finalized = allFinalized.filter((row) => row.cover_url);
+  runStats.collected += rows.length;
+  runStats.missing_art += missingArt.length;
+  for (const row of missingArt.slice(0, 100)) {
+    await recordImportError(row.source, row.source_id, row.title, new Error("Game was skipped because the source provided no box art."), {
+      url: row.source_url,
+      appid: row.source === "steam" ? Number(row.source_id) : undefined
+    });
+  }
   const byKey = new Map();
   for (const row of finalized) {
     const key = row.import_key || `${row.source}:${row.source_id}`;
@@ -594,31 +730,58 @@ async function upsertRows(rows) {
     console.log(`Saved ${saved}/${rowsToSave.length}`);
   }
   console.log(`Collected ${rows.length}, deduped to ${deduped.length}, saved ${saved}.`);
+  runStats.saved += saved;
   return saved;
 }
 
 async function main() {
   if (!dryRun || reset || reseed) await assertSchemaReady();
+  await startImportRun();
   if (reset || reseed) await resetImportedGames();
   if (reset && !reseed) {
     console.log("Reset complete.");
+    await finishImportRun("completed");
     return;
   }
 
   const rows = [];
-  if (sources.includes("rawg")) rows.push(...(await fetchRawgRows()));
-  if (sources.includes("steam") && steamLimit > 0) rows.push(...(await fetchSteamRows()));
-  if (sources.includes("itch") && itchLimit > 0) rows.push(...(await fetchItchRows()));
+  let resolvedRetryIds = [];
+  if (retryFailed) {
+    const retried = await retryQueuedImports();
+    rows.push(...retried.rows);
+    resolvedRetryIds = retried.resolvedIds;
+  } else {
+    if (sources.includes("rawg")) {
+      const sourceRows = await fetchRawgRows();
+      rows.push(...sourceRows);
+      runStats.sources.rawg = sourceRows.length;
+    }
+    if (sources.includes("steam") && steamLimit > 0) {
+      const sourceRows = await fetchSteamRows();
+      rows.push(...sourceRows);
+      runStats.sources.steam = sourceRows.length;
+    }
+    if (sources.includes("itch") && itchLimit > 0) {
+      const sourceRows = await fetchItchRows();
+      rows.push(...sourceRows);
+      runStats.sources.itch = sourceRows.length;
+    }
+  }
 
   if (!rows.length) {
-    console.log("No games collected. Check source credentials and limits.");
+    console.log(retryFailed ? "No queued imports could be retried." : "No games collected. Check source credentials and limits.");
+    await finishImportRun("completed");
     return;
   }
 
   await upsertRows(rows);
+  await resolveImportErrors(resolvedRetryIds);
+  await finishImportRun("completed");
 }
 
-main().catch((error) => {
+main().catch(async (error) => {
+  await recordImportError("pipeline", null, "Catalog import", error, { retry_failed: retryFailed, sources });
+  await finishImportRun("failed", error);
   console.error("\nImport failed:");
   console.error(error instanceof Error ? error.message : error);
   process.exit(1);

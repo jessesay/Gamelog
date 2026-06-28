@@ -14,6 +14,7 @@
     "catalog:count": "node scripts/check-catalog-count.mjs",
     "sync:games": "node scripts/sync-games.mjs",
     "catalog:import": "node scripts/sync-games.mjs",
+    "catalog:retry": "node scripts/sync-games.mjs --retry-failed=true",
     "catalog:reset": "node scripts/sync-games.mjs --reset",
     "catalog:reseed": "node scripts/sync-games.mjs --reseed"
   },

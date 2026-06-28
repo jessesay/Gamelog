@@ -32,6 +32,7 @@ const [{ count: total, error: totalError }, { count: igdb, error: igdbError }, {
   supabase.from("games").select("id", { count: "exact", head: true }).eq("source", "IGDB"),
   supabase.from("games").select("id", { count: "exact", head: true }).not("catalog_rank", "is", null)
 ]);
+const { data: health } = await supabase.rpc("catalog_health_summary").maybeSingle();
 
 if (totalError || igdbError || rankedError) {
   console.error("Could not read catalog count. Make sure supabase/v3_3_top_10000_catalog.sql has been run.");
@@ -43,3 +44,12 @@ console.log("GameLog catalog count");
 console.log(`Total games: ${Number(total ?? 0).toLocaleString()}`);
 console.log(`IGDB games: ${Number(igdb ?? 0).toLocaleString()}`);
 console.log(`Ranked top catalog games: ${Number(ranked ?? 0).toLocaleString()}`);
+if (health) {
+  console.log(`Discovery ready: ${Number(health.discovery_ready ?? 0).toLocaleString()}`);
+  console.log(`Missing box art: ${Number(health.missing_box_art ?? 0).toLocaleString()}`);
+  console.log(`Missing genres: ${Number(health.missing_genres ?? 0).toLocaleString()}`);
+  console.log(`Missing platforms: ${Number(health.missing_platforms ?? 0).toLocaleString()}`);
+  console.log(`Missing release year: ${Number(health.missing_release_year ?? 0).toLocaleString()}`);
+} else {
+  console.log("Detailed health metrics require supabase/v3_11_catalog_import_health.sql and a server-only admin key.");
+}

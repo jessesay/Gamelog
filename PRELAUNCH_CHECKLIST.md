@@ -3,7 +3,7 @@
 ## Supabase
 
 - [ ] Back up the database.
-- [ ] Run every required migration through `v3_10_discovery_learning.sql` in order.
+- [ ] Run every required migration through `v3_11_catalog_import_health.sql` in order.
 - [ ] Confirm RLS is enabled and owner/public policies match `DEPLOYMENT.md`.
 - [ ] Set the production Site URL.
 - [ ] Add the exact production `/auth/callback` redirect.

@@ -62,6 +62,44 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
 
 let cachedToken = null;
 let cachedTokenExpiresAt = 0;
+let activeRunId = null;
+let importHealthAvailable = true;
+const runStats = { collected: 0, imported: 0, skipped_incomplete: 0 };
+
+async function startImportRun() {
+  if (dryRun) return;
+  const { data, error } = await supabase.from("catalog_import_runs").insert({ importer: "catalog:igdb-top", sources: ["igdb"], status: "running", dry_run: false }).select("id").single();
+  if (error) {
+    importHealthAvailable = false;
+    console.warn(`Import health tracking unavailable: ${error.message}`);
+    return;
+  }
+  activeRunId = data.id;
+}
+
+async function finishImportRun(status, error = null) {
+  if (!activeRunId || !importHealthAvailable) return;
+  const { error: trackingError } = await supabase.from("catalog_import_runs").update({
+    status,
+    stats: runStats,
+    error_message: error ? String(error.message || error).slice(0, 2000) : null,
+    finished_at: new Date().toISOString()
+  }).eq("id", activeRunId);
+  if (trackingError) console.warn(`Could not finish import run tracking: ${trackingError.message}`);
+}
+
+async function recordImportError(error, payload = {}) {
+  if (!activeRunId || !importHealthAvailable) return;
+  const { error: trackingError } = await supabase.from("catalog_import_errors").insert({
+    run_id: activeRunId,
+    source: "igdb",
+    source_id: String(payload.offset ?? "batch"),
+    title: "IGDB catalog batch",
+    error_message: String(error.message || error).slice(0, 2000),
+    payload
+  });
+  if (trackingError) console.warn(`Could not record import error: ${trackingError.message}`);
+}
 
 async function getIgdbToken() {
   const now = Date.now();
@@ -148,7 +186,7 @@ function mapGame(game, rank) {
   const platforms = Array.isArray(game.platforms)
     ? game.platforms.map((platform) => platform?.name).filter(Boolean).slice(0, 10)
     : [];
-  const genre = Array.isArray(game.genres) && game.genres.length ? game.genres[0]?.name ?? "Game" : "Game";
+  const genre = Array.isArray(game.genres) && game.genres.length ? game.genres[0]?.name ?? null : null;
   const totalRating = typeof game.total_rating === "number" ? Math.round(game.total_rating) : null;
   const totalRatingCount = typeof game.total_rating_count === "number" ? Math.round(game.total_rating_count) : 0;
   const summaryParts = [game.summary || game.storyline || null];
@@ -163,7 +201,7 @@ function mapGame(game, rank) {
     publisher: pickCompany(game, "publisher"),
     release_year: unixYear(game.first_release_date),
     genre,
-    platforms: platforms.length ? platforms : ["Unknown"],
+    platforms,
     cover_url: coverImageUrl(game.cover),
     summary: summaryParts.filter(Boolean).join(" "),
     igdb_id: game.id,
@@ -193,6 +231,7 @@ async function assertSchemaReady() {
 
 async function importTopGames() {
   await assertSchemaReady();
+  await startImportRun();
   console.log(`GameLog top catalog import starting: target=${target}, batch=${batchSize}, start=${startOffset}, includeDlc=${includeDlc}, dryRun=${dryRun}`);
   let imported = 0;
   let offset = startOffset;
@@ -216,6 +255,8 @@ async function importTopGames() {
       .map((game, index) => mapGame(game, rankStart + index))
       .filter(Boolean)
       .map((row) => ({ ...row, catalog_imported_at: importedAt }));
+    runStats.collected += Array.isArray(results) ? results.length : 0;
+    runStats.skipped_incomplete += Math.max(0, (Array.isArray(results) ? results.length : 0) - rows.length);
 
     if (!rows.length) {
       console.log("IGDB returned no more rows. Stopping early.");
@@ -228,6 +269,7 @@ async function importTopGames() {
       const { error } = await supabase.from("games").upsert(rows, { onConflict: "igdb_id" });
       if (error) throw new Error(`Supabase upsert failed at offset ${offset}: ${error.message}`);
       console.log(`Upserted ${rows.length} games. Last rank: ${rows.at(-1)?.catalog_rank}`);
+      runStats.imported += rows.length;
     }
 
     imported += rows.length;
@@ -241,9 +283,12 @@ async function importTopGames() {
   } else {
     console.log("Dry run complete. Run again without --dry-run to write to Supabase.");
   }
+  await finishImportRun("completed");
 }
 
-importTopGames().catch((error) => {
+importTopGames().catch(async (error) => {
+  await recordImportError(error, { target, batch: batchSize, start: startOffset });
+  await finishImportRun("failed", error);
   console.error("\nImport failed:");
   console.error(error instanceof Error ? error.message : error);
   process.exit(1);
