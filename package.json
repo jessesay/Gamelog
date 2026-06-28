@@ -34,11 +34,5 @@
     "eslint-config-next": "latest",
     "typescript": "latest"
   },
-  "packageManager": "pnpm@10.0.0",
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "sharp",
-      "unrs-resolver"
-    ]
-  }
+  "packageManager": "pnpm@10.26.0"
 }
