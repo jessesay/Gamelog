@@ -27,8 +27,11 @@ Open Supabase → SQL Editor and run each file once, in order:
 9. `supabase/v3_3_top_10000_catalog.sql`
 10. `supabase/v3_4_import_pipeline.sql`
 11. `supabase/v3_5_social_foundation.sql`
+12. `supabase/v3_6_list_upgrade.sql`
+13. `supabase/v3_8_global_search.sql`
+14. `supabase/v3_10_discovery_learning.sql`
 
-`v3_5_social_foundation.sql` keeps the newest duplicate user/game log or review before adding uniqueness indexes. Back up production data before running migrations. Do not also run `gamelog_discovery_schema.sql`; v3.4 contains the maintained discovery schema.
+`v3_5_social_foundation.sql` keeps the newest duplicate user/game log or review before adding uniqueness indexes. `v3_10_discovery_learning.sql` adds per-user discovery preferences and event history. Back up production data before running migrations. Do not also run `gamelog_discovery_schema.sql`; v3.4 contains the maintained discovery schema.
 
 Optional data files such as `seed.sql`, `mega_seed.sql`, and `cover_updates.sql` are data loads, not required migrations.
 
