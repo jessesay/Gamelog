@@ -6,6 +6,7 @@ import { CalendarDays, ExternalLink, ListChecks, Lock, Share2, Star, Timer } fro
 import { createClient } from "@/utils/supabase/server";
 import { completionEstimateForGame, formatCompletionTotal, totalCompletionHours } from "@/lib/timeToBeat";
 import { safeServerError } from "@/lib/serverError";
+import GameCoverArt from "@/components/GameCoverArt";
 
 function gameHue(game: any) {
   const seed = (game?.slug ?? game?.title ?? "list").split("").reduce((sum: number, char: string) => sum + char.charCodeAt(0), 0);
@@ -19,15 +20,7 @@ function coverStyle(game: any): CSSProperties {
 function PublicCover({ game, compact = false }: { game: any; compact?: boolean }) {
   return (
     <div className={`cover poster-cover ${compact ? "public-compact-cover" : ""}`} style={coverStyle(game)}>
-      {game?.cover_url ? (
-        <img src={game.cover_url} alt={`${game.title} cover art`} />
-      ) : (
-        <div className="poster-fallback">
-          <span className="poster-kicker">{game?.genre ?? "Game"}</span>
-          <div className="cover-title">{game?.title ?? "Game"}</div>
-          <span className="poster-platforms">{(game?.platforms ?? []).slice(0, 2).join(" · ")}</span>
-        </div>
-      )}
+      <GameCoverArt src={game?.cover_url} title={game?.title ?? "Game"} genre={game?.genre} platforms={game?.platforms} compact={compact} />
       <div className="poster-glow" />
     </div>
   );

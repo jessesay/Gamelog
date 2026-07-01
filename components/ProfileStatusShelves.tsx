@@ -6,6 +6,7 @@ import { ChevronRight, Layers3, Star } from "lucide-react";
 import ReviewActions from "@/components/ReviewActions";
 import { gameStatusLabel, normalizeGameStatus } from "@/lib/gameStatus";
 import { displayStars, gamePath } from "@/lib/social";
+import GameCoverArt from "@/components/GameCoverArt";
 
 type ShelfProps = {
   logs: any[];
@@ -87,7 +88,7 @@ function GameTile({ item, showRating }: { item: any; showRating?: boolean }) {
   const year = game.release_year ?? (game.release_date ? new Date(game.release_date).getFullYear() : null);
   return (
     <Link className="profile-game-tile-v39" href={gamePath(game)}>
-      <span className="profile-game-cover-v39">{game.cover_url ? <img src={game.cover_url} alt={`${game.title} cover art`} /> : <b>GL</b>}</span>
+      <span className="profile-game-cover-v39"><GameCoverArt src={game.cover_url} title={game.title} genre={game.genre} compact /></span>
       <span className="profile-game-copy-v39">
         <strong>{game.title}</strong>
         <small>{showRating ? <><Star size={12} /> {displayStars(item.rating)}</> : `${year ?? "TBA"}${game.platforms?.[0] ? ` · ${game.platforms[0]}` : ""}`}</small>
@@ -106,7 +107,7 @@ function ReviewShelf({ title, eyebrow, items, editable, empty }: { title: string
         const text = String(review.review ?? review.body ?? "");
         return (
           <article className="profile-review-card-v39" key={review.id}>
-            {review.games ? <Link className="profile-review-cover-v39" href={gamePath(review.games)}>{review.games.cover_url ? <img src={review.games.cover_url} alt="" /> : <b>GL</b>}</Link> : null}
+            {review.games ? <Link className="profile-review-cover-v39" href={gamePath(review.games)}><GameCoverArt src={review.games.cover_url} title={review.games.title} genre={review.games.genre} compact decorative /></Link> : null}
             <div><Link href={review.games ? gamePath(review.games) : "#"}><strong>{review.games?.title ?? "Unknown game"}</strong></Link><small>{displayStars(review.rating)}</small><p>{text}</p>
               {editable && review.log_id ? <ReviewActions reviewId={review.log_id} initialReview={text} initialRating={review.rating} /> : null}
             </div>
@@ -124,8 +125,8 @@ function ListShelf({ lists, href, editable }: { lists: any[]; href?: string; edi
     <ShelfFrame id="shelf-lists" eyebrow="Curated collections" title="Lists" count={lists.length} actionHref={href} actionLabel={editable ? "Manage" : "View all"} expanded={expanded} onToggle={() => setExpanded((value) => !value)} canExpand={!href && lists.length > shelfLimit}>
       {visible.length ? <div className="profile-list-grid-v39">{visible.map((list) => {
         const items = [...(list.list_items ?? [])].sort((a: any, b: any) => Number(a.position ?? 9999) - Number(b.position ?? 9999));
-        const cover = items.find((item: any) => item.games?.cover_url)?.games;
-        return <Link className="profile-list-tile-v39" href={list.href ?? `/l/${list.id}`} key={list.id}><span>{cover?.cover_url ? <img src={cover.cover_url} alt="" /> : <Layers3 size={20} />}</span><span><strong>{list.title}</strong><small>{editable && list.is_public === false ? "Private · " : ""}{items.length} {items.length === 1 ? "game" : "games"}</small></span><ChevronRight size={17} /></Link>;
+        const cover = items.find((item: any) => item.games)?.games;
+        return <Link className="profile-list-tile-v39" href={list.href ?? `/l/${list.id}`} key={list.id}><span>{cover ? <GameCoverArt src={cover.cover_url} title={cover.title} genre={cover.genre} compact decorative /> : <Layers3 size={20} />}</span><span><strong>{list.title}</strong><small>{editable && list.is_public === false ? "Private · " : ""}{items.length} {items.length === 1 ? "game" : "games"}</small></span><ChevronRight size={17} /></Link>;
       })}</div> : <div className="profile-shelf-empty-v39">{editable ? "Create a list to start curating your library." : "No public lists yet."}</div>}
     </ShelfFrame>
   );

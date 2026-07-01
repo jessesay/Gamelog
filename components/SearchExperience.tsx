@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Check, ChevronRight, ListPlus, Loader2, Search, Star, X } from "lucide-react";
 import { gameStatusLabels, type GameStatusKey } from "@/lib/gameStatus";
+import GameCoverArt from "@/components/GameCoverArt";
 
 type SearchGame = {
   id: string;
@@ -187,7 +188,7 @@ function GameResult({ game, signedIn, onStatus }: { game: SearchGame; signedIn: 
   return (
     <article className="search-result-v38">
       <Link className="search-cover-v38" href={href} aria-label={`Open ${game.title}`}>
-        {game.cover_url ? <img src={game.cover_url} alt={`${game.title} cover art`} /> : <span>GL</span>}
+        <GameCoverArt src={game.cover_url} title={game.title} compact />
       </Link>
       <div className="search-result-body-v38">
         <div className="search-result-top-v38">

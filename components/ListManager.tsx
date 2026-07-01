@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowUp, ExternalLink, Globe2, Lock, Pencil, Trash2 } from "lucide-react";
 import { gamePath } from "@/lib/social";
+import GameCoverArt from "@/components/GameCoverArt";
 
 type ListItem = {
   id: string;
@@ -131,7 +132,7 @@ export default function ListManager({ list }: { list: ManagedList }) {
     <article className="social-card-v35 list-manager-v37">
       <div className="list-manager-head-v37">
         <div className="list-cover-v37">
-          {coverGame?.cover_url ? <img src={coverGame.cover_url} alt="" /> : <span>{list.title.slice(0, 2).toUpperCase()}</span>}
+          {coverGame ? <GameCoverArt src={coverGame.cover_url} title={coverGame.title} genre={coverGame.genre} compact decorative /> : <span>{list.title.slice(0, 2).toUpperCase()}</span>}
         </div>
         <div className="list-manager-copy-v37">
           <div className="list-title-row-v37">
@@ -172,7 +173,7 @@ export default function ListManager({ list }: { list: ManagedList }) {
           <div className="list-item-row-v37" key={item.id}>
             <span className="list-rank-v37">{index + 1}</span>
             <Link className="list-item-cover-v37" href={gamePath(item.games)}>
-              {item.games.cover_url ? <img src={item.games.cover_url} alt="" /> : <span>{item.games.title.slice(0, 2).toUpperCase()}</span>}
+              <GameCoverArt src={item.games.cover_url} title={item.games.title} genre={item.games.genre} compact decorative />
             </Link>
             <div className="list-item-copy-v37"><strong>{item.games.title}</strong><small>{item.games.release_year ?? "Release TBA"}</small></div>
             <div className="list-reorder-actions-v37">

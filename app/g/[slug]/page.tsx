@@ -7,6 +7,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { completionEstimateForGame, formatCompletionHours } from "@/lib/timeToBeat";
 import GameSocialActions from "@/components/GameSocialActions";
 import { dedupeGameLogs } from "@/lib/social";
+import GameCoverArt from "@/components/GameCoverArt";
 
 
 function gameHue(game: any) {
@@ -21,15 +22,7 @@ function coverStyle(game: any): CSSProperties {
 function PublicGameCover({ game }: { game: any }) {
   return (
     <div className="cover poster-cover" style={coverStyle(game)}>
-      {game.cover_url ? (
-        <img src={game.cover_url} alt={`${game.title} cover art`} />
-      ) : (
-        <div className="poster-fallback">
-          <span className="poster-kicker">{game.genre ?? "Game"}</span>
-          <div className="cover-title">{game.title}</div>
-          <span className="poster-platforms">{(game.platforms ?? []).slice(0, 2).join(" · ")}</span>
-        </div>
-      )}
+      <GameCoverArt src={game.cover_url} title={game.title} genre={game.genre} platforms={game.platforms} />
       <div className="poster-glow" />
     </div>
   );

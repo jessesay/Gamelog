@@ -2,6 +2,7 @@ import Link from "next/link";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { displayStars, gamePath } from "@/lib/social";
 import { safeServerError } from "@/lib/serverError";
+import GameCoverArt from "@/components/GameCoverArt";
 
 export default async function ActivityPage() {
   const [{ data: events, error }, { data: recentReviews, error: reviewError }] = await Promise.all([
@@ -52,7 +53,7 @@ export default async function ActivityPage() {
             const createdList = event.metadata?.action === "created-list";
             return (
             <article className="social-row-v35" key={event.id}>
-              {event.games?.cover_url ? <img src={event.games.cover_url} alt="" /> : <div className="social-cover-fallback-v35">GL</div>}
+              {event.games ? <GameCoverArt src={event.games.cover_url} title={event.games.title} genre={event.games.genre} compact decorative /> : <div className="social-cover-fallback-v35">GL</div>}
               <div>
                 <p className="muted">
                   <Link href={`/u/${event.profiles?.username ?? "player"}`}>@{event.profiles?.username ?? "player"}</Link>

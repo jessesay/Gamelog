@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CalendarDays, Heart, MessageCircle, Share2, Star } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
+import GameCoverArt from "@/components/GameCoverArt";
 
 function stars(rating: number | null | undefined) {
   if (rating === null || rating === undefined) return "Unrated";
@@ -25,15 +26,7 @@ function coverStyle(game: any): CSSProperties {
 function ReviewCover({ game }: { game: any }) {
   return (
     <div className="cover poster-cover public-review-cover" style={coverStyle(game)}>
-      {game?.cover_url ? (
-        <img src={game.cover_url} alt={`${game.title} cover art`} />
-      ) : (
-        <div className="poster-fallback">
-          <span className="poster-kicker">{game?.genre ?? "Game"}</span>
-          <div className="cover-title">{game?.title ?? "Game"}</div>
-          <span className="poster-platforms">{(game?.platforms ?? []).slice(0, 2).join(" · ")}</span>
-        </div>
-      )}
+      <GameCoverArt src={game?.cover_url} title={game?.title ?? "Game"} genre={game?.genre} platforms={game?.platforms} />
       <div className="poster-glow" />
     </div>
   );
