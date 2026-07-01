@@ -9,6 +9,13 @@ export default function ShareButton({ title, text, url, label = "Share" }: { tit
   async function share() {
     track("share_button_clicked", { surface: title });
     const absoluteUrl = new URL(url, window.location.origin).toString();
+    try {
+      await navigator.clipboard.writeText(absoluteUrl);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch {
+      // Native sharing still works when clipboard permission is unavailable.
+    }
     if (navigator.share) {
       try {
         await navigator.share({ title, text, url: absoluteUrl });
@@ -18,9 +25,6 @@ export default function ShareButton({ title, text, url, label = "Share" }: { tit
         // completing it. Copying the link keeps the action useful everywhere.
       }
     }
-    await navigator.clipboard.writeText(absoluteUrl);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1800);
   }
   return <button className="secondary viral-share-button-v315" onClick={() => void share()}><Share2 size={16} />{copied ? "Link copied" : label}</button>;
 }
