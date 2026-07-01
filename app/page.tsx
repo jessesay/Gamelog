@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, Check, Compass, Gamepad2, Heart, Layers3, ListPlus, Search, Sparkles, Star, UserRound } from "lucide-react";
 import TasteMatchCard from "@/components/TasteMatchCard";
+import GrowthEvent from "@/components/GrowthEvent";
 
 export const metadata: Metadata = {
   title: "GameLog — Track, review, and discover games",
@@ -20,6 +21,7 @@ const demoMatch = {
 export default function MarketingHomePage() {
   return (
     <main className="home-v311">
+      <GrowthEvent name="homepage_visit" />
       <header className="home-nav-v311">
         <Link className="marketing-brand" href="/"><span className="logo">GL</span><span>GameLog</span></Link>
         <nav aria-label="Website navigation"><Link href="#features">Features</Link><Link href="/start">Beta guide</Link><Link href="/join">Join beta</Link><Link className="home-nav-cta-v311" href="/app/profile">Start Logging</Link></nav>
@@ -28,11 +30,10 @@ export default function MarketingHomePage() {
       <section className="home-hero-v311">
         <div className="home-hero-copy-v311">
           <div className="home-beta-badge-v311"><span /> Early Beta · Shape what comes next</div>
-          <h1>Track what you play.<br />Review what you love.<br /><em>Discover what’s next.</em></h1>
-          <p>GameLog is your gaming diary, living backlog, and discovery companion—all built around your taste.</p>
+          <h1>Swipe to find<br /><em>your next game.</em></h1>
+          <p>Build your backlog, track what you play, and discover what actually fits your taste.</p>
           <div className="home-cta-row-v311">
-            <Link className="primary xl" href="/app/profile">Start Logging <ArrowRight size={18} /></Link>
-            <Link className="secondary xl" href="/app/search"><Search size={18} /> Explore Games</Link>
+            <Link className="primary xl" href="/app/discover">Start swiping <ArrowRight size={18} /></Link>
             <Link className="secondary xl" href="/demo-profile"><UserRound size={18} /> View Demo Profile</Link>
           </div>
           <div className="home-proof-v311"><span><Check size={14} /> Six clear statuses</span><span><Check size={14} /> Public profile shelves</span><span><Check size={14} /> Explainable Taste Match</span></div>
@@ -64,7 +65,7 @@ export default function MarketingHomePage() {
       <section className="home-beta-panel-v311">
         <div><div className="home-beta-badge-v311"><span /> Early Beta</div><h2>Your first five minutes in GameLog.</h2><p>Create your identity, log a few games, and the useful parts of GameLog begin to wake up.</p></div>
         <ol><li><span>1</span><div><strong>Create your profile</strong><small>Choose a username, favorite genres, platforms, and games.</small></div></li><li><span>2</span><div><strong>Log three games</strong><small>Search the catalog and set the statuses that describe your library.</small></div></li><li><span>3</span><div><strong>Review, list, and compare</strong><small>Write a take, build a list, then try Taste Match on a public profile.</small></div></li></ol>
-        <div className="home-cta-row-v311"><Link className="primary xl" href="/app/profile">Start Logging <ArrowRight size={18} /></Link><Link className="secondary xl" href="/start">Open beta guide</Link></div>
+        <div className="home-cta-row-v311"><Link className="primary xl" href="/app/discover">Start swiping <ArrowRight size={18} /></Link><Link className="secondary xl" href="/demo-profile">View demo profile</Link></div>
       </section>
 
       <footer className="home-footer-v311"><Link className="marketing-brand" href="/"><span className="logo">GL</span><span>GameLog</span></Link><span>Early Beta · Built for people who care what they play.</span><nav><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/feedback">Feedback</Link><Link href="/status">Status</Link></nav></footer>

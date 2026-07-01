@@ -6,6 +6,7 @@ import BacklogManager from "@/components/BacklogManager";
 import { createClient } from "@/utils/supabase/server";
 import { dedupeGameLogs } from "@/lib/social";
 import { normalizeGameStatus } from "@/lib/gameStatus";
+import GrowthEvent from "@/components/GrowthEvent";
 
 export default async function BacklogPage() {
   const supabase = await createClient();
@@ -19,7 +20,7 @@ export default async function BacklogPage() {
   if (error) return <BacklogFrame><State title="Your backlog could not load" body="Please refresh and try again." /></BacklogFrame>;
   const backlog = dedupeGameLogs(logs ?? []).filter((log) => ["want_to_play", "wishlist"].includes(normalizeGameStatus(log.status) ?? ""));
 
-  return <BacklogFrame><main className="social-shell-v35 backlog-page-v314"><section className="social-page-head-v35"><p className="eyebrow">Saved for later</p><h1>Your backlog</h1><p className="muted">Everything you saved from discovery, synced to your GameLog account.</p><Link className="secondary inline-link" href="/app/discover">Find more games</Link></section><BacklogManager initialItems={backlog} /></main></BacklogFrame>;
+  return <BacklogFrame><main className="social-shell-v35 backlog-page-v314"><GrowthEvent name="backlog_visit" /><section className="social-page-head-v35"><p className="eyebrow">Saved for later</p><h1>Your backlog</h1><p className="muted">Everything you saved from discovery, synced to your GameLog account.</p><div className="actions"><Link className="secondary inline-link" href="/app/discover">Find more games</Link><Link className="primary inline-link" href="/play-next">What should I play next?</Link></div></section><BacklogManager initialItems={backlog} /></main></BacklogFrame>;
 }
 
 function BacklogFrame({ children }: { children: React.ReactNode }) { return <div className="app-frame-v35">{children}<AppBottomNav /></div>; }

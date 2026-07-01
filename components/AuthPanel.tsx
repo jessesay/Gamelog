@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
+import { track } from "@vercel/analytics";
 
 export default function AuthPanel() {
   const router = useRouter();
@@ -34,6 +35,8 @@ export default function AuthPanel() {
       setMessage(result.error.message);
       return;
     }
+
+    if (mode === "signup") track("signup_completed", { surface: "auth_panel" });
 
     setPassword("");
     if (mode === "signup" && !result.data.session) {

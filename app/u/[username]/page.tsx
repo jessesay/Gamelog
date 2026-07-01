@@ -8,6 +8,9 @@ import { createClient } from "@/utils/supabase/server";
 import { dedupeGameLogs } from "@/lib/social";
 import { normalizeGameStatus } from "@/lib/gameStatus";
 import { buildTasteProfile, calculateTasteMatch } from "@/lib/tasteMatch";
+import { playerInsights } from "@/lib/playerInsights";
+import TasteShareCard from "@/components/TasteShareCard";
+import ShareButton from "@/components/ShareButton";
 
 export async function generateMetadata({ params }: { params: Promise<{ username: string }> }): Promise<Metadata> {
   const { username } = await params;
@@ -22,7 +25,7 @@ export async function generateMetadata({ params }: { params: Promise<{ username:
 
 export default async function PublicProfilePage({ params }: { params: Promise<{ username: string }> }) {
   const { username } = await params;
-  const { data: profile } = await supabaseAdmin.from("profiles").select("id, username, display_name, bio, favorite_game, avatar_url").eq("username", username).maybeSingle();
+  const { data: profile } = await supabaseAdmin.from("profiles").select("id, username, display_name, bio, favorite_game, favorite_genres, favorite_platforms, avatar_url").eq("username", username).maybeSingle();
   if (!profile) notFound();
 
   const authClient = await createClient();
@@ -63,10 +66,11 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
     for (const genre of new Set(genres)) map.set(genre, (map.get(genre) ?? 0) + 1);
     return map;
   }, new Map<string, number>()).entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const insights = playerInsights(publicLogs, profile.favorite_genres ?? [], profile.favorite_platforms ?? []);
 
   return (
     <main className="social-shell-v35 profile-identity-v39 public-identity-v39">
-      <nav className="profile-public-nav-v39"><Link className="brand ghost" href="/"><span className="logo">GL</span><span>GameLog</span></Link><Link className="secondary" href="/app">Open app</Link></nav>
+      <nav className="profile-public-nav-v39"><Link className="brand ghost" href="/"><span className="logo">GL</span><span>GameLog</span></Link><div className="actions"><ShareButton title="public_profile" text={`See ${profile.display_name}'s GameLog profile.`} url={`/u/${profile.username}`} /><Link className="secondary" href="/app">Open app</Link></div></nav>
 
       <section className="social-hero-v35 profile-identity-hero-v39">
         <div className="social-avatar-v35">{profile.avatar_url ? <img src={profile.avatar_url} alt="" /> : profile.display_name.slice(0, 2).toUpperCase()}</div>
@@ -74,14 +78,16 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
       </section>
 
       <section className="social-stat-grid-v35">
-        <Stat label="Playing now" value={playing} /><Stat label="Completed" value={completed} /><Stat label="Reviews" value={publicReviews.length} /><Stat label="Average rating" value={avgRating} />
+        <Stat label="Saved" value={insights.saved} /><Stat label="Playing now" value={playing} /><Stat label="Completed" value={completed} /><Stat label="Backlog Score" value={insights.backlogScore} />
       </section>
+
+      <TasteShareCard ownerName={profile.display_name} username={profile.username} genres={insights.genres} platforms={insights.platforms} backlogCount={insights.saved} backlogScore={insights.backlogScore} scoreLabel={insights.scoreLabel} recommendation={insights.recommendations[0]} />
 
       <TasteMatchCard ownerName={profile.display_name} match={tasteMatch} />
 
       <section className="profile-taste-v39">
         <div><p className="eyebrow">Taste fingerprint</p><h2>What {profile.display_name} plays</h2></div>
-        <div className="profile-genre-row-v39">{topGenres.length ? topGenres.map(([genre, count]) => <span key={genre}>{genre}<b>{count}</b></span>) : <p className="muted">Genre patterns will appear as this profile grows.</p>}</div>
+        <div className="profile-genre-row-v39">{topGenres.length ? topGenres.map(([genre, count]) => <span key={genre}>{genre}<b>{count}</b></span>) : insights.genres.map((genre) => <span key={genre}>{genre}</span>)}{insights.platforms.map((platform) => <span key={platform}>{platform}</span>)}{!topGenres.length && !insights.genres.length && !insights.platforms.length ? <p className="muted">Taste tags will appear as this profile grows.</p> : null}</div>
       </section>
 
       <ProfileStatusShelves logs={publicLogs} reviews={publicReviews} lists={lists ?? []} />

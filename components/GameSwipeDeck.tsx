@@ -6,6 +6,7 @@ import { Bookmark, CheckCircle2, ExternalLink, Gamepad2, Loader2, LogIn, RotateC
 import DiscoveryPreferenceSetup from "@/components/DiscoveryPreferenceSetup";
 import GameCoverArt from "@/components/GameCoverArt";
 import { emptyDiscoveryPreferences, normalizeDiscoveryPreferences, type DiscoveryPreferences } from "@/lib/discoveryPreferences";
+import { track } from "@vercel/analytics";
 
 type SwipeAction = "skipped" | "liked" | "saved" | "played";
 
@@ -258,6 +259,8 @@ export default function GameSwipeDeck({ signedIn = false }: { signedIn?: boolean
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Could not save that choice.");
+      track("discovery_swipe", { action, signed_in: signedIn });
+      if (action === "saved" || action === "liked") track("game_saved", { source: "discovery", action });
 
       if (action === "skipped") {
         setNotice({ message: "Skipped. Your feed is already adjusting." });

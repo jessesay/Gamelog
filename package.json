@@ -21,11 +21,12 @@
   "dependencies": {
     "@supabase/ssr": "latest",
     "@supabase/supabase-js": "latest",
+    "@vercel/analytics": "^2.0.1",
+    "ai": "6.0.208",
     "lucide-react": "latest",
     "next": "latest",
     "react": "latest",
-    "react-dom": "latest",
-    "ai": "6.0.208"
+    "react-dom": "latest"
   },
   "devDependencies": {
     "@types/node": "latest",

@@ -6,6 +6,8 @@ import AuthPanel from "@/components/AuthPanel";
 import { createClient } from "@/utils/supabase/server";
 import { dedupeGameLogs, getSignedInProfile } from "@/lib/social";
 import { normalizeGameStatus } from "@/lib/gameStatus";
+import { playerInsights } from "@/lib/playerInsights";
+import TasteShareCard from "@/components/TasteShareCard";
 
 export default async function MyProfilePage() {
   const supabase = await createClient();
@@ -36,6 +38,7 @@ export default async function MyProfilePage() {
   const completed = myLogs.filter((log) => ["played", "completed"].includes(normalizeGameStatus(log.status) ?? "")).length;
   const playing = myLogs.filter((log) => normalizeGameStatus(log.status) === "playing").length;
   const avgRating = rated.length ? (rated.reduce((sum, review) => sum + Number(review.rating), 0) / rated.length).toFixed(1) : "0.0";
+  const insights = playerInsights(myLogs, profile.favorite_genres ?? [], profile.favorite_platforms ?? []);
 
   return (
     <main className="social-shell-v35 profile-identity-v39">
@@ -45,9 +48,10 @@ export default async function MyProfilePage() {
       </section>
 
       <section className="social-stat-grid-v35">
-        <Stat label="Playing now" value={playing} /><Stat label="Completed" value={completed} /><Stat label="Reviews" value={reviews.length} /><Stat label="Average rating" value={avgRating} />
+        <Stat label="Playing now" value={playing} /><Stat label="Completed" value={completed} /><Stat label="Saved" value={insights.saved} /><Stat label="Backlog Score" value={insights.backlogScore} />
       </section>
 
+      <TasteShareCard ownerName={profile.display_name} username={profile.username} genres={insights.genres} platforms={insights.platforms} backlogCount={insights.saved} backlogScore={insights.backlogScore} scoreLabel={insights.scoreLabel} recommendation={insights.recommendations[0]} />
       <ProfileEditor profile={profile} />
       <ProfileStatusShelves logs={myLogs} reviews={reviews} lists={lists ?? []} editable listsHref="/app/lists" />
     </main>
