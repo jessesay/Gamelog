@@ -9,12 +9,24 @@ export default function ShareButton({ title, text, url, label = "Share" }: { tit
   async function share() {
     track("share_button_clicked", { surface: title });
     const absoluteUrl = new URL(url, window.location.origin).toString();
+    let didCopy = false;
     try {
       await navigator.clipboard.writeText(absoluteUrl);
+      didCopy = true;
+    } catch {
+      const field = document.createElement("textarea");
+      field.value = absoluteUrl;
+      field.setAttribute("readonly", "");
+      field.style.position = "fixed";
+      field.style.opacity = "0";
+      document.body.appendChild(field);
+      field.select();
+      didCopy = document.execCommand("copy");
+      field.remove();
+    }
+    if (didCopy) {
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1800);
-    } catch {
-      // Native sharing still works when clipboard permission is unavailable.
     }
     if (navigator.share) {
       try {
