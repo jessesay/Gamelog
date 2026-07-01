@@ -107,6 +107,7 @@ export async function POST(request: NextRequest) {
 
     shelfSaved = true;
     revalidatePath("/app/profile");
+    revalidatePath("/backlog");
     revalidatePath(`/u/${profile.username}`);
   }
 

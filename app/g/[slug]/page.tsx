@@ -85,7 +85,11 @@ export default async function GamePage({ params }: { params: Promise<{ slug: str
 
   if (!game) notFound();
 
-  const [{ data: logs, error: logsError }, { data: reviews, error: reviewsError }, { data: addOns }, { data: parentGame }] = await Promise.all([
+  const inferredParentTitle = !game.parent_game_id && game.title.includes(":")
+    ? game.title.split(":")[0].trim()
+    : null;
+
+  const [{ data: logs, error: logsError }, { data: reviews, error: reviewsError }, linkedAddOnsResult, inferredAddOnsResult, parentGameResult] = await Promise.all([
     supabase
       .from("game_logs")
       .select("*, profiles!game_logs_user_id_fkey(username, display_name), review_likes(user_id), comments(id)")
@@ -103,10 +107,21 @@ export default async function GamePage({ params }: { params: Promise<{ slug: str
       .eq("parent_game_id", game.id)
       .order("release_year", { ascending: false, nullsFirst: false })
       .limit(24),
+    supabase
+      .from("games")
+      .select("id, title, slug, cover_url, genre, product_type, release_year")
+      .ilike("title", `${game.title}:%`)
+      .neq("id", game.id)
+      .order("release_year", { ascending: false, nullsFirst: false })
+      .limit(24),
     game.parent_game_id
       ? supabase.from("games").select("id, title, slug").eq("id", game.parent_game_id).maybeSingle()
-      : Promise.resolve({ data: null }),
+      : inferredParentTitle
+        ? supabase.from("games").select("id, title, slug").ilike("title", inferredParentTitle).neq("id", game.id).limit(1).maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
   ]);
+  const parentGame = parentGameResult.data;
+  const addOns = [...new Map([...(linkedAddOnsResult.data ?? []), ...(inferredAddOnsResult.data ?? [])].map((addOn) => [addOn.id, addOn])).values()];
 
   if (logsError) throw new Error(`Could not load game logs: ${logsError.message}`);
   if (reviewsError) throw new Error(`Could not load community reviews: ${reviewsError.message}`);

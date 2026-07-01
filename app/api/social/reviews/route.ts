@@ -65,6 +65,7 @@ function revalidateReviewPages(game: any, username?: string | null) {
   if (game?.id) revalidatePath(`/games/${game.id}`);
   if (username) revalidatePath(`/u/${username}`);
   revalidatePath("/app/profile");
+  revalidatePath("/backlog");
   revalidatePath("/app/activity");
 }
 

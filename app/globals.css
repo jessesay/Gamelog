@@ -6984,3 +6984,15 @@ textarea:focus {
 .game-addon-card-v313 div { min-width: 0; display: grid; gap: 5px; }
 .game-addon-card-v313 strong { overflow: hidden; text-overflow: ellipsis; }
 .game-addon-card-v313 small { color: var(--muted); text-transform: capitalize; }
+
+.backlog-page-v314 { padding-bottom: 110px; }
+.backlog-grid-v314 { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 12px; }
+.backlog-card-v314 { display: grid; grid-template-columns: 72px minmax(0, 1fr); grid-template-rows: 1fr auto; gap: 8px 13px; padding: 12px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel); }
+.backlog-cover-v314 { grid-row: 1 / 3; width: 72px; aspect-ratio: 3 / 4; overflow: hidden; border-radius: 12px; background: #090d16; }
+.backlog-card-v314 > div { min-width: 0; display: grid; align-content: center; gap: 6px; }
+.backlog-card-v314 > div a { color: inherit; text-decoration: none; overflow: hidden; text-overflow: ellipsis; }
+.backlog-card-v314 small { color: var(--muted); }
+.backlog-remove-v314 { justify-self: start; display: inline-flex; align-items: center; gap: 6px; padding: 7px 10px; border: 1px solid rgba(255,105,135,.25); border-radius: 10px; background: rgba(255,105,135,.07); color: #ff9daf; }
+.backlog-remove-v314:disabled { opacity: .55; }
+.backlog-error-v314 { grid-column: 1 / -1; color: #ff9daf; }
+@media (max-width: 520px) { .backlog-grid-v314 { grid-template-columns: 1fr; } }
