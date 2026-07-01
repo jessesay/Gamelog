@@ -85,7 +85,7 @@ export default async function GamePage({ params }: { params: Promise<{ slug: str
 
   if (!game) notFound();
 
-  const [{ data: logs, error: logsError }, { data: reviews, error: reviewsError }] = await Promise.all([
+  const [{ data: logs, error: logsError }, { data: reviews, error: reviewsError }, { data: addOns }, { data: parentGame }] = await Promise.all([
     supabase
       .from("game_logs")
       .select("*, profiles!game_logs_user_id_fkey(username, display_name), review_likes(user_id), comments(id)")
@@ -97,6 +97,15 @@ export default async function GamePage({ params }: { params: Promise<{ slug: str
       .select("*, profiles(username, display_name)")
       .eq("game_id", game.id)
       .order("created_at", { ascending: false }),
+    supabase
+      .from("games")
+      .select("id, title, slug, cover_url, genre, product_type, release_year")
+      .eq("parent_game_id", game.id)
+      .order("release_year", { ascending: false, nullsFirst: false })
+      .limit(24),
+    game.parent_game_id
+      ? supabase.from("games").select("id, title, slug").eq("id", game.parent_game_id).maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
 
   if (logsError) throw new Error(`Could not load game logs: ${logsError.message}`);
@@ -194,6 +203,7 @@ export default async function GamePage({ params }: { params: Promise<{ slug: str
       </section>
 
       <section className="card">
+        {parentGame ? <div className="game-parent-link-v313"><span>This is additional content for</span><Link href={`/g/${parentGame.slug}`}>{parentGame.title}</Link></div> : null}
         <h2>Community reviews</h2>
         <div className="feed">
           {(reviews ?? []).length ? reviews?.map((review) => {
@@ -219,6 +229,19 @@ export default async function GamePage({ params }: { params: Promise<{ slug: str
           )}) : <div className="empty">No community reviews for this game yet.</div>}
         </div>
       </section>
+      {addOns?.length ? (
+        <section className="card game-addons-v313">
+          <div><p className="eyebrow">Part of this game</p><h2>Expansions &amp; DLC</h2><p className="muted">Optional content stays with the base game instead of crowding discovery.</p></div>
+          <div className="game-addon-grid-v313">
+            {addOns.map((addOn: any) => (
+              <Link className="game-addon-card-v313" href={`/g/${addOn.slug}`} key={addOn.id}>
+                <span><GameCoverArt src={addOn.cover_url} title={addOn.title} genre={addOn.genre} compact decorative /></span>
+                <div><strong>{addOn.title}</strong><small>{String(addOn.product_type ?? "DLC").replace(/_/g, " ")} · {addOn.release_year ?? "TBA"}</small></div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
     </main>
   );
 }

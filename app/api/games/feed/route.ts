@@ -25,6 +25,8 @@ type GameRow = {
   rating: number | null;
   metacritic: number | null;
   stores: unknown;
+  product_type: string | null;
+  parent_game_id: string | null;
 };
 
 type SwipeRow = { action: string; game_id: string; games: GameRow | null };
@@ -43,9 +45,11 @@ type TasteProfile = {
 
 const gameSelect = [
   "id", "title", "slug", "source", "source_url", "description", "summary", "cover_url", "background_url",
-  "platforms", "genres", "genre", "tags", "release_date", "release_year", "rating", "metacritic", "stores",
+  "platforms", "genres", "genre", "tags", "release_date", "release_year", "rating", "metacritic", "stores", "product_type", "parent_game_id",
 ].join(", ");
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const addOnProductTypes = new Set(["dlc", "add-on", "addon", "expansion", "soundtrack", "season_pass"]);
+const addOnTitlePattern = /\b(dlc|expansion|season pass|soundtrack|ost|artbook|content pack|skin pack|cosmetic pack|currency pack|starter pack|bonus content)\b/i;
 
 function normalize(value: string | null | undefined) {
   return String(value ?? "").toLowerCase().trim();
@@ -71,6 +75,16 @@ function gameYear(game: GameRow) {
     if (Number.isFinite(year)) return year;
   }
   return null;
+}
+
+function isAddOnProduct(game: GameRow) {
+  const productType = normalize(game.product_type).replace(/\s+/g, "_");
+  const catalogText = [game.title, game.genre, ...(game.genres ?? []), ...(game.tags ?? []), game.description, game.summary]
+    .filter(Boolean)
+    .join(" ");
+  return Boolean(game.parent_game_id)
+    || addOnProductTypes.has(productType)
+    || addOnTitlePattern.test(catalogText);
 }
 
 function yearBucket(game: GameRow) {
@@ -293,6 +307,7 @@ export async function GET(request: NextRequest) {
   if (error) return NextResponse.json({ error: safeServerError(error, "Could not load the game catalog.") }, { status: 500 });
 
   const scoredGames = ((games ?? []) as unknown as GameRow[])
+    .filter((game) => !isAddOnProduct(game))
     .map((game) => ({ game, quality: catalogQualityScore(game), score: scoreGame(game, taste) }))
     .sort((a, b) => b.score - a.score || String(a.game.title).localeCompare(String(b.game.title)));
   const discoveryReady = scoredGames.filter((row) => row.quality >= 65);
