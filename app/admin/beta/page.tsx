@@ -46,16 +46,17 @@ export default async function BetaAdminPage({ searchParams }: { searchParams: Pr
   const params = await searchParams;
   const selected = filters.includes(params.type as FeedbackType) ? params.type as FeedbackType : "all";
 
-  const [users, logs, feedback, recentLogs, recentUsers, catalog, missingCoverResult] = await Promise.all([
+  const [users, logs, feedback, feedbackTotal, recentLogs, recentUsers, catalog, missingCoverResult] = await Promise.all([
     supabaseAdmin.from("profiles").select("id", { count: "exact", head: true }),
     supabaseAdmin.from("game_logs").select("id", { count: "exact", head: true }),
-    supabaseAdmin.from("beta_feedback").select("id,user_id,kind,body,target,contact,page,app_version,status,created_at").order("created_at", { ascending: false }).limit(250),
+    supabaseAdmin.from("beta_feedback").select("id,user_id,kind,body,target,contact,page,app_version,status,created_at").order("created_at", { ascending: false }).limit(1000),
+    supabaseAdmin.from("beta_feedback").select("id", { count: "exact", head: true }),
     supabaseAdmin.from("game_logs").select("id,user_id,status,updated_at,games(id,title,slug,cover_url),profiles!game_logs_user_id_fkey(username,display_name)").in("status", ["Want to Play", "Backlog"]).order("updated_at", { ascending: false }).limit(12),
     supabaseAdmin.from("profiles").select("id,username,display_name,created_at").order("created_at", { ascending: false }).limit(10),
     supabaseAdmin.from("games").select("id,title,cover_url,genre,genres,platforms,tags,description,summary,release_year,release_date,product_type,parent_game_id").order("rating", { ascending: false, nullsFirst: false }).limit(300),
     supabaseAdmin.from("games").select("id", { count: "exact", head: true }).is("cover_url", null),
   ]);
-  const queryError = users.error || logs.error || feedback.error || recentLogs.error || recentUsers.error || catalog.error || missingCoverResult.error;
+  const queryError = users.error || logs.error || feedback.error || feedbackTotal.error || recentLogs.error || recentUsers.error || catalog.error || missingCoverResult.error;
   if (queryError) throw new Error(`Beta dashboard query failed: ${queryError.message}`);
   const feedbackRows = (feedback.data ?? []).map((row) => ({ ...row, feedbackType: feedbackType(row), meta: feedbackMeta(row) }));
   const shownFeedback = selected === "all" ? feedbackRows : feedbackRows.filter((row) => row.feedbackType === selected);
@@ -73,7 +74,7 @@ export default async function BetaAdminPage({ searchParams }: { searchParams: Pr
     <section className="beta-admin-stats-v317">
       <Metric icon={<Users />} label="Signed-up users" value={users.count ?? 0} />
       <Metric icon={<Bookmark />} label="Library entries" value={logs.count ?? 0} />
-      <Metric icon={<MessageSquare />} label="Feedback" value={feedbackRows.length} />
+      <Metric icon={<MessageSquare />} label="Feedback" value={feedbackTotal.count ?? feedbackRows.length} />
       <Metric icon={<Bug />} label="Bug reports" value={counts.bug} />
       <Metric icon={<Lightbulb />} label="Ideas" value={counts.idea} />
       <Metric icon={<MessageCircleQuestion />} label="Confusion" value={counts.confusion} />
