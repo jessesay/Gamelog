@@ -50,8 +50,8 @@ The app assumes the supplied policies are active:
 
 In Supabase → Authentication → URL Configuration:
 
-- Site URL: `https://YOUR_PRODUCTION_DOMAIN`
-- Redirect URL: `https://YOUR_PRODUCTION_DOMAIN/auth/callback`
+- Site URL: `https://thegamelog.app`
+- Redirect URL: `https://thegamelog.app/auth/callback`
 - Local redirect: `http://localhost:3000/auth/callback`
 - Optional local wildcard: `http://localhost:3000/**`
 - Optional Vercel preview wildcard: `https://*-YOUR_VERCEL_TEAM_SLUG.vercel.app/**`
@@ -80,7 +80,7 @@ Set these for Production and Preview unless noted otherwise:
 ### Required public variables
 
 ```env
-NEXT_PUBLIC_SITE_URL=https://YOUR_PRODUCTION_DOMAIN
+NEXT_PUBLIC_SITE_URL=https://thegamelog.app
 NEXT_PUBLIC_SUPABASE_URL=https://PROJECT_REF.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_REPLACE_ME
 ```

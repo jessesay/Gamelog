@@ -5,7 +5,7 @@ export function getSiteUrl() {
     || process.env.VERCEL_PROJECT_PRODUCTION_URL
     || process.env.VERCEL_URL
     || process.env.NEXT_PUBLIC_VERCEL_URL
-    || "http://localhost:3000";
+    || (process.env.NODE_ENV === "production" ? "https://thegamelog.app" : "http://localhost:3000");
   const withProtocol = configured.startsWith("http://") || configured.startsWith("https://")
     ? configured
     : `https://${configured}`;
