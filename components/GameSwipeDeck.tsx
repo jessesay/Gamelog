@@ -480,6 +480,8 @@ export default function GameSwipeDeck({ signedIn = false }: { signedIn?: boolean
                 <div className="swipe-art-v34">
                   <GameCoverArt src={currentGame.cover_url} title={currentGame.title} genre={currentGame.genre ?? currentGame.genres?.[0]} />
                   <div className="swipe-art-fade-v34" />
+                  <div className="swipe-card-spectrum-v321" aria-hidden="true" />
+                  <span className="swipe-card-kicker-v321">Next discovery</span>
                   <span className="swipe-match-v34"><Sparkles size={14} /> {currentGame.taste_match}% Taste Match</span>
                   <div className="swipe-card-body-v34">
                     <h2>{currentGame.title}</h2>

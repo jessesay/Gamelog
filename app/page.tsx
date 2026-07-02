@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Check, Compass, Gamepad2, Heart, Layers3, ListPlus, Search, Sparkles, Star, UserRound } from "lucide-react";
+import { ArrowRight, Bookmark, Check, CheckCircle2, Compass, Gamepad2, Heart, Layers3, ListPlus, Search, Sparkles, UserRound, X } from "lucide-react";
 import TasteMatchCard from "@/components/TasteMatchCard";
 import GrowthEvent from "@/components/GrowthEvent";
 
@@ -74,7 +74,16 @@ export default function MarketingHomePage() {
 }
 
 function HeroAppMock() {
-  return <div className="home-app-mock-v311" aria-label="GameLog search and quick logging preview"><div className="home-mock-top-v311"><span className="logo">GL</span><strong>Search games</strong><span>•••</span></div><div className="home-mock-search-v311"><Search size={18} /><span>Search games, genres, platforms…</span></div><div className="home-mock-result-v311"><span className="home-mock-cover-v311">ER</span><div><p className="eyebrow">Action RPG · 2022</p><h2>Elden Ring</h2><small><Star size={13} /> 4.8 · 2,491 reviews</small><div className="home-status-row-v311"><b>Playing</b><span>Completed</span><span>Wishlist</span></div></div></div><div className="home-mock-tabs-v311"><span><Compass size={16} /> Discover</span><span className="active"><Search size={16} /> Search</span><span><Layers3 size={16} /> Lists</span><span><UserRound size={16} /> Profile</span></div></div>;
+  return <div className="home-app-mock-v311 home-discovery-mock-v321" aria-label="GameLog discovery preview">
+    <div className="home-mock-top-v311"><span className="logo">GL</span><strong>Discover</strong><span className="home-mock-live-v321"><i /> Live taste</span></div>
+    <div className="home-mock-poster-v321">
+      <div className="home-mock-art-v321" aria-hidden="true"><span>THE LANDS</span><b>ER</b><em>BETWEEN</em></div>
+      <span className="home-mock-match-v321"><Sparkles size={13} /> 96% Taste Match</span>
+      <div className="home-mock-poster-copy-v321"><p>Action RPG · Open world</p><h2>Elden Ring</h2><div><span>2022</span><span>PC</span><span>PlayStation</span></div></div>
+    </div>
+    <div className="home-mock-actions-v321"><span><X size={17} /> Skip</span><span><Bookmark size={16} /> Save</span><span className="active"><Sparkles size={17} /> Want</span><span><CheckCircle2 size={17} /> Played</span></div>
+    <div className="home-mock-tabs-v311"><span className="active"><Compass size={16} /> Discover</span><span><Search size={16} /> Search</span><span><Layers3 size={16} /> Lists</span><span><UserRound size={16} /> Profile</span></div>
+  </div>;
 }
 
 function LogReviewMock() {

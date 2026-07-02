@@ -1,5 +1,5 @@
-const CACHE_NAME = "gamelog-shell-v2-8";
-const SHELL_ASSETS = ["/", "/app", "/favicon.svg", "/icon.svg", "/manifest.webmanifest"];
+const CACHE_NAME = "gamelog-shell-v3-21";
+const SHELL_ASSETS = ["/", "/app", "/brand/gamelog-icon.png", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
