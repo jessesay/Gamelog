@@ -61,7 +61,7 @@ export default function GameLibraryEditor({ game, existingLog, signedIn }: { gam
   }
 
   return <section className="library-editor-v319">
-    <div><p className="eyebrow">Your library</p><h2>{existingLog ? "Update your game" : "Add to your library"}</h2><p className="muted">{signedIn ? "Private tracking details sync with your account." : "Guest details stay on this device."}</p></div>
+    <div><p className="eyebrow">Your library</p><h2>{existingLog ? "Update your game" : "Add to your library"}</h2><p className="muted">{signedIn ? "Tracking details sync with your account." : "Guest details stay on this device."}</p></div>
     <label>Status<select value={status} onChange={(event) => setStatus(event.target.value as GameStatusKey)}>{editableStatuses.map((key) => <option value={key} key={key}>{gameStatusLabels[key]}</option>)}</select></label>
     <div className="library-editor-row-v319"><label>Rating <span>1–10</span><input type="number" min="1" max="10" step="1" value={rating} onChange={(event) => setRating(event.target.value)} placeholder="—" /></label><label>Hours played<input type="number" min="0" max="100000" step="0.5" value={hours} onChange={(event) => setHours(event.target.value)} placeholder="0" /></label></div>
     <label>Personal notes<textarea value={notes} onChange={(event) => setNotes(event.target.value)} maxLength={4000} placeholder="Where you left off, what you loved, or what to remember…" /></label>
