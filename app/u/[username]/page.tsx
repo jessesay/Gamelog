@@ -11,6 +11,7 @@ import { buildTasteProfile, calculateTasteMatch } from "@/lib/tasteMatch";
 import { playerInsights } from "@/lib/playerInsights";
 import TasteShareCard from "@/components/TasteShareCard";
 import ShareButton from "@/components/ShareButton";
+import { normalizeDiscoveryPreferences } from "@/lib/discoveryPreferences";
 
 export async function generateMetadata({ params }: { params: Promise<{ username: string }> }): Promise<Metadata> {
   const { username } = await params;
@@ -35,12 +36,13 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
   // Public profiles deliberately receive public profile fields, public log/review
   // data, and lists explicitly filtered to is_public. Owned/private lists are only
   // queried by the authenticated /app/profile page.
-  const [{ data: logs }, { data: reviews }, { data: lists }, followerResult, followingResult] = await Promise.all([
+  const [{ data: logs }, { data: reviews }, { data: lists }, followerResult, followingResult, { data: discoveryPreferences }] = await Promise.all([
     supabaseAdmin.from("game_logs").select("id, game_id, status, rating, review, played_on, created_at, updated_at, games(*)").eq("user_id", profile.id).order("updated_at", { ascending: false }).limit(250),
     supabaseAdmin.from("game_reviews").select("id, game_id, rating, body, created_at, updated_at, games(*)").eq("user_id", profile.id).order("updated_at", { ascending: false }).limit(250),
     supabaseAdmin.from("game_lists").select("id, title, description, is_public, created_at, updated_at, list_items(id, position, games(*))").eq("user_id", profile.id).eq("is_public", true).order("updated_at", { ascending: false }).limit(100),
     supabaseAdmin.from("follows").select("follower_id", { count: "exact", head: true }).eq("following_id", profile.id),
     supabaseAdmin.from("follows").select("following_id", { count: "exact", head: true }).eq("follower_id", profile.id),
+    supabaseAdmin.from("discovery_preferences").select("favorite_platforms,favorite_genres,favorite_games,discovery_styles,completed").eq("user_id", profile.id).maybeSingle(),
   ]);
 
   const publicLogs = dedupeGameLogs(logs ?? []);
@@ -66,7 +68,8 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
     for (const genre of new Set(genres)) map.set(genre, (map.get(genre) ?? 0) + 1);
     return map;
   }, new Map<string, number>()).entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
-  const insights = playerInsights(publicLogs, profile.favorite_genres ?? [], profile.favorite_platforms ?? []);
+  const onboardingTaste = normalizeDiscoveryPreferences(discoveryPreferences);
+  const insights = playerInsights(publicLogs, onboardingTaste.favorite_genres.length ? onboardingTaste.favorite_genres : profile.favorite_genres ?? [], onboardingTaste.favorite_platforms.length ? onboardingTaste.favorite_platforms : profile.favorite_platforms ?? []);
 
   return (
     <main className="social-shell-v35 profile-identity-v39 public-identity-v39">
@@ -81,7 +84,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
         <Stat label="Saved" value={insights.saved} /><Stat label="Playing now" value={playing} /><Stat label="Completed" value={completed} /><Stat label="Backlog Score" value={insights.backlogScore} />
       </section>
 
-      <TasteShareCard ownerName={profile.display_name} username={profile.username} genres={insights.genres} platforms={insights.platforms} backlogCount={insights.saved} backlogScore={insights.backlogScore} scoreLabel={insights.scoreLabel} recommendation={insights.recommendations[0]} />
+      <TasteShareCard ownerName={profile.display_name} username={profile.username} genres={insights.genres} platforms={insights.platforms} moods={onboardingTaste.favorite_moods} backlogCount={insights.saved} backlogScore={insights.backlogScore} scoreLabel={insights.scoreLabel} recommendation={insights.recommendations[0]} />
 
       <TasteMatchCard ownerName={profile.display_name} match={tasteMatch} />
 

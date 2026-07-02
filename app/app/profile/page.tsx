@@ -8,6 +8,7 @@ import { dedupeGameLogs, getSignedInProfile } from "@/lib/social";
 import { normalizeGameStatus } from "@/lib/gameStatus";
 import { playerInsights } from "@/lib/playerInsights";
 import TasteShareCard from "@/components/TasteShareCard";
+import { normalizeDiscoveryPreferences } from "@/lib/discoveryPreferences";
 
 export default async function MyProfilePage() {
   const supabase = await createClient();
@@ -19,12 +20,13 @@ export default async function MyProfilePage() {
     return <SetupState title="Sign in to build your profile" body="Your shelves, reviews, lists, and gaming identity are tied to your GameLog account." auth />;
   }
 
-  const [{ data: logs }, { data: canonicalReviews }, { data: lists }, followerResult, followingResult] = await Promise.all([
+  const [{ data: logs }, { data: canonicalReviews }, { data: lists }, followerResult, followingResult, { data: discoveryPreferences }] = await Promise.all([
     supabase.from("game_logs").select("*, games(*)").eq("user_id", profile.id).order("updated_at", { ascending: false }).limit(250),
     supabase.from("game_reviews").select("*, games(*)").eq("user_id", profile.id).order("updated_at", { ascending: false }).limit(250),
     supabase.from("game_lists").select("*, list_items(id, position, games(*))").eq("user_id", profile.id).order("updated_at", { ascending: false }).limit(100),
     supabase.from("follows").select("follower_id", { count: "exact", head: true }).eq("following_id", profile.id),
     supabase.from("follows").select("following_id", { count: "exact", head: true }).eq("follower_id", profile.id),
+    supabase.from("discovery_preferences").select("favorite_platforms,favorite_genres,favorite_games,discovery_styles,completed").eq("user_id", profile.id).maybeSingle(),
   ]);
 
   const myLogs = dedupeGameLogs(logs ?? []);
@@ -38,7 +40,8 @@ export default async function MyProfilePage() {
   const completed = myLogs.filter((log) => ["played", "completed"].includes(normalizeGameStatus(log.status) ?? "")).length;
   const playing = myLogs.filter((log) => normalizeGameStatus(log.status) === "playing").length;
   const avgRating = rated.length ? (rated.reduce((sum, review) => sum + Number(review.rating), 0) / rated.length).toFixed(1) : "0.0";
-  const insights = playerInsights(myLogs, profile.favorite_genres ?? [], profile.favorite_platforms ?? []);
+  const onboardingTaste = normalizeDiscoveryPreferences(discoveryPreferences);
+  const insights = playerInsights(myLogs, onboardingTaste.favorite_genres.length ? onboardingTaste.favorite_genres : profile.favorite_genres ?? [], onboardingTaste.favorite_platforms.length ? onboardingTaste.favorite_platforms : profile.favorite_platforms ?? []);
 
   return (
     <main className="social-shell-v35 profile-identity-v39">
@@ -51,7 +54,8 @@ export default async function MyProfilePage() {
         <Stat label="Playing now" value={playing} /><Stat label="Completed" value={completed} /><Stat label="Saved" value={insights.saved} /><Stat label="Backlog Score" value={insights.backlogScore} />
       </section>
 
-      <TasteShareCard ownerName={profile.display_name} username={profile.username} genres={insights.genres} platforms={insights.platforms} backlogCount={insights.saved} backlogScore={insights.backlogScore} scoreLabel={insights.scoreLabel} recommendation={insights.recommendations[0]} />
+      <TasteShareCard ownerName={profile.display_name} username={profile.username} genres={insights.genres} platforms={insights.platforms} moods={onboardingTaste.favorite_moods} backlogCount={insights.saved} backlogScore={insights.backlogScore} scoreLabel={insights.scoreLabel} recommendation={insights.recommendations[0]} />
+      <div className="profile-taste-actions-v318"><Link className="secondary" href="/app/discover?retake=1">Edit taste</Link><Link className="secondary" href="/app/discover?retake=1">Retake onboarding</Link></div>
       <ProfileEditor profile={profile} />
       <ProfileStatusShelves logs={myLogs} reviews={reviews} lists={lists ?? []} editable listsHref="/app/lists" />
     </main>

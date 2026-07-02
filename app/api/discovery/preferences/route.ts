@@ -43,7 +43,10 @@ export async function POST(request: Request) {
   const preferences = normalizeDiscoveryPreferences(await request.json().catch(() => null));
   const { error } = await supabase.from("discovery_preferences").upsert({
     user_id: user.id,
-    ...preferences,
+    favorite_platforms: preferences.favorite_platforms,
+    favorite_genres: preferences.favorite_genres,
+    favorite_games: preferences.favorite_games,
+    discovery_styles: [...preferences.discovery_styles, ...preferences.favorite_moods.map((mood) => `mood:${mood}`)],
     completed: true,
     updated_at: new Date().toISOString(),
   }, { onConflict: "user_id" });

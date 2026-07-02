@@ -40,6 +40,7 @@ type TasteProfile = {
   savedGenres: Set<string>;
   savedPlatforms: Set<string>;
   styles: Set<string>;
+  moods: Set<string>;
   signalCount: number;
 };
 
@@ -109,11 +110,15 @@ function newTasteProfile(preferences: DiscoveryPreferences): TasteProfile {
     savedGenres: new Set(),
     savedPlatforms: new Set(),
     styles: new Set(preferences.discovery_styles.map(normalize)),
+    moods: new Set(preferences.favorite_moods.map(normalize)),
     signalCount: 0,
   };
   for (const genre of preferences.favorite_genres) addWeight(profile.genres, normalize(genre), 12);
-  for (const platform of preferences.favorite_platforms) addWeight(profile.platforms, normalize(platform), 10);
-  profile.signalCount += preferences.favorite_genres.length + preferences.favorite_platforms.length + preferences.discovery_styles.length;
+  for (const platform of preferences.favorite_platforms) {
+    addWeight(profile.platforms, normalize(platform), 10);
+    if (normalize(platform) === "mobile") { addWeight(profile.platforms, "ios", 9); addWeight(profile.platforms, "android", 9); }
+  }
+  profile.signalCount += preferences.favorite_genres.length + preferences.favorite_platforms.length + preferences.discovery_styles.length + preferences.favorite_moods.length;
   return profile;
 }
 
@@ -146,6 +151,7 @@ function preferenceFromGuest(searchParams: URLSearchParams): DiscoveryPreference
     favorite_genres: parseList(searchParams, "genres", 12),
     favorite_games: parseList(searchParams, "favoriteGames", 5),
     discovery_styles: parseList(searchParams, "styles", 4),
+    favorite_moods: parseList(searchParams, "moods", 7),
     completed: searchParams.get("tuned") === "1",
   });
 }
@@ -165,6 +171,21 @@ function styleScore(game: GameRow, styles: Set<string>) {
   return score;
 }
 
+function moodMatches(game: GameRow, moods: Set<string>) {
+  const traits = traitsFor(game);
+  const text = unique([game.title, game.genre, ...(game.genres ?? []), ...(game.tags ?? []), game.description, game.summary]).join(" ");
+  const checks: Record<string, RegExp> = {
+    "story-rich": /story|narrative|rpg|adventure|choices/,
+    competitive: /competitive|multiplayer|pvp|esports|shooter|sports/,
+    relaxing: /cozy|casual|relax|simulation|farming|life sim/,
+    difficult: /difficult|hard|souls|rogue|precision/,
+    funny: /funny|comedy|humor|party/,
+    dark: /dark|horror|gothic|psychological|violent/,
+    "open world": /open world|open-world|sandbox|exploration/,
+  };
+  return [...moods].filter((mood) => checks[mood]?.test(text) || traits.tags.includes(mood));
+}
+
 function catalogQualityScore(game: GameRow) {
   const traits = traitsFor(game);
   let score = 0;
@@ -182,6 +203,7 @@ function scoreGame(game: GameRow, profile: TasteProfile) {
     + overlapWeight(traits.platforms, profile.platforms)
     + (profile.years.get(yearBucket(game)) ?? 0)
     + styleScore(game, profile.styles)
+    + moodMatches(game, profile.moods).length * 6
     + catalogQualityScore(game) * 0.55
     + Number(game.rating ?? 0)
     + (game.cover_url ? 5 : 0);
@@ -200,6 +222,7 @@ function matchReasons(game: GameRow, profile: TasteProfile) {
   else if (profile.styles.has("indie") && (traits.genres.includes("indie") || traits.tags.includes("indie"))) reasons.push("An indie pick for your feed");
   else if (profile.styles.has("hidden_gems") && !game.metacritic) reasons.push("A hidden gem beyond the charts");
   else if ((profile.years.get(yearBucket(game)) ?? 0) > 0) reasons.push("Fits the eras you play most");
+  if (reasons.length < 3 && moodMatches(game, profile.moods).length) reasons.push(`Fits your ${moodMatches(game, profile.moods)[0]} mood`);
 
   if (reasons.length < 2 && Number(game.rating ?? 0) >= 7) reasons.push("Well-loved by other players");
   if (reasons.length < 2) reasons.push("New recommendation for your shelf");

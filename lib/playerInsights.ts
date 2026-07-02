@@ -18,7 +18,10 @@ export function playerInsights(logs: any[], preferredGenres: string[] = [], pref
     for (const genre of new Set([...(game.genres ?? []), game.genre].filter(Boolean) as string[])) genreCounts.set(genre, (genreCounts.get(genre) ?? 0) + 1);
     for (const platform of new Set((game.platforms ?? []).filter(Boolean) as string[])) platformCounts.set(platform, (platformCounts.get(platform) ?? 0) + 1);
   }
-  const ranked = (map: Map<string, number>, preferred: string[]) => [...new Set([...preferred, ...[...map.entries()].sort((a, b) => b[1] - a[1]).map(([name]) => name)])].slice(0, 4);
+  const ranked = (map: Map<string, number>, preferred: string[]) => {
+    const behavior = [...map.entries()].sort((a, b) => b[1] - a[1]).map(([name]) => name);
+    return [...new Set(logs.length >= 5 ? [...behavior, ...preferred] : [...preferred, ...behavior])].slice(0, 4);
+  };
   const genres = ranked(genreCounts, preferredGenres);
   const platforms = ranked(platformCounts, preferredPlatforms);
   const recommendationScore = (game: any) => {

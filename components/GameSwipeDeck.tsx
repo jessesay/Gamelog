@@ -184,6 +184,7 @@ export default function GameSwipeDeck({ signedIn = false }: { signedIn?: boolean
       params.set("genres", activePreferences.favorite_genres.join("|"));
       params.set("favoriteGames", activePreferences.favorite_games.join("|"));
       params.set("styles", activePreferences.discovery_styles.join("|"));
+      params.set("moods", activePreferences.favorite_moods.join("|"));
       if (activePreferences.completed) params.set("tuned", "1");
       const eventGroups: Record<string, string[]> = { savedIds: [], wantedIds: [], playedIds: [], skippedIds: [], viewedIds: [] };
       for (const event of guestEvents.slice(-120)) {
@@ -392,7 +393,8 @@ export default function GameSwipeDeck({ signedIn = false }: { signedIn?: boolean
         }
       }
       setPreferences(resolved);
-      setShowPreferenceSetup(!resolved.completed);
+      const retake = new URLSearchParams(window.location.search).get("retake") === "1";
+      setShowPreferenceSetup(retake || !resolved.completed);
       setPreferencesReady(true);
       await loadFeed(id, {}, resolved);
     }
