@@ -23,6 +23,7 @@
     "@supabase/supabase-js": "latest",
     "@vercel/analytics": "^2.0.1",
     "ai": "6.0.208",
+    "html-to-image": "^1.11.13",
     "lucide-react": "latest",
     "next": "latest",
     "react": "latest",

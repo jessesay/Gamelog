@@ -54,7 +54,7 @@ export default async function MyProfilePage() {
         <Stat label="Playing now" value={playing} /><Stat label="Completed" value={completed} /><Stat label="Saved" value={insights.saved} /><Stat label="Backlog Score" value={insights.backlogScore} />
       </section>
 
-      <TasteShareCard ownerName={profile.display_name} username={profile.username} genres={insights.genres} platforms={insights.platforms} moods={onboardingTaste.favorite_moods} backlogCount={insights.wantToPlay} playingCount={insights.playing} completedCount={insights.completed} backlogScore={insights.backlogScore} scoreLabel={insights.scoreLabel} recommendation={insights.recommendations[0]} />
+      <TasteShareCard ownerName={profile.display_name} username={profile.username} genres={insights.genres} platforms={insights.platforms} moods={onboardingTaste.favorite_moods} backlogCount={insights.wantToPlay} playingCount={insights.playing} completedCount={insights.completed} backlogScore={insights.backlogScore} scoreLabel={insights.scoreLabel} recommendations={insights.recommendations} />
       <div className="profile-taste-actions-v318"><Link className="secondary" href="/app/discover?retake=1">Edit taste</Link><Link className="secondary" href="/app/discover?retake=1">Retake onboarding</Link></div>
       <ProfileEditor profile={profile} />
       <ProfileStatusShelves logs={myLogs} reviews={reviews} lists={lists ?? []} editable listsHref="/app/lists" />
