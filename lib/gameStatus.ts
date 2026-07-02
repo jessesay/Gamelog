@@ -1,6 +1,7 @@
 export const gameStatusKeys = [
   "want_to_play",
   "playing",
+  "paused",
   "played",
   "completed",
   "dropped",
@@ -12,6 +13,7 @@ export type GameStatusKey = (typeof gameStatusKeys)[number];
 export const gameStatusLabels: Record<GameStatusKey, string> = {
   want_to_play: "Want to play",
   playing: "Playing",
+  paused: "Paused",
   played: "Played",
   completed: "Completed",
   dropped: "Dropped",
@@ -23,6 +25,7 @@ export const gameStatusLabels: Record<GameStatusKey, string> = {
 const storageStatus: Record<GameStatusKey, string> = {
   want_to_play: "Backlog",
   playing: "Currently Playing",
+  paused: "Currently Playing",
   played: "Completed",
   completed: "100% Completed",
   dropped: "Dropped",
@@ -36,6 +39,7 @@ const aliases: Record<string, GameStatusKey> = {
   playing: "playing",
   "currently playing": "playing",
   replaying: "playing",
+  paused: "paused",
   played: "played",
   completed: "played",
   "100% completed": "completed",

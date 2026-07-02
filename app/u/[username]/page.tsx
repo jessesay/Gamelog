@@ -84,7 +84,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
         <Stat label="Saved" value={insights.saved} /><Stat label="Playing now" value={playing} /><Stat label="Completed" value={completed} /><Stat label="Backlog Score" value={insights.backlogScore} />
       </section>
 
-      <TasteShareCard ownerName={profile.display_name} username={profile.username} genres={insights.genres} platforms={insights.platforms} moods={onboardingTaste.favorite_moods} backlogCount={insights.saved} backlogScore={insights.backlogScore} scoreLabel={insights.scoreLabel} recommendation={insights.recommendations[0]} />
+      <TasteShareCard ownerName={profile.display_name} username={profile.username} genres={insights.genres} platforms={insights.platforms} moods={onboardingTaste.favorite_moods} backlogCount={insights.wantToPlay} playingCount={insights.playing} completedCount={insights.completed} backlogScore={insights.backlogScore} scoreLabel={insights.scoreLabel} recommendation={insights.recommendations[0]} />
 
       <TasteMatchCard ownerName={profile.display_name} match={tasteMatch} />
 

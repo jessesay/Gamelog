@@ -8,6 +8,7 @@ import { completionEstimateForGame, formatCompletionHours } from "@/lib/timeToBe
 import GameSocialActions from "@/components/GameSocialActions";
 import { dedupeGameLogs } from "@/lib/social";
 import GameCoverArt from "@/components/GameCoverArt";
+import GameLibraryEditor from "@/components/GameLibraryEditor";
 
 
 function gameHue(game: any) {
@@ -132,7 +133,7 @@ export default async function GamePage({ params }: { params: Promise<{ slug: str
     ? await Promise.all([
       supabase
         .from("game_logs")
-        .select("id, rating, review, status")
+        .select("id, rating, review, status, vibe, played_on")
         .eq("user_id", currentUserId)
         .eq("game_id", game.id)
         .order("updated_at", { ascending: false })
@@ -213,6 +214,7 @@ export default async function GamePage({ params }: { params: Promise<{ slug: str
             <a className="secondary inline-link" href={archiveSearchUrl(game.title)} target="_blank" rel="noreferrer">Find manuals/guides</a>
             {archiveDetailsUrl(game.summary) && <a className="secondary inline-link" href={archiveDetailsUrl(game.summary) ?? "#"} target="_blank" rel="noreferrer">Open Archive item</a>}
           </div>
+          <GameLibraryEditor game={game} existingLog={existingLog} signedIn={Boolean(currentUserId)} />
           <GameSocialActions gameId={game.id} existingReview={existingReview} />
         </aside>
       </section>

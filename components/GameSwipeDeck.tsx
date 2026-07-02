@@ -67,7 +67,12 @@ function rememberGuestAction(game: Game, action: SwipeAction) {
   try {
     const current = JSON.parse(window.localStorage.getItem(guestShelfKey) ?? "[]") as Array<Record<string, unknown>>;
     const next = current.filter((item) => item.gameId !== game.id);
-    next.unshift({ gameId: game.id, title: game.title, coverUrl: game.cover_url, action, savedAt: new Date().toISOString() });
+    next.unshift({
+      gameId: game.id, title: game.title, slug: game.slug, coverUrl: game.cover_url,
+      releaseYear: game.release_year, platforms: game.platforms ?? [], genres: game.genres ?? [], genre: game.genre,
+      action, status: action === "played" ? "completed" : "want_to_play", rating: null, notes: "", hoursPlayed: null,
+      savedAt: new Date().toISOString(),
+    });
     window.localStorage.setItem(guestShelfKey, JSON.stringify(next.slice(0, 100)));
   } catch {
     window.localStorage.removeItem(guestShelfKey);
