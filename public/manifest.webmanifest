@@ -6,19 +6,19 @@
   "scope": "/",
   "display": "standalone",
   "background_color": "#05070b",
-  "theme_color": "#0b1020",
+  "theme_color": "#0a0b0e",
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/favicon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/brand/gamelog-icon.png",
+      "sizes": "796x767",
+      "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/brand/gamelog-icon.png",
+      "sizes": "796x767",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ],
@@ -78,9 +78,9 @@
       "url": "/app?view=deals",
       "icons": [
         {
-          "src": "/icon.svg",
+          "src": "/brand/gamelog-icon.png",
           "sizes": "any",
-          "type": "image/svg+xml"
+          "type": "image/png"
         }
       ]
     },
@@ -139,9 +139,9 @@
       "url": "/app?view=share",
       "icons": [
         {
-          "src": "/icon.svg",
+          "src": "/brand/gamelog-icon.png",
           "sizes": "any",
-          "type": "image/svg+xml"
+          "type": "image/png"
         }
       ]
     },
@@ -152,9 +152,9 @@
       "url": "/app?view=prices",
       "icons": [
         {
-          "src": "/icon.svg",
+          "src": "/brand/gamelog-icon.png",
           "sizes": "any",
-          "type": "image/svg+xml"
+          "type": "image/png"
         }
       ]
     }
